@@ -21,9 +21,10 @@ startServer port author name oven = do
     server port $ \p@Payload{..} ->
         if payloadURL == "" then
             web p =<< readMVar var
-        else
-            fmap Right $ modifyMVar var $ operate (concrete oven) (messageFromPayload p)
+        else do
+            modifyMVar var $ operate (concrete oven) (messageFromPayload p)
+            return $ Right ""
 
 
-operate :: Oven State Patch Test -> Message -> Server -> IO (Server, String)
+operate :: Oven State Patch Test -> Message -> Server -> IO (Server, [Reply])
 operate = undefined
