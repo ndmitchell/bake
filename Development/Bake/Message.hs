@@ -1,7 +1,7 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Message(
-    Message(..), Reply(..), sendMessage, fromPayload
+    Message(..), Reply(..), sendMessage, messageFromPayload
     ) where
 
 import Development.Bake.Type
@@ -21,15 +21,15 @@ data Message
 
 data Reply = Reply (Candidate State Patch) (Maybe Test)
 
-toPayload :: Message -> Payload
-toPayload = undefined
+messageToPayload :: Message -> Payload
+messageToPayload = undefined
 
 
-fromPayload :: Payload -> Message
-fromPayload = undefined
+messageFromPayload :: Payload -> Message
+messageFromPayload = undefined
 
 
 sendMessage :: (Host,Port) -> Message -> IO [Reply]
 sendMessage hp msg = do
-    send hp $ toPayload msg
+    send hp $ messageToPayload msg
     return []

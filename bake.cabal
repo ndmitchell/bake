@@ -42,6 +42,7 @@ library
         Development.Bake.Send
         Development.Bake.Server.Start
         Development.Bake.Server.Type
+        Development.Bake.Server.Web
         Development.Bake.Type
         Development.Bake.Util
         Development.Bake.Web

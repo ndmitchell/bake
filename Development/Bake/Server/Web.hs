@@ -4,7 +4,8 @@ module Development.Bake.Server.Web(
     web
     ) where
 
-import Development.Bake.Type
+import Development.Bake.Server.Type
+import Development.Bake.Web
 
-web :: Server -> () -> IO String
+web :: Payload -> Server -> IO (Either FilePath String)
 web = undefined
