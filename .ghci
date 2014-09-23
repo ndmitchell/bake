@@ -1,0 +1,5 @@
+:set -fno-warn-overlapping-patterns -fwarn-unused-binds -fwarn-unused-imports
+:load Example
+
+:def docs_ const $ return $ unlines [":!cabal haddock"]
+:def docs const $ return $ unlines [":docs_",":!start dist\\doc\\html\\bake\\Development-Bake.html"]
