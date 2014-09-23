@@ -15,7 +15,7 @@ type Host = String
 
 type Port = Int
 
-data Candidate state patch = Candidate state [patch]
+data Candidate state patch = Candidate state [patch] deriving Show
 
 data Oven state patch test = Oven
     {ovenUpdateState :: Maybe (Candidate state patch) -> IO state
@@ -63,9 +63,9 @@ run :: IO [test] -> TestInfo test
 run act = TestInfo (Just 1) act [] True []
 
 
-newtype State = State String
-newtype Patch = Patch String
-newtype Test = Test String
+newtype State = State String deriving Show
+newtype Patch = Patch String deriving Show
+newtype Test = Test String deriving Show
 
 concrete :: (Show state, Read state, Show patch, Read patch, Show test, Read test)
          => Oven state patch test -> Oven State Patch Test
