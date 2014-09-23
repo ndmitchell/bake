@@ -64,7 +64,7 @@ run act = TestInfo (Just 1) act [] True []
 
 
 newtype State = State String deriving Show
-newtype Patch = Patch String deriving Show
+newtype Patch = Patch String deriving (Show,Eq)
 newtype Test = Test String deriving Show
 
 concrete :: (Show state, Read state, Show patch, Read patch, Show test, Read test)

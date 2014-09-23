@@ -7,13 +7,15 @@ module Development.Bake.Server.Type(
 import Development.Bake.Type
 
 defaultServer :: State -> Server
-defaultServer s = Server [] [] [] (Candidate s [])
+defaultServer s = Server [] [] [] (Candidate s []) [] Nothing
 
 data Server = Server
     {history :: [History]
     ,running :: [Running]
     ,alias :: [(State, Candidate State Patch)]
     ,active :: Candidate State Patch
+    ,blacklist :: [String] -- people who failed to return
+    ,paused :: Maybe [Patch]
     } deriving Show
 
 data History = History (Candidate State Patch) (Maybe Test) FilePath Double (Either Int [Test])
@@ -21,26 +23,3 @@ data History = History (Candidate State Patch) (Maybe Test) FilePath Double (Eit
 
 data Running = Running (Candidate State Patch) (Maybe Test) Double String
     deriving Show
-
-
-
-{-
-do
-    process $ \    = AddPatch Author Patch
-    | DelPatch Author Patch
-    | DelAllPatches Author
-    | Pause Author
-    | Unpause Author
-    -- Sent by the client
-    | Ping Author String String Int -- name, cookie, threads
-    | Finished (Candidate State Patch) (Maybe Test) String Double (Either Int [TestInfo Test])
-
-
-newtype Sever = Server
-    {history :: [History]
-    ,alias :: [(State, Candidate State Patch)]
-    ,current :: Candidate State Patch
-    ,active :: [()]
-    }
-
--}
