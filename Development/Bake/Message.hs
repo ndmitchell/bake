@@ -1,7 +1,7 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Message(
-    Message(..), Reply(..), sendMessage
+    Message(..), Reply(..), sendMessage, fromPayload
     ) where
 
 import Development.Bake.Type

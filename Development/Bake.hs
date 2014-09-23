@@ -7,7 +7,7 @@ module Development.Bake(
     Candidate(..), Oven(..), TestInfo,
     defaultOven, run,
     -- ** TestInfo mutators
-    threads, threadsAll, before, beforeClear,
+    threads, threadsAll, before, beforeClear, require,
     -- * Operations
     startServer, startClient,
     module Development.Bake.Send,
@@ -17,6 +17,6 @@ module Development.Bake(
 
 import Development.Bake.Type
 import Development.Bake.Server.Start
-import Development.Bake.Client.Start
+import Development.Bake.Client
 import Development.Bake.Args
 import Development.Bake.Send

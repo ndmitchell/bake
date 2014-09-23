@@ -1,6 +1,6 @@
 
 -- | Define a continuous integration system.
-module Development.Bake.Client.Start(
+module Development.Bake.Client(
     startClient
     ) where
 

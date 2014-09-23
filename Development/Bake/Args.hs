@@ -8,7 +8,7 @@ module Development.Bake.Args(
 
 import System.Console.CmdArgs
 import Development.Bake.Type
-import Development.Bake.Client.Start
+import Development.Bake.Client
 import Development.Bake.Server.Start
 import Development.Bake.Send
 

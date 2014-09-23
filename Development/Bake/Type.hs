@@ -4,7 +4,7 @@
 module Development.Bake.Type(
     Host, Port,
     Candidate(..), Oven(..), TestInfo(..), defaultOven,
-    threads, threadsAll, before, beforeClear, run,
+    threads, threadsAll, before, beforeClear, run, require,
     State(..), Patch(..), Test(..), concrete,
     Author
     ) where
