@@ -1,0 +1,3 @@
+Changelog for Bake
+
+    Initial version, not ready for public use
