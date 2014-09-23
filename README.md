@@ -1,0 +1,4 @@
+bake
+====
+
+Continuous integration server
