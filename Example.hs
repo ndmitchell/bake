@@ -17,7 +17,9 @@ main :: IO ()
 main = bake $
     ovenEmail ("smtp.server.com",25) $
     ovenGit "repo@git.com" "master" $
-    defaultOven{ovenRunTest=const execute}
+    ovenTest readShowStringy (const execute)
+    defaultOven
+
 
 execute :: Maybe Step -> TestInfo Step
 execute Nothing = threadsAll $ run $ do

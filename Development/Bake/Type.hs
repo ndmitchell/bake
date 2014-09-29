@@ -3,7 +3,8 @@
 -- | Define a continuous integration system.
 module Development.Bake.Type(
     Host, Port,
-    Candidate(..), Oven(..), TestInfo(..), defaultOven,
+    Stringy(..), readShowStringy,
+    Candidate(..), Oven(..), TestInfo(..), defaultOven, ovenTest,
     threads, threadsAll, before, beforeClear, run, require,
     State(..), Patch(..), Test(..), concrete,
     Author
@@ -23,18 +24,38 @@ data Oven state patch test = Oven
         --   merge to create a new state.
     ,ovenRunTest :: Candidate state patch -> Maybe test -> TestInfo test
         -- ^ Produce information about a test
-    ,ovenPatchReject :: patch -> Maybe test -> IO ()
-        -- ^ A patch has been marked as failing, tell everyone.
-    ,ovenPatchExtra :: patch -> IO String
-        -- ^ Extra information about the patch
+    ,ovenNotify :: Author -> String -> IO ()
+        -- ^ Tell an author some information contained in the string (usually an email)
     ,ovenDefaultServer :: (Host, Port)
         -- ^ Default server to use
+    ,ovenStringyState :: Stringy state
+    ,ovenStringyPatch :: Stringy patch
+    ,ovenStringyTest :: Stringy test
     }
 
-defaultOven :: Oven state patch test
+ovenTest :: Stringy test -> (Candidate state patch -> Maybe test -> TestInfo test) -> Oven state patch () -> Oven state patch test
+ovenTest = undefined
+
+data Stringy s = Stringy
+    {stringyTo :: s -> String
+    ,stringyFrom :: String -> s
+    ,stringyPretty :: s -> String
+    ,stringyExtra :: s -> IO String
+    }
+
+readShowStringy :: (Show s, Read s) => Stringy s
+readShowStringy = Stringy show read show (const $ return "")
+
+defaultOven :: Oven () () ()
 defaultOven = Oven
-    (error "defaultOven.ovenUpdateState") (error "defaultOven.ovenRunTest")
-    (\_ _ -> return ()) (\_ -> return "") ("",0)
+    {ovenUpdateState = \_ -> return ()
+    ,ovenNotify = \_ _ -> return ()
+    ,ovenRunTest = \_ _ -> run $ return []
+    ,ovenDefaultServer = ("",0)
+    ,ovenStringyState = readShowStringy
+    ,ovenStringyPatch = readShowStringy
+    ,ovenStringyTest = readShowStringy
+    }
 
 data TestInfo test = TestInfo
     {testThreads :: Maybe Int -- number of threads, defaults to 1, Nothing for use all

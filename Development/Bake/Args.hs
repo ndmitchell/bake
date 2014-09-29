@@ -51,8 +51,11 @@ bake oven = do
         Pause{..} -> sendPause (hp server) author
         Unpause{..} -> sendUnpause (hp server) author
         Run{..} -> do
-            let TestInfo{..} = ovenRunTest oven (Candidate (read state) (map read patch)) (read test)
-            writeFile output . show =<< testAction
+            -- FIXME: Should wrap the oven so all tests become run in a separate process
+            -- and then use that up above
+            undefined
+            -- let TestInfo{..} = ovenRunTest oven (Candidate (read state) (map read patch)) (read test)
+            -- writeFile output . show =<< testAction
     where
         hp "" = ovenDefaultServer oven
         hp s = (h, read $ drop 1 p)
