@@ -26,7 +26,7 @@ startServer port author name (concrete -> oven) = do
         sleep 60
         modifyMVar_ var heartbeat
     server port $ \p@Payload{..} ->
-        if payloadURL == "" then
+        if null payloadURL then
             web p =<< readMVar var
         else do
             modifyMVar var $ operate (concrete oven) (messageFromPayload p)

@@ -29,7 +29,13 @@ library
         base == 4.*,
         cmdargs >= 0.10,
         shake >= 0.10,
-        temporary
+        temporary,
+        directory,
+        bytestring,
+        text,
+        http-types,
+        wai > 3.0.1,
+        warp > 3.0
 
     exposed-modules:
         Development.Bake
