@@ -13,8 +13,8 @@ data Payload = Payload
     }
 
 send :: (Host,Port) -> Payload -> IO String
-send = undefined
+send = error "send"
 
 
 server :: Port -> (Payload -> IO (Either FilePath String)) -> IO ()
-server = undefined
+server = error "server"

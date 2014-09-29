@@ -28,7 +28,8 @@ library
     build-depends:
         base == 4.*,
         cmdargs >= 0.10,
-        shake >= 0.10
+        shake >= 0.10,
+        temporary
 
     exposed-modules:
         Development.Bake

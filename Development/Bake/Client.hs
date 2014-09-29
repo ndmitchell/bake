@@ -20,7 +20,7 @@ startClient hp author name provides threads = do
 
     let process xs = do
             forM_ xs $ \(Reply can test) -> forkIO $ withTempFile "bake.txt" $ \file -> do
-                (time, (exit, Stdout stdout)) <- timed $ cmd "self" (("--output=" ++ file):undefined)
+                (time, (exit, Stdout stdout)) <- timed $ cmd "self" (("--output=" ++ file):error "start client")
                 info <- case exit of
                     ExitFailure i -> return $ Left i
                     ExitSuccess -> fmap (Right . map Test . lines) $ readFile file

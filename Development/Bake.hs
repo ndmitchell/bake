@@ -7,7 +7,7 @@ module Development.Bake(
     Candidate(..), Oven(..), TestInfo,
     defaultOven, readShowStringy, run, ovenTest,
     -- ** TestInfo mutators
-    threads, threadsAll, before, beforeClear, require,
+    threads, threadsAll, before, beforeClear, suitable,
     -- * Operations
     startServer, startClient,
     module Development.Bake.Send,

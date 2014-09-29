@@ -16,7 +16,7 @@ data Step
 main :: IO ()
 main = bake $
     ovenEmail ("smtp.server.com",25) $
-    ovenGit "repo@git.com" "master" $
+    ovenGit "https://github.com/ndmitchell/bake.git" "master" $
     ovenTest readShowStringy (const execute)
     defaultOven
 

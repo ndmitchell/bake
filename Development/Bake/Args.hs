@@ -28,8 +28,8 @@ data Bake
 
 
 bakeMode = cmdArgsMode $ modes
-    [Server{port = 80, author = "unknown"}
-    ,Client{server = "", name = "", threads = 0, provide = []}
+    [Server{port = 80, author = "unknown", name = ""}
+    ,Client{server = "", threads = 0, provide = []}
     ,AddPatch{}
     ,DelPatch{}
     ,DelPatches{}
@@ -53,7 +53,7 @@ bake oven = do
         Run{..} -> do
             -- FIXME: Should wrap the oven so all tests become run in a separate process
             -- and then use that up above
-            undefined
+            error "bake.run"
             -- let TestInfo{..} = ovenRunTest oven (Candidate (read state) (map read patch)) (read test)
             -- writeFile output . show =<< testAction
     where

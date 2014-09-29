@@ -22,11 +22,11 @@ data Message
 data Reply = Reply (Candidate State Patch) (Maybe Test)
 
 messageToPayload :: Message -> Payload
-messageToPayload = undefined
+messageToPayload = error "messageToPayload"
 
 
 messageFromPayload :: Payload -> Message
-messageFromPayload = undefined
+messageFromPayload = error "messageFromPayload"
 
 
 sendMessage :: (Host,Port) -> Message -> IO [Reply]

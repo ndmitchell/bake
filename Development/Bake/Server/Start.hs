@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, TupleSections #-}
+{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Start(
@@ -17,10 +17,10 @@ import Data.List
 import Data.Maybe
 
 
-startServer :: (Show state, Read state, Show patch, Read patch, Show test, Read test)
-            => Port -> Author -> String -> Oven state patch test -> IO ()
-startServer port author name oven = do
-    s <- ovenUpdateState (concrete oven) Nothing
+startServer :: Port -> Author -> String -> Oven state patch test -> IO ()
+startServer port author name (concrete -> oven) = do
+    s <- withTempDirCurrent $ ovenUpdateState oven Nothing
+    putStrLn $ "Initial state of: " ++ show s
     var <- newMVar $ defaultServer s
     forkIO $ forever $ do
         sleep 60
@@ -44,4 +44,4 @@ operate oven message server = return $ (,[]) $ case message of
 
 
 heartbeat :: Server -> IO Server
-heartbeat = undefined
+heartbeat = error "heartbeat"
