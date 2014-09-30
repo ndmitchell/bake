@@ -7,7 +7,7 @@ module Development.Bake.Args(
     ) where
 
 import System.Console.CmdArgs
-import Development.Bake.Type
+import Development.Bake.Type hiding (Client)
 import Development.Bake.Client
 import Development.Bake.Server.Start
 import Development.Bake.Send

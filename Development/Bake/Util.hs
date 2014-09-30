@@ -1,7 +1,6 @@
 
 module Development.Bake.Util(
     sleep, timed,
-    newCookie,
     withTempFile, withTempDir,
     withCurrentDirectory, withTempDirCurrent,
     (&&^)
@@ -16,10 +15,6 @@ import System.IO
 
 sleep :: Double -> IO ()
 sleep x = threadDelay $ ceiling $ x * 1000000
-
-
-newCookie :: IO String
-newCookie = error "newCookie"
 
 
 timed :: IO a -> IO (Double, a)

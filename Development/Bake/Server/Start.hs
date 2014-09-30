@@ -33,14 +33,14 @@ startServer port author name (concrete -> oven) = do
             return $ Right ""
 
 
-operate :: Oven State Patch Test -> Message -> Server -> IO (Server, [Reply])
+operate :: Oven State Patch Test -> Message -> Server -> IO (Server, [Question])
 operate oven message server = return $ (,[]) $ case message of
     AddPatch author p | Candidate s ps <- active server -> server{active = Candidate s (ps ++ [p])}
     DelPatch author p | Candidate s ps <- active server -> server{active = Candidate s $ delete p ps}
     Pause author -> server{paused = Just $ fromMaybe [] $ paused server}
     Unpause author | Candidate s ps <- active server -> server{paused=Nothing, active = Candidate s $ ps ++ fromMaybe [] (paused server)}
-    Finished a b c d e f -> server{history = History a c d e f : history server}
-    Ping author name cookie provides threads -> error "todo: assign a task"
+    Finished q a -> server{history = (q, Just a) : delete (q, Nothing) (history server)}
+    Pinged Ping{..} -> error "todo: assign a task"
 
 
 heartbeat :: Server -> IO Server

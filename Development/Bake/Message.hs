@@ -1,11 +1,14 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Message(
-    Message(..), Reply(..), sendMessage, messageFromPayload
+    Message(..), Question(..), Answer(..), Ping(..),
+    sendMessage, messageFromPayload
     ) where
 
 import Development.Bake.Type
 import Development.Bake.Web
+import Data.Time.Clock
+
 
 data Message
     -- Send by the user
@@ -15,11 +18,34 @@ data Message
     | Pause Author
     | Unpause Author
     -- Sent by the client
-    | Ping Author String String [String] Int -- name, cookie, provides, threads
-    | Finished (Candidate State Patch) String (Maybe Test) String Double (Either Int [Test])
-                                       -- stdout time   result
+    | Pinged Ping
+    | Finished Question Answer
 
-data Reply = Reply (Candidate State Patch) (Maybe Test)
+
+data Question = Question
+    {qCandidate :: Candidate State Patch
+    ,qTest :: Maybe Test
+    ,qThreads :: Int
+    ,qStarted :: UTCTime
+    ,qClient :: Client
+    }
+    deriving (Show,Eq)
+
+data Answer = Answer
+    {aStdout :: String
+    ,aDuration :: Double
+    ,aReply :: Either Int [Test]
+    }
+    deriving (Show,Eq)
+
+data Ping = Ping
+    {pClient :: Client
+    ,pAuthor :: Author
+    ,pName :: String
+    ,pThreads :: Int
+    }
+    deriving (Show,Eq)
+
 
 messageToPayload :: Message -> Payload
 messageToPayload = error "messageToPayload"
@@ -29,7 +55,7 @@ messageFromPayload :: Payload -> Message
 messageFromPayload = error "messageFromPayload"
 
 
-sendMessage :: (Host,Port) -> Message -> IO [Reply]
+sendMessage :: (Host,Port) -> Message -> IO [Question]
 sendMessage hp msg = do
     send hp $ messageToPayload msg
     return []

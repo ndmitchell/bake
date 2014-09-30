@@ -33,6 +33,7 @@ library
         directory,
         bytestring,
         text,
+        time,
         http-types,
         wai > 3.0.1,
         warp > 3.0

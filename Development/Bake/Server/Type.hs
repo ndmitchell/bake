@@ -1,25 +1,27 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Type(
-    Server(..), defaultServer, History(..), Running(..)
+    Server(..), defaultServer,
+    Question(..), Answer(..), Ping(..)
     ) where
 
 import Development.Bake.Type
+import Development.Bake.Message
+
 
 defaultServer :: State -> Server
-defaultServer s = Server [] [] [] (Candidate s []) [] Nothing
+defaultServer s = Server [] [] [] (Candidate s []) Nothing
 
 data Server = Server
-    {history :: [History]
-    ,running :: [Running]
+    {history :: [(Question, Maybe Answer)]
+        -- ^ Questions you have sent to clients, and how they responded (if they have).
+        --   The aStdout has been written to disk, and the value is a filename containing the stdout.
+    ,pings :: [Ping]
+        -- ^ Latest time of a ping sent by each client
     ,alias :: [(State, Candidate State Patch)]
+        -- ^ Updates perform since we started running
     ,active :: Candidate State Patch
-    ,blacklist :: [String] -- people who failed to return
+        -- ^ The candidate we are currently aiming to prove
     ,paused :: Maybe [Patch]
+        -- ^ 'Just' if we are paused, and the number of people queued up
     } deriving Show
-
-data History = History (Candidate State Patch) (Maybe Test) FilePath Double (Either Int [Test])
-    deriving Show
-
-data Running = Running (Candidate State Patch) (Maybe Test) Double String
-    deriving Show

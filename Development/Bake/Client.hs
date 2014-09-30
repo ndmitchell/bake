@@ -1,5 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
 
--- | Define a continuous integration system.
 module Development.Bake.Client(
     startClient
     ) where
@@ -16,17 +16,17 @@ import Control.Monad
 -- given server, name, threads
 startClient :: (Host,Port) -> Author -> String -> [String] -> Int -> IO ()
 startClient hp author name provides threads = do
-    cookie <- newCookie
+    client <- newClient
 
     let process xs = do
-            forM_ xs $ \(Reply can test) -> forkIO $ withTempFile "bake.txt" $ \file -> do
+            forM_ xs $ \q@Question{..} -> forkIO $ withTempFile "bake.txt" $ \file -> do
                 (time, (exit, Stdout stdout)) <- timed $ cmd "self" (("--output=" ++ file):error "start client")
                 info <- case exit of
                     ExitFailure i -> return $ Left i
                     ExitSuccess -> fmap (Right . map Test . lines) $ readFile file
-                sendMessage hp $ Finished can cookie test stdout time info
+                sendMessage hp $ Finished q $ Answer stdout time info
                 ping
 
-        ping = process =<< sendMessage hp (Ping author name cookie provides threads)
+        ping = process =<< sendMessage hp (Pinged $ Ping client author name threads)
 
     forever $ ping >> sleep 60

@@ -7,6 +7,7 @@ module Development.Bake.Type(
     Candidate(..), Oven(..), TestInfo(..), defaultOven, ovenTest,
     threads, threadsAll, before, beforeClear, run, suitable,
     State(..), Patch(..), Test(..), concrete,
+    Client(..), newClient,
     Author
     ) where
 
@@ -21,7 +22,7 @@ type Host = String
 
 type Port = Int
 
-data Candidate state patch = Candidate state [patch] deriving Show
+data Candidate state patch = Candidate state [patch] deriving (Show,Eq)
 
 data Oven state patch test = Oven
     {ovenUpdateState :: Maybe (Candidate state patch) -> IO state
@@ -99,9 +100,9 @@ suitable :: IO Bool -> TestInfo test -> TestInfo test
 suitable query t = t{testSuitable = query &&^ testSuitable t}
 
 
-newtype State = State {fromState :: String} deriving Show
+newtype State = State {fromState :: String} deriving (Show,Eq)
 newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq)
-newtype Test = Test {fromTest :: String} deriving Show
+newtype Test = Test {fromTest :: String} deriving (Show,Eq)
 
 concrete :: Oven state patch test -> Oven State Patch Test
 concrete o@Oven{..} = o
@@ -118,3 +119,10 @@ concrete o@Oven{..} = o
         downCandidate (Candidate s ps) = Candidate
             (stringyFrom ovenStringyState $ fromState s) $
             map (stringyFrom ovenStringyPatch . fromPatch) ps
+
+
+newtype Client = Client String deriving (Show,Eq)
+
+newClient :: IO Client
+newClient = error "newCookie"
+
