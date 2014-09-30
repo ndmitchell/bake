@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Development.Bake.Web(
-    Payload(..), send, server
+    Input(..), Output(..), send, server
     ) where
 
 import Development.Bake.Type hiding (run)
@@ -14,27 +14,36 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
 
 
-data Payload = Payload
-    {payloadURL :: [String]
-    ,payloadArgs :: [(String, String)]
-    ,payloadBody :: String
+data Input = Input
+    {inputURL :: [String]
+    ,inputArgs :: [(String, String)]
+    ,inputBody :: String
     }
 
-send :: (Host,Port) -> Payload -> IO String
+data Output
+    = OutputString String
+    | OutputFile FilePath
+    | OutputError String
+    | OutputMissing
+
+
+send :: (Host,Port) -> Input -> IO String
 send = error "send"
 
 
-server :: Port -> (Payload -> IO (Either FilePath String)) -> IO ()
+server :: Port -> (Input -> IO Output) -> IO ()
 server port act = runSettings (setOnException exception $ setPort port defaultSettings) $ \req reply -> do
     bod <- strictRequestBody req
-    let pay = Payload
+    let pay = Input
             (map Text.unpack $ pathInfo req)
             [(BS.unpack a, maybe "" BS.unpack b) | (a,b) <- queryString req]
             (LBS.unpack bod)
     res <- act pay
     reply $ case res of
-        Left file -> responseFile status200 [] file Nothing
-        Right msg -> responseLBS status200 [] $ LBS.pack msg
+        OutputFile file -> responseFile status200 [] file Nothing
+        OutputString msg -> responseLBS status200 [] $ LBS.pack msg
+        OutputError msg -> responseLBS status500 [] $ LBS.pack msg
+        OutputMissing -> responseLBS status404 [] $ LBS.pack "Resource not found"
 
 exception :: Maybe Request -> SomeException -> IO ()
 exception r e

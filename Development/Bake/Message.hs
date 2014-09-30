@@ -2,7 +2,7 @@
 -- | Define a continuous integration system.
 module Development.Bake.Message(
     Message(..), Question(..), Answer(..), Ping(..),
-    sendMessage, messageFromPayload
+    sendMessage, messageFromInput, questionsToOutput
     ) where
 
 import Development.Bake.Type
@@ -47,15 +47,19 @@ data Ping = Ping
     deriving (Show,Eq)
 
 
-messageToPayload :: Message -> Payload
-messageToPayload = error "messageToPayload"
+messageToInput :: Message -> Input
+messageToInput = error "messageToInput"
 
 
-messageFromPayload :: Payload -> Message
-messageFromPayload = error "messageFromPayload"
+-- return either an error message (not a valid message), or a message
+messageFromInput :: Input -> Either String Message
+messageFromInput = error "messageFromInput"
+
+questionsToOutput :: [Question] -> Output
+questionsToOutput = error "questionToOutput"
 
 
 sendMessage :: (Host,Port) -> Message -> IO [Question]
 sendMessage hp msg = do
-    send hp $ messageToPayload msg
+    send hp $ messageToInput msg
     return []

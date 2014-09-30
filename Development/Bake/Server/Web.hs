@@ -7,5 +7,5 @@ module Development.Bake.Server.Web(
 import Development.Bake.Server.Type
 import Development.Bake.Web
 
-web :: Payload -> Server -> IO (Either FilePath String)
-web _ s = return $ Right $ show s
+web :: Input -> Server -> IO Output
+web _ s = return $ OutputString $ show s

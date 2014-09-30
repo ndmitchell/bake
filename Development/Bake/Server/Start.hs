@@ -12,7 +12,6 @@ import Development.Bake.Message
 import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Control.Concurrent
-import Control.Monad
 import Data.List
 import Data.Maybe
 
@@ -22,15 +21,16 @@ startServer port author name (concrete -> oven) = do
     s <- withTempDirCurrent $ ovenUpdateState oven Nothing
     putStrLn $ "Initial state of: " ++ show s
     var <- newMVar $ defaultServer s
-    forkIO $ forever $ do
-        sleep 60
-        modifyMVar_ var heartbeat
-    server port $ \p@Payload{..} ->
-        if null payloadURL then
-            web p =<< readMVar var
-        else do
-            modifyMVar var $ operate (concrete oven) (messageFromPayload p)
-            return $ Right ""
+    server port $ \i@Input{..} ->
+        if null inputURL || ["ui"] `isPrefixOf` inputURL then
+            web i{inputURL = drop 1 inputURL} =<< readMVar var
+        else if ["api"] `isPrefixOf` inputURL then
+            (case messageFromInput i{inputURL = drop 1 inputURL} of
+                Left e -> return $ OutputError e
+                Right v -> fmap questionsToOutput $ modifyMVar var $ operate oven v
+            )
+        else
+            return OutputMissing
 
 
 operate :: Oven State Patch Test -> Message -> Server -> IO (Server, [Question])
@@ -42,6 +42,3 @@ operate oven message server = return $ (,[]) $ case message of
     Finished q a -> server{history = (q, Just a) : delete (q, Nothing) (history server)}
     Pinged Ping{..} -> error "todo: assign a task"
 
-
-heartbeat :: Server -> IO Server
-heartbeat = error "heartbeat"
