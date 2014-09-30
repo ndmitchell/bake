@@ -18,17 +18,18 @@ data Input = Input
     {inputURL :: [String]
     ,inputArgs :: [(String, String)]
     ,inputBody :: String
-    }
+    } deriving Show
 
 data Output
     = OutputString String
     | OutputFile FilePath
     | OutputError String
     | OutputMissing
+      deriving Show
 
 
 send :: (Host,Port) -> Input -> IO String
-send = error "send"
+send hp i = error $ show ("send", hp, i)
 
 
 server :: Port -> (Input -> IO Output) -> IO ()

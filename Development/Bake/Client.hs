@@ -18,7 +18,7 @@ startClient :: (Host,Port) -> Author -> String -> [String] -> Int -> IO ()
 startClient hp author name provides threads = do
     client <- newClient
 
-    let process xs = do
+    let process xs =
             forM_ xs $ \q@Question{..} -> forkIO $ withTempFile "bake.txt" $ \file -> do
                 (time, (exit, Stdout stdout)) <- timed $ cmd "self" (("--output=" ++ file):error "start client")
                 info <- case exit of

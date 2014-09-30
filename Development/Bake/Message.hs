@@ -20,6 +20,7 @@ data Message
     -- Sent by the client
     | Pinged Ping
     | Finished Question Answer
+    deriving (Show,Eq)
 
 
 data Question = Question
@@ -48,15 +49,15 @@ data Ping = Ping
 
 
 messageToInput :: Message -> Input
-messageToInput = error "messageToInput"
+messageToInput m = error $ show ("messageToInput",m)
 
 
 -- return either an error message (not a valid message), or a message
 messageFromInput :: Input -> Either String Message
-messageFromInput = error "messageFromInput"
+messageFromInput i = error $ show ("messageFromInput",i)
 
 questionsToOutput :: [Question] -> Output
-questionsToOutput = error "questionToOutput"
+questionsToOutput qs = error $ show ("questionToOutput",qs)
 
 
 sendMessage :: (Host,Port) -> Message -> IO [Question]

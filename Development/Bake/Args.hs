@@ -38,15 +38,14 @@ bakeMode = cmdArgsMode $ modes
     ,Run "" "" "" []
     ]
 
-bake :: (Show state, Read state, Show patch, Read patch, Show test, Read test)
-     => Oven state patch test -> IO ()
+bake :: Oven state patch test -> IO ()
 bake oven = do
     x <- cmdArgsRun bakeMode
     case x of
         Server{..} -> startServer port author name oven
         Client{..} -> startClient (hp server) author name provide threads
-        AddPatch{..} -> sendAddPatch (hp server) author name
-        DelPatch{..} -> sendDelPatch (hp server) author name
+        AddPatch{..} -> sendAddPatch (hp server) author $ checkPatch oven name
+        DelPatch{..} -> sendDelPatch (hp server) author $ checkPatch oven name
         DelPatches{..} -> sendDelAllPatches (hp server) author
         Pause{..} -> sendPause (hp server) author
         Unpause{..} -> sendUnpause (hp server) author
@@ -60,3 +59,8 @@ bake oven = do
         hp "" = ovenDefaultServer oven
         hp s = (h, read $ drop 1 p)
             where (h,p) = break (== ':') s
+
+
+checkPatch :: Oven state patch test -> String -> String
+checkPatch Oven{ovenStringyPatch=Stringy{..}} = stringyTo . stringyFrom 
+

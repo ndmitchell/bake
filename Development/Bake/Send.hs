@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 
 module Development.Bake.Send(
     sendPause, sendUnpause,
@@ -14,11 +15,11 @@ sendPause hp author = void $ sendMessage hp $ Pause author
 sendUnpause :: (Host,Port) -> Author -> IO ()
 sendUnpause hp author = void $ sendMessage hp $ Unpause author
 
-sendAddPatch :: Show patch => (Host,Port) -> Author -> patch -> IO ()
-sendAddPatch hp author x = void $ sendMessage hp $ AddPatch author $ Patch $ show x
+sendAddPatch :: (Host,Port) -> Author -> String -> IO ()
+sendAddPatch hp author x = void $ sendMessage hp $ AddPatch author $ Patch x
 
-sendDelPatch :: Show patch => (Host,Port) -> Author -> patch -> IO ()
-sendDelPatch hp author x = void $ sendMessage hp $ DelPatch author $ Patch $ show x
+sendDelPatch :: (Host,Port) -> Author -> String -> IO ()
+sendDelPatch hp author x = void $ sendMessage hp $ DelPatch author $ Patch x
 
 sendDelAllPatches :: (Host,Port) -> Author -> IO ()
 sendDelAllPatches hp author = void $ sendMessage hp $ DelAllPatches author

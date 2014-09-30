@@ -48,6 +48,7 @@ library
         Development.Bake.Client
         Development.Bake.Message
         Development.Bake.Send
+        Development.Bake.Server.Brains
         Development.Bake.Server.Start
         Development.Bake.Server.Type
         Development.Bake.Server.Web
