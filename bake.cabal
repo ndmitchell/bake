@@ -34,7 +34,10 @@ library
         bytestring,
         text,
         time,
+        random,
+        HTTP,
         http-types,
+        deepseq,
         wai > 3.0.1,
         warp > 3.0
 

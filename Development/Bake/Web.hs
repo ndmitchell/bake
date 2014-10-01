@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, RecordWildCards #-}
 
 module Development.Bake.Web(
     Input(..), Output(..), send, server
@@ -7,8 +7,10 @@ module Development.Bake.Web(
 import Development.Bake.Type hiding (run)
 import Network.Wai.Handler.Warp hiding (Port)
 import Network.Wai
+import Control.DeepSeq
 import Control.Exception
 import Network.HTTP.Types.Status
+import Network.HTTP hiding (Request)
 import qualified Data.Text as Text
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
@@ -27,9 +29,23 @@ data Output
     | OutputMissing
       deriving Show
 
+instance NFData Output where
+    rnf (OutputString x) = rnf x
+    rnf (OutputFile x) = rnf x
+    rnf (OutputError x) = rnf x
+    rnf OutputMissing = ()
+
 
 send :: (Host,Port) -> Input -> IO String
-send hp i = error $ show ("send", hp, i)
+send (host,port) Input{..} = do
+    let url = "http://" ++ host ++ ":" ++ show port ++ concatMap ('/':) inputURL ++
+              concat (zipWith (++) ("?":repeat "&") [a ++ "=" ++ b | (a,b) <- inputArgs])
+    res <- simpleHTTP (getRequest url){rqBody=inputBody}
+    case res of
+        Left err -> error $ show err
+        Right r | rspCode r /= (2,0,0) -> error $
+                    "Incorrect code: " ++ show (rspCode r,rspReason r,url) ++ "\n" ++ rspBody r
+                | otherwise -> return $ rspBody r
 
 
 server :: Port -> (Input -> IO Output) -> IO ()

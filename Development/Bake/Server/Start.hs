@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns #-}
+{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns, ScopedTypeVariables #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Start(
@@ -13,6 +13,8 @@ import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
 import Control.Concurrent
+import Control.DeepSeq
+import Control.Exception
 import Data.List
 import Data.Maybe
 
@@ -23,15 +25,18 @@ startServer port author name (concrete -> oven) = do
     putStrLn $ "Initial state of: " ++ show s
     var <- newMVar $ defaultServer s
     server port $ \i@Input{..} ->
-        if null inputURL || ["ui"] `isPrefixOf` inputURL then
-            web i{inputURL = drop 1 inputURL} =<< readMVar var
-        else if ["api"] `isPrefixOf` inputURL then
-            (case messageFromInput i{inputURL = drop 1 inputURL} of
-                Left e -> return $ OutputError e
-                Right v -> fmap questionsToOutput $ modifyMVar var $ operate oven v
-            )
-        else
-            return OutputMissing
+        handle (\(e :: SomeException) -> fmap OutputError $ showException e) $ do
+            res <-
+                if null inputURL || ["ui"] `isPrefixOf` inputURL then
+                    web i{inputURL = drop 1 inputURL} =<< readMVar var
+                else if ["api"] `isPrefixOf` inputURL then
+                    (case messageFromInput i{inputURL = drop 1 inputURL} of
+                        Left e -> return $ OutputError e
+                        Right v -> fmap questionsToOutput $ modifyMVar var $ operate oven v
+                    )
+                else
+                    return OutputMissing
+            evaluate $ force res
 
 
 operate :: Oven State Patch Test -> Message -> Server -> IO (Server, [Question])

@@ -1,9 +1,11 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Development.Bake.Util(
     sleep, timed,
     withTempFile, withTempDir,
     withCurrentDirectory, withTempDirCurrent,
-    (&&^)
+    (&&^),
+    showException
     ) where
 
 import qualified System.IO.Temp as T
@@ -37,3 +39,14 @@ withTempDirCurrent act = withTempDir $ \t -> withCurrentDirectory t act
 
 (&&^) :: Monad m => m Bool -> m Bool -> m Bool
 (&&^) a b = do a <- a; if a then b else return False
+
+
+showException :: SomeException -> IO String
+showException = f . show
+    where
+        f xs = do
+            r <- try $ evaluate xs
+            case r of
+                Left (e :: SomeException) -> return "<NestedException>"
+                Right [] -> return []
+                Right (x:xs) -> fmap (x :) $ f xs

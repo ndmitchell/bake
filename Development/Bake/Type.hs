@@ -14,6 +14,7 @@ module Development.Bake.Type(
 import Development.Bake.Util
 import Control.Monad
 import Data.Monoid
+import System.Random
 
 
 type Author = String
@@ -57,7 +58,7 @@ defaultOven = Oven
     {ovenUpdateState = \_ -> return ()
     ,ovenNotify = \_ _ -> return ()
     ,ovenRunTest = \_ _ -> run $ return []
-    ,ovenDefaultServer = ("localhost",80)
+    ,ovenDefaultServer = ("127.0.0.1",80)
     ,ovenStringyState = readShowStringy
     ,ovenStringyPatch = readShowStringy
     ,ovenStringyTest = readShowStringy
@@ -121,8 +122,7 @@ concrete o@Oven{..} = o
             map (stringyFrom ovenStringyPatch . fromPatch) ps
 
 
-newtype Client = Client String deriving (Show,Eq)
+newtype Client = Client {fromClient :: String} deriving (Show,Eq)
 
 newClient :: IO Client
-newClient = error "newCookie"
-
+newClient = fmap Client $ replicateM 10 $ randomRIO ('a','z') 
