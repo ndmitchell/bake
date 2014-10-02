@@ -15,8 +15,6 @@ import Development.Bake.Server.Brains
 import Control.Concurrent
 import Control.DeepSeq
 import Control.Exception
-import Control.Monad
-import Data.Function
 import Data.List
 import Data.Maybe
 import Data.Time.Clock
@@ -50,20 +48,26 @@ operate timeout oven message server = case message of
     Unpause author | Candidate s ps <- active server ->
         dull server{paused=Nothing, active = Candidate s $ ps ++ fromMaybe [] (paused server)}
     Finished q a -> do
-        server <- return server{history = (q, Just a) : delete (q, Nothing) (history server)}
+        server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
         mapM_ (uncurry $ ovenNotify oven) $ notify q a server
         dull server 
     Pinged ping -> do
         now <- getCurrentTime
-        let (q,upd) = brains (addUTCTime (fromRational $ toRational $ negate timeout) now) server ping
-        server <- return $ server
-            {history = map (,Nothing) (maybeToList q) ++ history server
-            ,pings = ping : deleteBy ((==) `on` pClient) ping (pings server)}
-        when upd $ error $ "operate, update"
-        return (server, fmap (\q -> q{qStarted = now, qClient = pClient ping}) q)
+        server <- return $ prune (addUTCTime (fromRational $ toRational $ negate timeout) now) $ server
+            {pings = (now,ping) : filter ((/= pClient ping) . pClient . snd) (pings server)}
+        let (q,upd) = brains server ping
+        server <- return $ server{history = map (now,,Nothing) (maybeToList q) ++ history server}
+        whenJust upd $ \upd -> error $ "operate, update"
+        return (server, fmap (\q -> q{qClient = pClient ping}) q)
     where
         dull s = return (s,Nothing)
 
 
 notify :: Question -> Answer -> Server -> [(Author, String)]
 notify _ _ _ = [] -- FIXME: sometimes tell someone something
+
+
+-- any question that has been asked of a client who hasn't pinged since the time is thrown away
+prune :: UTCTime -> Server -> Server
+prune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
+    where clients = [pClient | (t,Ping{..}) <- pings s, t >= cutoff]

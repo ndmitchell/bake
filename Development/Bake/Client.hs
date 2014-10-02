@@ -36,7 +36,7 @@ startClient hp author name maxThreads ping (concrete -> oven) = do
                 void $ forkIO $ withTempFile "bake.txt" $ \file -> do
                     (time, (exit, Stdout stdout, Stderr err)) <- timed $
                         cmd "self" (("--output=" ++ file):error "start client")
-                    next <- fmap (map Test . lines) $ readFile file
+                    next <- fmap (map undefined . lines) $ readFile file
                     atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
                     sendMessage hp $ Finished q $
                         Answer stdout time next $ if exit == ExitSuccess then Success else Failure

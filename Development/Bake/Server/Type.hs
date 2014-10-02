@@ -7,19 +7,18 @@ module Development.Bake.Server.Type(
 
 import Development.Bake.Type
 import Development.Bake.Message
+import Data.Time.Clock
 
 
 defaultServer :: State -> Server
-defaultServer s = Server [] [] [] (Candidate s []) Nothing
+defaultServer s = Server [] [] (Candidate s []) Nothing
 
 data Server = Server
-    {history :: [(Question, Maybe Answer)]
+    {history :: [(UTCTime, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
         --   The aStdout has been written to disk, and the value is a filename containing the stdout.
-    ,pings :: [Ping]
+    ,pings :: [(UTCTime, Ping)]
         -- ^ Latest time of a ping sent by each client
-    ,alias :: [(State, Candidate State Patch)]
-        -- ^ Updates perform since we started running
     ,active :: Candidate State Patch
         -- ^ The candidate we are currently aiming to prove
     ,paused :: Maybe [Patch]

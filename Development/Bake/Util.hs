@@ -5,7 +5,8 @@ module Development.Bake.Util(
     withTempFile, withTempDir,
     withCurrentDirectory, withTempDirCurrent,
     (&&^), whenJust,
-    showException
+    showException,
+    fst3, snd3, thd3
     ) where
 
 import qualified System.IO.Temp as T
@@ -52,3 +53,7 @@ showException = f . show
                 Left (e :: SomeException) -> return "<NestedException>"
                 Right [] -> return []
                 Right (x:xs) -> fmap (x :) $ f xs
+
+fst3 (x,_,_) = x
+snd3 (_,x,_) = x
+thd3 (_,_,x) = x

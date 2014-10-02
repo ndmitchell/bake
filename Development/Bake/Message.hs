@@ -7,7 +7,6 @@ module Development.Bake.Message(
 
 import Development.Bake.Type
 import Development.Bake.Web
-import Data.Time.Clock
 import Control.Applicative
 import Control.Monad
 import Data.Aeson
@@ -31,7 +30,6 @@ data Question = Question
     {qCandidate :: Candidate State Patch
     ,qTest :: Maybe Test
     ,qThreads :: Int
-    ,qStarted :: UTCTime
     ,qClient :: Client
     }
     deriving (Show,Eq)
@@ -41,12 +39,11 @@ instance ToJSON Question where
         ["candidate" .= toJSONCandidate qCandidate
         ,"test" .= qTest
         ,"threads" .= qThreads
-        ,"started" .= qStarted
         ,"client" .= qClient]
 
 instance FromJSON Question where
     parseJSON (Object v) = Question <$>
-        (fromJSONCandidate =<< (v .: "candidate")) <*> (v .: "test") <*> (v .: "threads") <*> (v .: "started") <*> (v .: "client")
+        (fromJSONCandidate =<< (v .: "candidate")) <*> (v .: "test") <*> (v .: "threads") <*> (v .: "client")
     parseJSON _ = mzero
 
 toJSONCandidate (Candidate s ps) = object ["state" .= s, "patches" .= ps]
@@ -57,7 +54,7 @@ fromJSONCandidate _ = mzero
 data Answer = Answer
     {aStdout :: String
     ,aDuration :: Double
-    ,aNext :: [Test]
+    ,aNext :: [(Test, Maybe Int, [Test])] -- tests, threads required, and their dependencies
     ,aStatus :: Status
     }
     deriving (Show,Eq)
