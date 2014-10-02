@@ -52,7 +52,7 @@ operate oven message server = case message of
         dull server 
     Pinged ping -> do
         let qs = brains server ping
-        return (server{history = map (,Nothing) qs ++ history server}, qs)
+        return (server{history = map (,Nothing) qs ++ history server, pings=ping:pings server}, qs)
     where
         dull s = return (s,[])
 

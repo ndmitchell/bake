@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Type(
@@ -15,6 +15,7 @@ import Development.Bake.Util
 import Control.Monad
 import Data.Monoid
 import System.Random
+import Data.Aeson
 
 
 type Author = String
@@ -101,9 +102,9 @@ suitable :: IO Bool -> TestInfo test -> TestInfo test
 suitable query t = t{testSuitable = query &&^ testSuitable t}
 
 
-newtype State = State {fromState :: String} deriving (Show,Eq)
-newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq)
-newtype Test = Test {fromTest :: String} deriving (Show,Eq)
+newtype State = State {fromState :: String} deriving (Show,Eq,ToJSON, FromJSON)
+newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,ToJSON, FromJSON)
+newtype Test = Test {fromTest :: String} deriving (Show,Eq,ToJSON, FromJSON)
 
 concrete :: Oven state patch test -> Oven State Patch Test
 concrete o@Oven{..} = o
@@ -122,7 +123,7 @@ concrete o@Oven{..} = o
             map (stringyFrom ovenStringyPatch . fromPatch) ps
 
 
-newtype Client = Client {fromClient :: String} deriving (Show,Eq)
+newtype Client = Client {fromClient :: String} deriving (Show,Eq,ToJSON, FromJSON)
 
 newClient :: IO Client
 newClient = fmap Client $ replicateM 10 $ randomRIO ('a','z') 

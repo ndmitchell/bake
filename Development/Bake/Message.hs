@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
 module Development.Bake.Message(
     Message(..), Question(..), Answer(..), Ping(..),
@@ -9,6 +9,8 @@ import Development.Bake.Type
 import Development.Bake.Web
 import Data.Time.Clock
 import Control.Applicative
+import Data.Aeson
+import qualified Data.ByteString.Lazy.Char8 as LBS
 
 
 data Message
@@ -32,6 +34,16 @@ data Question = Question
     ,qClient :: Client
     }
     deriving (Show,Eq)
+
+instance ToJSON Question where
+    toJSON Question{..} = object
+        ["candidate" .= jsonCandidate qCandidate
+        ,"test" .= qTest
+        ,"threads" .= qThreads
+        ,"started" .= qStarted
+        ,"client" .= qClient]
+
+jsonCandidate (Candidate s ps) = object ["state" .= s, "patches" .= ps]
 
 data Answer = Answer
     {aStdout :: String
@@ -76,7 +88,8 @@ messageFromInput (Input msg args body) = Left $ "Invalid API call, got " ++ show
 
 
 questionsToOutput :: [Question] -> Output
-questionsToOutput qs = error $ show ("questionsToOutput",qs)
+questionsToOutput = OutputString . LBS.unpack . encode
+
 
 
 sendMessage :: (Host,Port) -> Message -> IO [Question]
