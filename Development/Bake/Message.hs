@@ -1,14 +1,15 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
 module Development.Bake.Message(
-    Message(..), Question(..), Answer(..), Ping(..),
-    sendMessage, messageFromInput, questionsToOutput
+    Message(..), Ping(..), Question(..), Answer(..), Status(..),
+    sendMessage, messageFromInput, questionToOutput
     ) where
 
 import Development.Bake.Type
 import Development.Bake.Web
 import Data.Time.Clock
 import Control.Applicative
+import Control.Monad
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as LBS
 
@@ -37,26 +38,38 @@ data Question = Question
 
 instance ToJSON Question where
     toJSON Question{..} = object
-        ["candidate" .= jsonCandidate qCandidate
+        ["candidate" .= toJSONCandidate qCandidate
         ,"test" .= qTest
         ,"threads" .= qThreads
         ,"started" .= qStarted
         ,"client" .= qClient]
 
-jsonCandidate (Candidate s ps) = object ["state" .= s, "patches" .= ps]
+instance FromJSON Question where
+    parseJSON (Object v) = Question <$>
+        (fromJSONCandidate =<< (v .: "candidate")) <*> (v .: "test") <*> (v .: "threads") <*> (v .: "started") <*> (v .: "client")
+    parseJSON _ = mzero
+
+toJSONCandidate (Candidate s ps) = object ["state" .= s, "patches" .= ps]
+
+fromJSONCandidate (Object v) = Candidate <$> (v .: "state") <*> (v .: "patches")
+fromJSONCandidate _ = mzero
 
 data Answer = Answer
     {aStdout :: String
     ,aDuration :: Double
-    ,aReply :: Either Int [Test]
+    ,aNext :: [Test]
+    ,aStatus :: Status
     }
     deriving (Show,Eq)
+
+data Status = Success | Failure | NotApplicable deriving (Show,Eq)
 
 data Ping = Ping
     {pClient :: Client
     ,pAuthor :: Author
     ,pName :: String
-    ,pThreads :: Int
+    ,pMaxThreads :: Int
+    ,pNowThreads :: Int
     }
     deriving (Show,Eq)
 
@@ -68,7 +81,8 @@ messageToInput (DelAllPatches author) = Input ["api","delall"] [("author",author
 messageToInput (Pause author) = Input ["api","pause"] [("author",author)] ""
 messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
 messageToInput (Pinged Ping{..}) = Input ["api","ping"]
-    [("client",fromClient pClient),("author",pAuthor),("name",pName),("threads",show pThreads)] ""
+    [("client",fromClient pClient),("author",pAuthor),("name",pName)
+    ,("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)] ""
 messageToInput (Finished Question{..} Answer{..}) = error "messageToInput Finished"
 
 
@@ -79,7 +93,8 @@ messageFromInput (Input [msg] args body)
     | msg == "del" = DelPatch <$> str "author" <*> (Patch <$> str "patch")
     | msg == "delall" = DelAllPatches <$> str "author"
     | msg == "pause" = Pause <$> str "author"
-    | msg == "ping" = Pinged <$> (Ping <$> (Client <$> str "client") <*> str "author" <*> str "name" <*> int "threads")
+    | msg == "ping" = Pinged <$> (Ping <$> (Client <$> str "client") <*>
+        str "author" <*> str "name" <*> int "maxthreads" <*> int "nowthreads")
     | msg == "finish" = error "messageFromInput finish"
     where str x | Just v <- lookup x args = Right v
                 | otherwise = Left $ "Missing field " ++ show x ++ " from " ++ show msg
@@ -87,12 +102,12 @@ messageFromInput (Input [msg] args body)
 messageFromInput (Input msg args body) = Left $ "Invalid API call, got " ++ show msg
 
 
-questionsToOutput :: [Question] -> Output
-questionsToOutput = OutputString . LBS.unpack . encode
+questionToOutput :: Maybe Question -> Output
+questionToOutput = OutputString . LBS.unpack . encode
 
 
 
-sendMessage :: (Host,Port) -> Message -> IO [Question]
+sendMessage :: (Host,Port) -> Message -> IO (Maybe Question)
 sendMessage hp msg = do
-    send hp $ messageToInput msg
-    return []
+    res <- send hp $ messageToInput msg
+    return $ decode $ LBS.pack res

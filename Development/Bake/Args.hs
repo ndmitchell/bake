@@ -16,8 +16,8 @@ import Development.Bake.Send
 type HostPort = String
 
 data Bake
-    = Server {port :: Port, author :: Author, name :: String}
-    | Client {server :: HostPort, author :: Author, name :: String, threads :: Int, provide :: [String]}
+    = Server {port :: Port, author :: Author, name :: String, timeout :: Double}
+    | Client {server :: HostPort, author :: Author, name :: String, threads :: Int, ping :: Double}
     | AddPatch {server :: HostPort, author :: Author, name :: String}
     | DelPatch {server :: HostPort, author :: Author, name :: String}
     | DelPatches {server :: HostPort, author :: Author}
@@ -28,8 +28,8 @@ data Bake
 
 
 bakeMode = cmdArgsMode $ modes
-    [Server{port = 80, author = "unknown", name = ""}
-    ,Client{server = "", threads = 0, provide = []}
+    [Server{port = 80, author = "unknown", name = "", timeout = 5*60}
+    ,Client{server = "", threads = 0, ping = 60}
     ,AddPatch{}
     ,DelPatch{}
     ,DelPatches{}
@@ -42,8 +42,8 @@ bake :: Oven state patch test -> IO ()
 bake oven = do
     x <- cmdArgsRun bakeMode
     case x of
-        Server{..} -> startServer port author name oven
-        Client{..} -> startClient (hp server) author name provide threads
+        Server{..} -> startServer port author name timeout oven
+        Client{..} -> startClient (hp server) author name threads ping oven
         AddPatch{..} -> sendAddPatch (hp server) author $ checkPatch oven name
         DelPatch{..} -> sendDelPatch (hp server) author $ checkPatch oven name
         DelPatches{..} -> sendDelAllPatches (hp server) author

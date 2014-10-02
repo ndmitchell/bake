@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, ViewPatterns #-}
 
 module Development.Bake.Client(
     startClient
@@ -11,22 +11,35 @@ import System.Exit
 import Development.Shake.Command
 import Control.Concurrent
 import Control.Monad
+import Data.IORef
 
 
 -- given server, name, threads
-startClient :: (Host,Port) -> Author -> String -> [String] -> Int -> IO ()
-startClient hp author name provides threads = do
+startClient :: (Host,Port) -> Author -> String -> Int -> Double -> Oven state patch test -> IO ()
+startClient hp author name maxThreads ping (concrete -> oven) = do
     client <- newClient
+    queue <- newChan
+    nowThreads <- newIORef maxThreads
 
-    let process xs =
-            forM_ xs $ \q@Question{..} -> forkIO $ withTempFile "bake.txt" $ \file -> do
-                (time, (exit, Stdout stdout)) <- timed $ cmd "self" (("--output=" ++ file):error "start client")
-                info <- case exit of
-                    ExitFailure i -> return $ Left i
-                    ExitSuccess -> fmap (Right . map Test . lines) $ readFile file
-                sendMessage hp $ Finished q $ Answer stdout time info
-                ping
+    forkIO $ do
+        readChan queue
+        now <- readIORef nowThreads
+        q <- sendMessage hp $ Pinged $ Ping client author name maxThreads now
+        whenJust q $ \q@Question{..} -> do
+            suitable <- testSuitable $ ovenRunTest oven qCandidate qTest
+            if not suitable then do
+                sendMessage hp $ Finished q $ Answer "" 0 [] NotApplicable
+                writeChan queue ()
+             else do
+                atomicModifyIORef nowThreads $ \now -> (now - qThreads, ())
+                writeChan queue ()
+                void $ forkIO $ withTempFile "bake.txt" $ \file -> do
+                    (time, (exit, Stdout stdout, Stderr err)) <- timed $
+                        cmd "self" (("--output=" ++ file):error "start client")
+                    next <- fmap (map Test . lines) $ readFile file
+                    atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
+                    sendMessage hp $ Finished q $
+                        Answer stdout time next $ if exit == ExitSuccess then Success else Failure
+                    writeChan queue ()
 
-        ping = process =<< sendMessage hp (Pinged $ Ping client author name threads)
-
-    forever $ ping >> sleep 60
+    forever $ writeChan queue () >> sleep ping

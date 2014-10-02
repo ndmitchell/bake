@@ -4,7 +4,7 @@ module Development.Bake.Util(
     sleep, timed,
     withTempFile, withTempDir,
     withCurrentDirectory, withTempDirCurrent,
-    (&&^),
+    (&&^), whenJust,
     showException
     ) where
 
@@ -40,6 +40,8 @@ withTempDirCurrent act = withTempDir $ \t -> withCurrentDirectory t act
 (&&^) :: Monad m => m Bool -> m Bool -> m Bool
 (&&^) a b = do a <- a; if a then b else return False
 
+whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
+whenJust mg f = maybe (return ()) f mg
 
 showException :: SomeException -> IO String
 showException = f . show
