@@ -9,7 +9,7 @@ import Development.Bake.Type
 import Development.Bake.Web
 import Control.Applicative
 import Control.Monad
-import Data.Aeson
+import Data.Aeson hiding (Success)
 import qualified Data.ByteString.Lazy.Char8 as LBS
 
 
@@ -25,7 +25,6 @@ data Message
     | Finished Question Answer
     deriving (Show,Eq)
 
-
 data Question = Question
     {qCandidate :: Candidate State Patch
     ,qTest :: Maybe Test
@@ -33,23 +32,6 @@ data Question = Question
     ,qClient :: Client
     }
     deriving (Show,Eq)
-
-instance ToJSON Question where
-    toJSON Question{..} = object
-        ["candidate" .= toJSONCandidate qCandidate
-        ,"test" .= qTest
-        ,"threads" .= qThreads
-        ,"client" .= qClient]
-
-instance FromJSON Question where
-    parseJSON (Object v) = Question <$>
-        (fromJSONCandidate =<< (v .: "candidate")) <*> (v .: "test") <*> (v .: "threads") <*> (v .: "client")
-    parseJSON _ = mzero
-
-toJSONCandidate (Candidate s ps) = object ["state" .= s, "patches" .= ps]
-
-fromJSONCandidate (Object v) = Candidate <$> (v .: "state") <*> (v .: "patches")
-fromJSONCandidate _ = mzero
 
 data Answer = Answer
     {aStdout :: String
@@ -70,6 +52,52 @@ data Ping = Ping
     deriving (Show,Eq)
 
 
+-- JSON instance is only true for Finished
+instance ToJSON Message where
+    toJSON (Finished q a) = object ["question" .= q, "answer" .= a]
+
+instance FromJSON Message where
+    parseJSON (Object v) = Finished <$>
+        (v .: "question") <*> (v .: "answer")
+    parseJSON _ = mzero
+
+instance ToJSON Question where
+    toJSON Question{..} = object
+        ["candidate" .= toJSONCandidate qCandidate
+        ,"test" .= qTest
+        ,"threads" .= qThreads
+        ,"client" .= qClient]
+
+instance FromJSON Question where
+    parseJSON (Object v) = Question <$>
+        (fromJSONCandidate =<< (v .: "candidate")) <*> (v .: "test") <*> (v .: "threads") <*> (v .: "client")
+    parseJSON _ = mzero
+
+toJSONCandidate (Candidate s ps) = object ["state" .= s, "patches" .= ps]
+
+fromJSONCandidate (Object v) = Candidate <$> (v .: "state") <*> (v .: "patches")
+fromJSONCandidate _ = mzero
+
+instance ToJSON Answer where
+    toJSON Answer{..} = object
+        ["stdout" .= aStdout
+        ,"duration" .= aDuration
+        ,"tests" .= aTests
+        ,"status" .= aStatus]
+
+instance FromJSON Answer where
+    parseJSON (Object v) = Answer <$>
+        (v .: "stdout") <*> (v .: "duration") <*> (v .: "tests") <*> (v .: "status")
+    parseJSON _ = mzero
+
+instance ToJSON Status where toJSON = toJSON . show
+instance FromJSON Status where
+    parseJSON (String "Success") = return Success
+    parseJSON (String "Failure") = return Failure
+    parseJSON (String "NotApplicable") = return NotApplicable
+    parseJSON _ = mzero
+
+
 messageToInput :: Message -> Input
 messageToInput (AddPatch author (Patch patch)) = Input ["api","add"] [("author",author),("patch",patch)] ""
 messageToInput (DelPatch author (Patch patch)) = Input ["api","del"] [("author",author),("patch",patch)] ""
@@ -79,7 +107,8 @@ messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
 messageToInput (Pinged Ping{..}) = Input ["api","ping"]
     [("client",fromClient pClient),("author",pAuthor)
     ,("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)] ""
-messageToInput (Finished Question{..} Answer{..}) = error $ "messageToInput Finished: " ++ show (Finished Question{..} Answer{..})
+messageToInput (Finished q a) = Input ["api","finish"] [] $
+    LBS.unpack $ encode $ object ["question" .= q, "answer" .= a]
 
 
 -- return either an error message (not a valid message), or a message
@@ -91,7 +120,7 @@ messageFromInput (Input [msg] args body)
     | msg == "pause" = Pause <$> str "author"
     | msg == "ping" = Pinged <$> (Ping <$> (Client <$> str "client") <*>
         str "author" <*> int "maxthreads" <*> int "nowthreads")
-    | msg == "finish" = error "messageFromInput finish"
+    | msg == "finish" = eitherDecode $ LBS.pack body
     where str x | Just v <- lookup x args = Right v
                 | otherwise = Left $ "Missing field " ++ show x ++ " from " ++ show msg
           int x = read <$> str x
@@ -100,7 +129,6 @@ messageFromInput (Input msg args body) = Left $ "Invalid API call, got " ++ show
 
 questionToOutput :: Maybe Question -> Output
 questionToOutput = OutputString . LBS.unpack . encode
-
 
 
 sendMessage :: (Host,Port) -> Message -> IO (Maybe Question)

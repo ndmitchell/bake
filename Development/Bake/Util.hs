@@ -8,7 +8,8 @@ module Development.Bake.Util(
     showException,
     fst3, snd3, thd3,
     unit,
-    try_, handle_
+    try_, handle_,
+    trim, ltrim, rtrim
     ) where
 
 import qualified System.IO.Temp as T
@@ -17,6 +18,7 @@ import Control.Exception
 import System.Directory
 import System.IO
 import Data.Time.Clock
+import Data.Char
 
 
 sleep :: Double -> IO ()
@@ -84,3 +86,9 @@ try_ = try
 
 handle_ :: (SomeException -> IO a) -> IO a -> IO a
 handle_ = handle
+
+trim, ltrim, rtrim :: String -> String
+trim = ltrim . rtrim
+ltrim = dropWhile isSpace
+rtrim = reverse . ltrim . reverse
+

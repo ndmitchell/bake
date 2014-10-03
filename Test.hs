@@ -61,6 +61,7 @@ test dir = do
         writeFile "Main.hs" "module Main where\n\n-- Entry point\nmain = print 1\n"
         () <- cmd "git add Main.hs"
         () <- cmd "git commit -m" ["Initial version"]
+        () <- cmd "git checkout -b none" -- so I can git push to master
         return ()
 
     forM_ ["bob","tony"] $ \s -> do

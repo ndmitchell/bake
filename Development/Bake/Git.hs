@@ -38,10 +38,15 @@ ovenGit repo branch o = o
             Stdout hash <- cmd "git ls-remote" repo ("refs/heads/" ++ branch)
             case words hash of
                 [] -> error "Couldn't find branch"
-                x:xs -> return $ SHA1 x
+                x:xs -> return $ sha1 $ trim x
 
-
-        gitUpdateState _ = error "gitUpdateState with Just"
+        gitUpdateState (Just c) = do
+            gitCheckout c
+            Stdout x <- cmd "git rev-parse HEAD"
+            unit $ cmd "git checkout -b temp"
+            unit $ cmd "git checkout -B master temp"
+            unit $ cmd "git push origin master --force"
+            return $ sha1 $ trim x
 
         gitCheckout (Candidate s ps) = do
             unit $ cmd "git clone" repo "."

@@ -40,7 +40,10 @@ send :: (Host,Port) -> Input -> IO String
 send (host,port) Input{..} = do
     let url = "http://" ++ host ++ ":" ++ show port ++ concatMap ('/':) inputURL ++
               concat (zipWith (++) ("?":repeat "&") [a ++ "=" ++ b | (a,b) <- inputArgs])
-    res <- simpleHTTP (getRequest url){rqBody=inputBody}
+    print ("sending",inputBody)
+    res <- simpleHTTP (getRequest url)
+        {rqBody=inputBody
+        ,rqHeaders=[Header HdrContentType "application/x-www-form-urlencoded", Header HdrContentLength $ show $ length inputBody]}
     case res of
         Left err -> error $ show err
         Right r | rspCode r /= (2,0,0) -> error $
@@ -51,6 +54,7 @@ send (host,port) Input{..} = do
 server :: Port -> (Input -> IO Output) -> IO ()
 server port act = runSettings (setOnException exception $ setPort port defaultSettings) $ \req reply -> do
     bod <- strictRequestBody req
+    print ("receiving",bod,requestHeaders req)
     let pay = Input
             (map Text.unpack $ pathInfo req)
             [(BS.unpack a, maybe "" BS.unpack b) | (a,b) <- queryString req]
