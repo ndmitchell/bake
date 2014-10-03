@@ -6,15 +6,13 @@ module Development.Bake.Type(
     Stringy(..), readShowStringy,
     Candidate(..), Oven(..), TestInfo(..), defaultOven, ovenTest,
     threads, threadsAll, require, run, suitable,
-    State(..), Patch(..), Test(..), concrete,
-    Client(..), newClient,
+    State(..), Patch(..), Test(..), Client(..), concrete,
     Author
     ) where
 
 import Development.Bake.Util
 import Control.Monad
 import Data.Monoid
-import System.Random
 import Data.Aeson
 
 
@@ -55,7 +53,10 @@ data Stringy s = Stringy
     }
 
 readShowStringy :: (Show s, Read s) => Stringy s
-readShowStringy = Stringy show read show (const $ return "")
+readShowStringy = isoStringy read show
+
+isoStringy :: (String -> a) -> (a -> String) -> Stringy a
+isoStringy read show = Stringy show read show (const $ return "")
 
 defaultOven :: Oven () () ()
 defaultOven = Oven
@@ -100,29 +101,22 @@ suitable :: IO Bool -> TestInfo test -> TestInfo test
 suitable query t = t{testSuitable = query &&^ testSuitable t}
 
 
-newtype State = State {fromState :: String} deriving (Show,Eq,ToJSON, FromJSON)
-newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,ToJSON, FromJSON)
-newtype Test = Test {fromTest :: String} deriving (Show,Eq,ToJSON, FromJSON)
+newtype State = State {fromState :: String} deriving (Show,Eq,ToJSON,FromJSON)
+newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,ToJSON,FromJSON)
+newtype Test = Test {fromTest :: String} deriving (Show,Eq,ToJSON,FromJSON)
+newtype Client = Client {fromClient :: String} deriving (Show,Eq,ToJSON,FromJSON)
 
 concrete :: Oven state patch test -> Oven State Patch Test
 concrete o@Oven{..} = o
-    {ovenUpdateState = \mc ->
-        fmap (State . stringyTo ovenStringyState) $ ovenUpdateState $ fmap downCandidate mc
-    ,ovenPrepare = \c -> error "concrete ovenPrepare"
-    ,ovenTestInfo = \t -> error "concrete ovenTestInfo"
-    ,ovenStringyState = liftStringy ovenStringyState
-    ,ovenStringyPatch = liftStringy ovenStringyPatch
-    ,ovenStringyTest = liftStringy ovenStringyTest
+    {ovenUpdateState =
+        fmap (State . stringyTo ovenStringyState) . ovenUpdateState . fmap stringyFromCandidate
+    ,ovenPrepare = fmap (map (Test . stringyTo ovenStringyTest)) . ovenPrepare . stringyFromCandidate
+    ,ovenTestInfo = fmap (Test . stringyTo ovenStringyTest) . ovenTestInfo . stringyFrom ovenStringyTest . fromTest
+    ,ovenStringyState = isoStringy State fromState
+    ,ovenStringyPatch = isoStringy Patch fromPatch
+    ,ovenStringyTest  = isoStringy Test  fromTest
     }
     where
-        liftStringy = error "conrete liftStringy"
-
-        downCandidate (Candidate s ps) = Candidate
+        stringyFromCandidate (Candidate s ps) = Candidate
             (stringyFrom ovenStringyState $ fromState s) $
             map (stringyFrom ovenStringyPatch . fromPatch) ps
-
-
-newtype Client = Client {fromClient :: String} deriving (Show,Eq,ToJSON, FromJSON)
-
-newClient :: IO Client
-newClient = fmap Client $ replicateM 10 $ randomRIO ('a','z') 

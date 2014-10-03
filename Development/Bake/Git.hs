@@ -2,10 +2,12 @@
 module Development.Bake.Git(SHA1, ovenGit) where
 
 import Development.Bake.Type
+import Development.Bake.Util
 import Development.Shake.Command
+import Control.Monad
 
 
-newtype SHA1 = SHA1 String deriving Show
+newtype SHA1 = SHA1 {fromSHA1 :: String} deriving Show
 
 sha1 :: String -> SHA1
 sha1 x | length x /= 40 = error $ "SHA1 for Git must be 40 characters long, got " ++ show x
@@ -41,4 +43,8 @@ ovenGit repo branch o = o
 
         gitUpdateState _ = error "gitUpdateState with Just"
 
-        gitCheckout = error "gitCheckout"
+        gitCheckout (Candidate s ps) = do
+            unit $ cmd "git clone" repo "."
+            unit $ cmd "git checkout" (fromSHA1 s)
+            forM_ ps $ \p -> do
+                unit $ cmd "git merge" (fromSHA1 p)

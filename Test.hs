@@ -64,8 +64,8 @@ test dir = do
         return ()
 
     forM_ ["bob","tony"] $ \s -> do
-        createDirectoryIfMissing True (dir </> s)
-        withCurrentDirectory (dir </> s) $ do
+        createDirectoryIfMissing True (dir </> "repo-" ++ s)
+        withCurrentDirectory (dir </> "repo-" ++ s) $ do
             print "clone"
             () <- cmd "git clone ../repo ."
             print "checkout"
@@ -83,18 +83,21 @@ test dir = do
             sleep 2
             return pid
     exe <- getExecutablePath
-    p0 <- createProcessAlive (proc exe ["server"]){cwd=Just dir}
+    createDirectoryIfMissing True $ dir </> "server"
+    p0 <- createProcessAlive (proc exe ["server"]){cwd=Just $ dir </> "server"}
     environment <- getEnvironment
     ps <- forM platforms $ \p -> do
         sleep 0.5 -- so they don't ping at the same time
+        createDirectoryIfMissing True $ dir </> "client-" ++ show p
         createProcessAlive (proc exe ["client","--ping=1","--name=" ++ show p])
-            {cwd=Just dir,env=Just $ ("PLATFORM",show p) : environment}
+            {cwd=Just $ dir </> "client-" ++ show p,env=Just $ ("PLATFORM",show p) : environment}
     flip finally (do writeIORef aborting True; mapM_ terminateProcess $ p0 : ps) $ do
 
-    let edit name act = withCurrentDirectory (dir </> name) $ do
+    let edit name act = withCurrentDirectory (dir </> "repo-" ++ name) $ do
             act
             () <- cmd "git add *"
             () <- cmd "git commit -m" ["Update from " ++ name]
+            () <- cmd "git push origin" name
             Stdout sha1 <- cmd "git rev-parse HEAD"
             print "adding patch"
             () <- cmd exe "addpatch" ("--name=" ++ sha1) ("--author=" ++ name)

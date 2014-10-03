@@ -7,6 +7,7 @@ module Development.Bake.Util(
     (&&^), whenJust,
     showException,
     fst3, snd3, thd3,
+    unit,
     try_, handle_
     ) where
 
@@ -73,6 +74,9 @@ showException = f . show
 fst3 (x,_,_) = x
 snd3 (_,x,_) = x
 thd3 (_,_,x) = x
+
+unit :: m () -> m ()
+unit = id
 
 
 try_ :: IO a -> IO (Either SomeException a)

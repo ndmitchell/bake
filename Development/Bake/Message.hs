@@ -64,7 +64,6 @@ data Status = Success | Failure | NotApplicable deriving (Show,Eq)
 data Ping = Ping
     {pClient :: Client
     ,pAuthor :: Author
-    ,pName :: String
     ,pMaxThreads :: Int
     ,pNowThreads :: Int
     }
@@ -78,7 +77,7 @@ messageToInput (DelAllPatches author) = Input ["api","delall"] [("author",author
 messageToInput (Pause author) = Input ["api","pause"] [("author",author)] ""
 messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
 messageToInput (Pinged Ping{..}) = Input ["api","ping"]
-    [("client",fromClient pClient),("author",pAuthor),("name",pName)
+    [("client",fromClient pClient),("author",pAuthor)
     ,("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)] ""
 messageToInput (Finished Question{..} Answer{..}) = error $ "messageToInput Finished: " ++ show (Finished Question{..} Answer{..})
 
@@ -91,7 +90,7 @@ messageFromInput (Input [msg] args body)
     | msg == "delall" = DelAllPatches <$> str "author"
     | msg == "pause" = Pause <$> str "author"
     | msg == "ping" = Pinged <$> (Ping <$> (Client <$> str "client") <*>
-        str "author" <*> str "name" <*> int "maxthreads" <*> int "nowthreads")
+        str "author" <*> int "maxthreads" <*> int "nowthreads")
     | msg == "finish" = error "messageFromInput finish"
     where str x | Just v <- lookup x args = Right v
                 | otherwise = Left $ "Missing field " ++ show x ++ " from " ++ show msg
