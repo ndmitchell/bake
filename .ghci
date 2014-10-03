@@ -1,5 +1,6 @@
+:set -package=wai-3.0.1.1 -package=text-0.11.3.1
 :set -fno-warn-overlapping-patterns -fwarn-unused-binds -fwarn-unused-imports
-:load Example
+:load Test
 
 :def docs_ const $ return $ unlines [":!cabal haddock"]
 :def docs const $ return $ unlines [":docs_",":!start dist\\doc\\html\\bake\\Development-Bake.html"]
