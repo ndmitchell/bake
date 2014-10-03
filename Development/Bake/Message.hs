@@ -54,7 +54,7 @@ fromJSONCandidate _ = mzero
 data Answer = Answer
     {aStdout :: String
     ,aDuration :: Double
-    ,aNext :: [(Test, Maybe Int, [Test])] -- tests, threads required, and their dependencies
+    ,aTests :: [Test] -- only filled in if qTest is Nothing
     ,aStatus :: Status
     }
     deriving (Show,Eq)

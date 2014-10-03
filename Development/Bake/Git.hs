@@ -2,7 +2,6 @@
 module Development.Bake.Git(SHA1, ovenGit) where
 
 import Development.Bake.Type
-import Data.Monoid
 import Development.Shake.Command
 
 
@@ -15,9 +14,7 @@ stringySHA1 = readShowStringy
 ovenGit :: String -> String -> Oven () () test -> Oven SHA1 SHA1 test
 ovenGit repo branch o = o
     {ovenUpdateState = gitUpdateState
-    ,ovenRunTest = \c t -> case t of
-        Nothing -> gitCheckout c `mappend` ovenRunTest o (down c) Nothing
-        _ -> ovenRunTest o (down c) t
+    ,ovenPrepare = \c -> do gitCheckout c; ovenPrepare o (down c)
     ,ovenStringyState = stringySHA1
     ,ovenStringyPatch = stringySHA1
     }

@@ -5,7 +5,7 @@ module Development.Bake.Type(
     Host, Port,
     Stringy(..), readShowStringy,
     Candidate(..), Oven(..), TestInfo(..), defaultOven, ovenTest,
-    threads, threadsAll, before, beforeClear, run, suitable,
+    threads, threadsAll, require, run, suitable,
     State(..), Patch(..), Test(..), concrete,
     Client(..), newClient,
     Author
@@ -30,7 +30,9 @@ data Oven state patch test = Oven
     {ovenUpdateState :: Maybe (Candidate state patch) -> IO state
         -- ^ Given a state, and a set of candiates that have passed,
         --   merge to create a new state.
-    ,ovenRunTest :: Candidate state patch -> Maybe test -> TestInfo test
+    ,ovenPrepare :: Candidate state patch -> IO [test]
+        -- ^ Prepare a candidate to be run, produces the tests that must pass
+    ,ovenTestInfo :: test -> TestInfo test
         -- ^ Produce information about a test
     ,ovenNotify :: Author -> String -> IO ()
         -- ^ Tell an author some information contained in the string (usually an email)
@@ -41,8 +43,9 @@ data Oven state patch test = Oven
     ,ovenStringyTest :: Stringy test
     }
 
-ovenTest :: Stringy test -> (Candidate state patch -> Maybe test -> TestInfo test) -> Oven state patch () -> Oven state patch test
-ovenTest a b o = o{ovenRunTest=b, ovenStringyTest=a}
+ovenTest :: Stringy test -> IO [test] -> (test -> TestInfo test)
+         -> Oven state patch () -> Oven state patch test
+ovenTest stringy prepare info o = o{ovenStringyTest=stringy, ovenPrepare=const prepare, ovenTestInfo=info}
 
 data Stringy s = Stringy
     {stringyTo :: s -> String
@@ -58,7 +61,8 @@ defaultOven :: Oven () () ()
 defaultOven = Oven
     {ovenUpdateState = \_ -> return ()
     ,ovenNotify = \_ _ -> return ()
-    ,ovenRunTest = \_ _ -> run $ return []
+    ,ovenPrepare = \_ -> return []
+    ,ovenTestInfo = \_ -> mempty
     ,ovenDefaultServer = ("127.0.0.1",80)
     ,ovenStringyState = readShowStringy
     ,ovenStringyPatch = readShowStringy
@@ -67,21 +71,18 @@ defaultOven = Oven
 
 data TestInfo test = TestInfo
     {testThreads :: Maybe Int -- number of threads, defaults to 1, Nothing for use all
-    ,testAction :: IO [test]
+    ,testAction :: IO ()
     ,testSuitable :: IO Bool -- can this test be run on this machine (e.g. Linux only tests)
-    ,testBefore :: [test]
-    ,testBeforeAuto :: Bool
+    ,testRequire :: [test]
     }
 
 instance Functor TestInfo where
-    fmap f t = t{testBefore = map f $ testBefore t
-                ,testAction = fmap (map f) $ testAction t
-                }
+    fmap f t = t{testRequire = map f $ testRequire t}
 
 instance Monoid (TestInfo test) where
-    mempty = TestInfo (Just 1) (return []) (return True) [] True
-    mappend (TestInfo x1 x2 x3 x4 x5) (TestInfo y1 y2 y3 y4 y5) =
-        TestInfo (liftM2 (+) x1 y1) (liftM2 (++) x2 y2) (x3 &&^ y3) (x4 ++ y4) (x5 || y5)
+    mempty = TestInfo (Just 1) (return ()) (return True) []
+    mappend (TestInfo x1 x2 x3 x4) (TestInfo y1 y2 y3 y4) =
+        TestInfo (liftM2 (+) x1 y1) (x2 >> y2) (x3 &&^ y3) (x4 ++ y4)
 
 threads :: Int -> TestInfo test -> TestInfo test
 threads j t = t{testThreads=Just j}
@@ -89,13 +90,10 @@ threads j t = t{testThreads=Just j}
 threadsAll :: TestInfo test -> TestInfo test
 threadsAll t = t{testThreads=Nothing}
 
-before :: [test] -> TestInfo test -> TestInfo test
-before xs t = t{testBefore=testBefore t++xs}
+require :: [test] -> TestInfo test -> TestInfo test
+require xs t = t{testRequire=testRequire t++xs}
 
-beforeClear :: TestInfo test -> TestInfo test
-beforeClear t = t{testBefore=[], testBeforeAuto=False}
-
-run :: IO [test] -> TestInfo test
+run :: IO () -> TestInfo test
 run act = mempty{testAction=act}
 
 suitable :: IO Bool -> TestInfo test -> TestInfo test
@@ -110,7 +108,8 @@ concrete :: Oven state patch test -> Oven State Patch Test
 concrete o@Oven{..} = o
     {ovenUpdateState = \mc ->
         fmap (State . stringyTo ovenStringyState) $ ovenUpdateState $ fmap downCandidate mc
-    ,ovenRunTest = \c mt -> error "concrete ovenRunTest"
+    ,ovenPrepare = \c -> error "concrete ovenPrepare"
+    ,ovenTestInfo = \t -> error "concrete ovenTestInfo"
     ,ovenStringyState = liftStringy ovenStringyState
     ,ovenStringyPatch = liftStringy ovenStringyPatch
     ,ovenStringyTest = liftStringy ovenStringyTest

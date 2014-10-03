@@ -11,7 +11,7 @@ import System.Environment
 -- NORMAL CODE
 
 data Platform = Linux | Windows deriving (Show,Read)
-data Action = Compile | Run deriving (Show,Read)
+data Action = Compile | Run Int deriving (Show,Read)
 
 
 main :: IO ()
@@ -19,19 +19,16 @@ main = do
     args <- getArgs
     if null args then test else bake $
         ovenGit "https://github.com/ndmitchell/bake.git" "master" $
-        ovenTest readShowStringy (const execute)
+        ovenTest readShowStringy (return allTests) execute
         defaultOven
 
+allTests = [(p,t) | p <- [Linux,Windows], t <- Compile : map Run [1..3]]
 
-execute :: Maybe (Platform,Action) -> TestInfo (Platform,Action)
-execute Nothing = run $ do
-    return [(Linux,Compile),(Windows,Compile)]
-execute (Just (p,Compile)) = matchOS p $ run $ do
-    () <- cmd "ghc --make Main.hs"
-    return [(p,Run)]
-execute (Just (p,Run)) = matchOS p $ run $ do
-    () <- cmd "Main"
-    return []
+execute :: (Platform,Action) -> TestInfo (Platform,Action)
+execute (p,Compile) = matchOS p $ run $ do
+    cmd "ghc --make Main.hs"
+execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
+    cmd "Main" (show i)
 
 matchOS :: Platform -> TestInfo t -> TestInfo t
 matchOS p = suitable (fmap (== show p) $ getEnv "PLATFORM")

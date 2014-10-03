@@ -26,7 +26,7 @@ startClient hp author name maxThreads ping (concrete -> oven) = do
         now <- readIORef nowThreads
         q <- sendMessage hp $ Pinged $ Ping client author name maxThreads now
         whenJust q $ \q@Question{..} -> do
-            suitable <- testSuitable $ ovenRunTest oven qCandidate qTest
+            suitable <- maybe (return True) (testSuitable . ovenTestInfo oven) qTest
             if not suitable then do
                 sendMessage hp $ Finished q $ Answer "" 0 [] NotApplicable
                 writeChan queue ()

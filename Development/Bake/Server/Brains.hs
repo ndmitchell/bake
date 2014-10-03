@@ -28,5 +28,5 @@ brains Server{..} Ping{..}
 
         -- tests that have not been done on the current candidate, but were asked for
         todoTests =
-            (Nothing : [Just t | (_,_,Just Answer{..}) <- historyActive, t <- concatMap thd3 aNext]) \\
+            (Nothing : [Just t | (_,_,Just Answer{..}) <- historyActive, t <- aTests]) \\
             [qTest | (_,Question{..},Just Answer{aStatus=Success}) <- historyActive]
