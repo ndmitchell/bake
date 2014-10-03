@@ -5,9 +5,20 @@ import Development.Bake.Type
 import Development.Shake.Command
 
 
-newtype SHA1 = SHA1 String deriving (Read,Show)
+newtype SHA1 = SHA1 String deriving Show
 
-stringySHA1 = readShowStringy
+sha1 :: String -> SHA1
+sha1 x | length x /= 40 = error $ "SHA1 for Git must be 40 characters long, got " ++ show x
+       | not $ all (`elem` "0123456789abcdef") x = error $ "SHA1 for Git must be all lower case hex, got " ++ show x 
+       | otherwise = SHA1 x
+
+stringySHA1 :: Stringy SHA1
+stringySHA1 = Stringy
+    {stringyTo = \(SHA1 x) -> x
+    ,stringyFrom = sha1
+    ,stringyPretty = \(SHA1 x) -> take 7 x
+    ,stringyExtra = const $ return ""
+    }
 
 
 -- | Given a repo name, and a set of tests, produce something that runs from git

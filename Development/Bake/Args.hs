@@ -11,6 +11,9 @@ import Development.Bake.Type hiding (Client)
 import Development.Bake.Client
 import Development.Bake.Server.Start
 import Development.Bake.Send
+import Development.Bake.Util
+import Control.Exception
+import Control.DeepSeq
 
 
 type HostPort = String
@@ -44,8 +47,8 @@ bake oven = do
     case x of
         Server{..} -> startServer port author name timeout oven
         Client{..} -> startClient (hp server) author name threads ping oven
-        AddPatch{..} -> sendAddPatch (hp server) author $ checkPatch oven name
-        DelPatch{..} -> sendDelPatch (hp server) author $ checkPatch oven name
+        AddPatch{..} -> sendAddPatch (hp server) author =<< checkPatch oven name
+        DelPatch{..} -> sendDelPatch (hp server) author =<< checkPatch oven name
         DelPatches{..} -> sendDelAllPatches (hp server) author
         Pause{..} -> sendPause (hp server) author
         Unpause{..} -> sendUnpause (hp server) author
@@ -61,6 +64,11 @@ bake oven = do
             where (h,p) = break (== ':') s
 
 
-checkPatch :: Oven state patch test -> String -> String
-checkPatch Oven{ovenStringyPatch=Stringy{..}} = stringyTo . stringyFrom 
+checkPatch :: Oven state patch test -> String -> IO String
+checkPatch Oven{ovenStringyPatch=Stringy{..}} x = do
+    res <- try_ $ evaluate $ force $ stringyTo $ stringyFrom x
+    case res of
+        Left err -> error $ "Couldn't stringify the patch " ++ show x ++ ", got " ++ show err
+        Right v -> return v
+
 

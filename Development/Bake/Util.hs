@@ -6,7 +6,8 @@ module Development.Bake.Util(
     withCurrentDirectory, withTempDirCurrent,
     (&&^), whenJust,
     showException,
-    fst3, snd3, thd3
+    fst3, snd3, thd3,
+    try_, handle_
     ) where
 
 import qualified System.IO.Temp as T
@@ -57,3 +58,10 @@ showException = f . show
 fst3 (x,_,_) = x
 snd3 (_,x,_) = x
 thd3 (_,_,x) = x
+
+
+try_ :: IO a -> IO (Either SomeException a)
+try_ = try
+
+handle_ :: (SomeException -> IO a) -> IO a -> IO a
+handle_ = handle

@@ -18,6 +18,7 @@ import Control.Exception
 import Data.List
 import Data.Maybe
 import Data.Time.Clock
+import Control.Monad
 
 
 startServer :: Port -> Author -> String -> Double -> Oven state patch test -> IO ()
@@ -25,7 +26,8 @@ startServer port author name timeout (concrete -> oven) = do
     s <- withTempDirCurrent $ ovenUpdateState oven Nothing
     putStrLn $ "Initial state of: " ++ show s
     var <- newMVar $ defaultServer s
-    server port $ \i@Input{..} ->
+    server port $ \i@Input{..} -> do
+        print i
         handle (\(e :: SomeException) -> fmap OutputError $ showException e) $ do
             res <-
                 if null inputURL || ["ui"] `isPrefixOf` inputURL then
@@ -55,10 +57,12 @@ operate timeout oven message server = case message of
         now <- getCurrentTime
         server <- return $ prune (addUTCTime (fromRational $ toRational $ negate timeout) now) $ server
             {pings = (now,ping) : filter ((/= pClient ping) . pClient . snd) (pings server)}
-        let (q,upd) = brains server ping
+        let depends = testRequire . ovenTestInfo oven
+        let (q,upd) = brains depends server ping
         server <- return $ server{history = map (now,,Nothing) (maybeToList q) ++ history server}
         whenJust upd $ \upd -> error $ "operate, update"
-        return (server, fmap (\q -> q{qClient = pClient ping}) q)
+        whenJust q $ \q -> when (qClient q /= pClient ping) $ error "client doesn't match the ping"
+        return (server, q)
     where
         dull s = return (s,Nothing)
 

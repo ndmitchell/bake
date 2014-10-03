@@ -21,7 +21,8 @@ startClient hp author name maxThreads ping (concrete -> oven) = do
     queue <- newChan
     nowThreads <- newIORef maxThreads
 
-    forkIO $ do
+    root <- myThreadId
+    forkIO $ handle_ (throwTo root) $ forever $ do
         readChan queue
         now <- readIORef nowThreads
         q <- sendMessage hp $ Pinged $ Ping client author name maxThreads now
@@ -36,7 +37,8 @@ startClient hp author name maxThreads ping (concrete -> oven) = do
                 void $ forkIO $ withTempFile "bake.txt" $ \file -> do
                     (time, (exit, Stdout stdout, Stderr err)) <- timed $
                         cmd "self" (("--output=" ++ file):error "start client")
-                    next <- fmap (map undefined . lines) $ readFile file
+                    next <- fmap (map (error "client read") . lines) $ readFile file
+                    putStrLn "FIXME: Should validate the next set forms a DAG"
                     atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
                     sendMessage hp $ Finished q $
                         Answer stdout time next $ if exit == ExitSuccess then Success else Failure
