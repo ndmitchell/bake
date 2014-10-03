@@ -60,9 +60,9 @@ operate timeout oven message server = case message of
         let depends = testRequire . ovenTestInfo oven
         let (q,upd) = brains depends server ping
         server <- return $ server{history = map (now,,Nothing) (maybeToList q) ++ history server}
-        server <- if isNothing upd then return server else do
-            s <- withTempDirCurrent $ ovenUpdateState oven upd
-            return server{active=Candidate s []}
+        server <- if not upd then return server else do
+            s <- withTempDirCurrent $ ovenUpdateState oven $ Just $ active server
+            return server{active=Candidate s [], updates=(s,active server):updates server}
         whenJust q $ \q -> when (qClient q /= pClient ping) $ error "client doesn't match the ping"
         return (server, q)
     where

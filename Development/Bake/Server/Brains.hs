@@ -14,11 +14,11 @@ import Data.Maybe
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 -- Any client who hasn't ping'd us since cutoff is considered dead
-brains :: (Test -> [Test]) -> Server -> Ping -> (Maybe Question, Maybe (Candidate State Patch))
-brains _ Server{active=Candidate _ []} _ = (Nothing, Nothing) -- no outstanding tasks
+brains :: (Test -> [Test]) -> Server -> Ping -> (Maybe Question, Bool {- should I update -})
+brains _ Server{active=Candidate _ []} _ = (Nothing, False) -- no outstanding tasks
 brains depends Server{..} Ping{..}
-    | null failingTests && null todoTests = (Nothing, Just active)
-    | null failingTests = (fmap (\t -> Question active t 1 pClient) $ listToMaybe $ filter suitableTest todoTests, Nothing)
+    | null failingTests && null todoTests = (Nothing, True)
+    | null failingTests = (fmap (\t -> Question active t 1 pClient) $ listToMaybe $ filter suitableTest todoTests, False)
     | otherwise = error "brains, failing tests"
     where
         -- history for those who match the active candidate
