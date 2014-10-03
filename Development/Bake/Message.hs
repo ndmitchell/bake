@@ -80,7 +80,7 @@ messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
 messageToInput (Pinged Ping{..}) = Input ["api","ping"]
     [("client",fromClient pClient),("author",pAuthor),("name",pName)
     ,("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)] ""
-messageToInput (Finished Question{..} Answer{..}) = error "messageToInput Finished"
+messageToInput (Finished Question{..} Answer{..}) = error $ "messageToInput Finished: " ++ show (Finished Question{..} Answer{..})
 
 
 -- return either an error message (not a valid message), or a message

@@ -21,6 +21,7 @@ import Data.IORef
 data Platform = Linux | Windows deriving (Show,Read)
 data Action = Compile | Run Int deriving (Show,Read)
 
+platforms = [Linux]
 
 main :: IO ()
 main = do
@@ -31,7 +32,7 @@ main = do
         ovenTest readShowStringy (return allTests) execute
         defaultOven
 
-allTests = [(p,t) | p <- [Linux,Windows], t <- Compile : map Run [1..3]]
+allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1..3]]
 
 execute :: (Platform,Action) -> TestInfo (Platform,Action)
 execute (p,Compile) = matchOS p $ run $ do
@@ -84,7 +85,7 @@ test dir = do
     exe <- getExecutablePath
     p0 <- createProcessAlive (proc exe ["server"]){cwd=Just dir}
     environment <- getEnvironment
-    ps <- forM [Windows,Linux] $ \p -> do
+    ps <- forM platforms $ \p -> do
         sleep 0.5 -- so they don't ping at the same time
         createProcessAlive (proc exe ["client","--ping=1","--name=" ++ show p])
             {cwd=Just dir,env=Just $ ("PLATFORM",show p) : environment}

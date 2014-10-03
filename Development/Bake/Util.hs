@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Development.Bake.Util(
-    sleep, timed,
+    sleep, duration,
     withTempFile, withTempDir,
     withCurrentDirectory, withTempDirCurrent,
     (&&^), whenJust,
@@ -15,14 +15,29 @@ import Control.Concurrent
 import Control.Exception
 import System.Directory
 import System.IO
+import Data.Time.Clock
 
 
 sleep :: Double -> IO ()
 sleep x = threadDelay $ ceiling $ x * 1000000
 
 
-timed :: IO a -> IO (Double, a)
-timed = error "timed"
+offsetTime :: IO (IO Double)
+offsetTime = do
+    start <- getCurrentTime
+    return $ do
+        end <- getCurrentTime
+        return $ diffTime end start
+
+diffTime :: UTCTime -> UTCTime -> Double
+diffTime end start = fromRational $ toRational $ end `diffUTCTime` start
+
+duration :: IO a -> IO (Double, a)
+duration act = do
+    time <- offsetTime
+    res <- act
+    time <- time
+    return (time, res)
 
 
 withTempFile :: String -> (FilePath -> IO a) -> IO a
