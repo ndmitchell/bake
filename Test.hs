@@ -113,8 +113,13 @@ test dir = do
     edit "tony" $
         writeFile "Main.hs" "module Main where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
 
-    sleep 30
+    sleep 10
+    withTempDir $ \d -> withCurrentDirectory d $ do
+        unit $ cmd "git clone" (dir </> "repo") "."
+        unit $ cmd "git checkout master"
+        src <- readFile "Main.hs"
+        let expect = "module Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
+        when (src /= expect) $ do
+            error $ "Expected to have updated Main, but got:\n" ++ src
 
-    putStrLn "Script finished, press any key to exit..."
-    getLine
-    return ()
+    putStrLn "Completed successfully!"
