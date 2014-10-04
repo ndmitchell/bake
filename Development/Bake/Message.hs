@@ -22,7 +22,7 @@ data Message
     | Unpause Author
     -- Sent by the client
     | Pinged Ping
-    | Finished Question Answer
+    | Finished {question :: Question, answer :: Answer}
     deriving (Show,Eq)
 
 data Question = Question
@@ -100,8 +100,7 @@ messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
 messageToInput (Pinged Ping{..}) = Input ["api","ping"]
     [("client",fromClient pClient),("author",pAuthor)
     ,("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)] ""
-messageToInput (Finished q a) = Input ["api","finish"] [] $
-    LBS.unpack $ encode $ object ["question" .= q, "answer" .= a]
+messageToInput x@Finished{} = Input ["api","finish"] [] $ LBS.unpack $ encode x
 
 
 -- return either an error message (not a valid message), or a message
