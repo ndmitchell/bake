@@ -7,8 +7,6 @@ module Development.Bake.Server.Brains(
 import Development.Bake.Message
 import Development.Bake.Type
 import Development.Bake.Server.Type
-import Development.Bake.Util
-import Data.List
 import Data.Maybe
 
 
@@ -58,7 +56,7 @@ brains depends Server{..} Ping{..}
         failure' = filter (not . aSuccess . snd)
         answered' x = [(q,a) | (q,Just a) <- x]
 
-
+{-
 brains depends Server{..} Ping{..}
     | null failingTests && setupStep == Nothing = (Just $ Question active Nothing 1 pClient, Nothing, False)
     | null failingTests && setupStep == Just Nothing = (Nothing, Nothing, False)
@@ -98,4 +96,4 @@ brains depends Server{..} Ping{..}
         -- for each patch in the candidate state, does the first failing test fail or not (or unknown)
         failingOn = [ (p,) $ listToMaybe [aSuccess | (_,Question{..},Just Answer{..}) <- history, qCandidate == Candidate state p, qTest == head failingTests]
                     | p <- tail $ inits patches]
-
+-}
