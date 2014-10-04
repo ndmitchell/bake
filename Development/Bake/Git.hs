@@ -50,6 +50,8 @@ ovenGit repo branch o = o
 
         gitCheckout (Candidate s ps) = do
             unit $ cmd "git clone" repo "."
+            unit $ cmd "git config user.email" ["https://github.com/ndmitchell/bake"]
+            unit $ cmd "git config user.name" ["Bake Continuous Integration"]
             unit $ cmd "git checkout" (fromSHA1 s)
             forM_ ps $ \p -> do
                 unit $ cmd "git merge" (fromSHA1 p)

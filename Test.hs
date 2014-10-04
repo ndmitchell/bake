@@ -14,6 +14,7 @@ import Control.Concurrent
 import System.Process
 import Data.IORef
 import Data.List
+import Data.Char
 
 
 ---------------------------------------------------------------------
@@ -59,6 +60,8 @@ test dir = do
     createDirectoryIfMissing True (dir </> "repo")
     withCurrentDirectory (dir </> "repo") $ do
         () <- cmd "git init"
+        () <- cmd "git config user.email" ["master@example.com"]
+        () <- cmd "git config user.name" ["The Master"]
         writeFile "Main.hs" "module Main where\n\n-- Entry point\nmain = print 1\n"
         () <- cmd "git add Main.hs"
         () <- cmd "git commit -m" ["Initial version"]
@@ -70,6 +73,8 @@ test dir = do
         withCurrentDirectory (dir </> "repo-" ++ s) $ do
             print "clone"
             () <- cmd "git clone ../repo ."
+            () <- cmd "git config user.email" [s ++ "@example.com"]
+            () <- cmd "git config user.name" ["Mr " ++ toUpper (head s) : map toLower (tail s)]
             print "checkout"
             () <- cmd "git checkout -b" s
             return ()
