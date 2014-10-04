@@ -59,3 +59,27 @@ library
         Development.Bake.Type
         Development.Bake.Util
         Development.Bake.Web
+
+-- don't use 'cabal test' since that loses the child stdout
+executable bake-test
+    default-language: Haskell2010
+    main-is: Test.hs
+    ghc-options: -threaded
+    build-depends:
+        base == 4.*,
+        cmdargs >= 0.10,
+        shake >= 0.10,
+        temporary,
+        directory,
+        bytestring,
+        text,
+        time,
+        random,
+        HTTP,
+        http-types,
+        deepseq,
+        aeson,
+        wai > 3.0.1,
+        warp > 3.0,
+        process,
+        filepath
