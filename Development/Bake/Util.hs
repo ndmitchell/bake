@@ -9,7 +9,8 @@ module Development.Bake.Util(
     fst3, snd3, thd3,
     unit,
     try_, handle_,
-    trim, ltrim, rtrim
+    trim, ltrim, rtrim,
+    rep, reps
     ) where
 
 import qualified System.IO.Temp as T
@@ -92,3 +93,8 @@ trim = ltrim . rtrim
 ltrim = dropWhile isSpace
 rtrim = reverse . ltrim . reverse
 
+rep :: Eq a => a -> a -> a -> a
+rep from to x = if x == from then to else x
+
+reps :: Eq a => a -> a -> [a] -> [a]
+reps from to = map (rep from to)
