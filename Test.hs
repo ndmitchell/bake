@@ -13,6 +13,7 @@ import Control.Exception
 import Control.Concurrent
 import System.Process
 import Data.IORef
+import Data.List
 
 
 ---------------------------------------------------------------------
@@ -26,9 +27,9 @@ platforms = [Linux]
 main :: IO ()
 main = do
     args <- getArgs
-    let dir = "C:/Neil/bake/.bake-test"
-    if null args then test dir else bake $
-        ovenGit (dir ++ "/repo") "master" $
+    dir <- fmap (intercalate "/" . takeWhile (/= ".bake-test") . splitDirectories) $ getCurrentDirectory
+    if null args then test (dir ++ "/.bake-test") else bake $
+        ovenGit (dir ++ "/.bake-test/repo") "master" $
         ovenTest readShowStringy (return allTests) execute
         defaultOven
 
