@@ -32,7 +32,7 @@ main = do
     if null args then test (dir ++ "/.bake-test") else bake $
         ovenGit (dir ++ "/.bake-test/repo") "master" $
         ovenTest readShowStringy (return allTests) execute
-        defaultOven
+        defaultOven{ovenServer=("127.0.0.1",5000)}
 
 allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1..3]]
 

@@ -34,7 +34,7 @@ data Oven state patch test = Oven
         -- ^ Produce information about a test
     ,ovenNotify :: Author -> String -> IO ()
         -- ^ Tell an author some information contained in the string (usually an email)
-    ,ovenDefaultServer :: (Host, Port)
+    ,ovenServer :: (Host, Port)
         -- ^ Default server to use
     ,ovenStringyState :: Stringy state
     ,ovenStringyPatch :: Stringy patch
@@ -64,7 +64,7 @@ defaultOven = Oven
     ,ovenNotify = \_ _ -> return ()
     ,ovenPrepare = \_ -> return []
     ,ovenTestInfo = \_ -> mempty
-    ,ovenDefaultServer = ("127.0.0.1",80)
+    ,ovenServer = ("127.0.0.1",80)
     ,ovenStringyState = readShowStringy
     ,ovenStringyPatch = readShowStringy
     ,ovenStringyTest = readShowStringy

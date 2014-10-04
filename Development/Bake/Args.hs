@@ -14,12 +14,13 @@ import Development.Bake.Send
 import Development.Bake.Util
 import Control.Exception
 import Control.DeepSeq
+import Data.Maybe
 
 
 type HostPort = String
 
 data Bake
-    = Server {port :: Port, author :: Author, name :: String, timeout :: Double}
+    = Server {port :: Maybe Port, author :: Author, name :: String, timeout :: Double}
     | Client {server :: HostPort, author :: Author, name :: String, threads :: Int, ping :: Double}
     | AddPatch {server :: HostPort, author :: Author, name :: String}
     | DelPatch {server :: HostPort, author :: Author, name :: String}
@@ -31,7 +32,7 @@ data Bake
 
 
 bakeMode = cmdArgsMode $ modes
-    [Server{port = 80, author = "unknown", name = "", timeout = 5*60}
+    [Server{port = Nothing, author = "unknown", name = "", timeout = 5*60}
     ,Client{server = "", threads = 1, ping = 60}
     ,AddPatch{}
     ,DelPatch{}
@@ -45,7 +46,7 @@ bake :: Oven state patch test -> IO ()
 bake oven@Oven{..} = do
     x <- cmdArgsRun bakeMode
     case x of
-        Server{..} -> startServer port author name timeout oven
+        Server{..} -> startServer (fromMaybe (snd ovenServer) port) author name timeout oven
         Client{..} -> startClient (hp server) author name threads ping oven
         AddPatch{..} -> sendAddPatch (hp server) author =<< check "patch" ovenStringyPatch name
         DelPatch{..} -> sendDelPatch (hp server) author =<< check "patch" ovenStringyPatch name
@@ -62,7 +63,7 @@ bake oven@Oven{..} = do
                 Just test -> do
                     testAction $ ovenTestInfo $ stringyFrom ovenStringyTest test
     where
-        hp "" = ovenDefaultServer
+        hp "" = ovenServer
         hp s = (h, read $ drop 1 p)
             where (h,p) = break (== ':') s
 
