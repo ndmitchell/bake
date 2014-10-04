@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, TupleSections #-}
 
 module Development.Bake.Server.Brains(
     brains
@@ -14,14 +14,60 @@ import Data.Maybe
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 -- Any client who hasn't ping'd us since cutoff is considered dead
-brains :: (Test -> [Test]) -> Server -> Ping -> (Maybe Question, Bool {- should I update -})
-brains _ Server{active=Candidate _ []} _ = (Nothing, False) -- no outstanding tasks
+brains :: (Test -> [Test]) -> Server -> Ping -> (Maybe Question, Maybe Patch, Bool {- should I update -})
+brains _ Server{active=Candidate _ []} _ = (Nothing, Nothing, False) -- no outstanding tasks
+
 brains depends Server{..} Ping{..}
-    | null failingTests && setupStep == Nothing = (Just $ Question active Nothing 1 pClient, False)
-    | null failingTests && setupStep == Just Nothing = (Nothing, False)
-    | null failingTests && null testsTodo = (Nothing, True)
-    | null failingTests = (fmap (\t -> Question active (Just t) 1 pClient) $ listToMaybe $ filter suitableTest testsTodo, False)
-    | otherwise = error "brains, failing tests"
+    | allTestsPass active = (Nothing, Nothing, True) -- Update active
+    | t:_ <- failingTests active = error $ "brains, failing test: " ++ show t
+    | otherwise = let next = filter (suitableTest active) $ allTests active
+                  in (fmap (\t -> Question active t 1 pClient) $ listToMaybe next, Nothing, False)
+    where
+        -- all the tests we know about for this candidate, may be incomplete if Nothing has not passed (yet)
+        allTests c = (Nothing:) $ map Just $ concat $ take 1 $
+            map (uncurry (++) . aTests . snd) $ success' $ test' Nothing $ answered' $ candidate' c it
+
+        -- are all tests passing for this candidate
+        allTestsPass c = flip all (allTests c) $ \t ->
+            not $ null $ success' $ test' t $ answered' $ candidate' c it
+
+        -- what tests are failing for this candidate
+        failingTests c = map (qTest . fst) $ failure' $ answered' $ candidate' c it
+
+        -- can this candidate start running this test
+        suitableTest c t
+            | pNowThreads <= 0 = False -- need enough threads
+        suitableTest c Nothing
+            | null $ self' $ test' Nothing $ candidate' c it -- I am not already running it
+            = True
+        suitableTest c t@(Just tt)
+            | [clientTests] <- map (fst . aTests . snd) $ self' $ success' $ test' Nothing $ answered' $ candidate' c it
+            , tt `elem` clientTests -- it is one of the tests this client is suitable for
+            , null $ test' t $ self' $ candidate' c it -- I am not running it already
+            , clientDone <- map (qTest . fst) $ success' $ answered' $ self' $ candidate' c it
+            , all (`elem` clientDone) $ map Just $ depends tt
+            = True
+        suitableTest _ _ = False
+
+        -- query language
+        it = [(q,a) | (_,q,a) <- history]
+        candidate' c = filter ((==) c . qCandidate . fst)
+        test' t = filter ((==) t . qTest . fst) 
+        self' = filter ((==) pClient . qClient . fst) 
+        success' = filter (aSuccess . snd)
+        failure' = filter (not . aSuccess . snd)
+        answered' x = [(q,a) | (q,Just a) <- x]
+
+
+brains depends Server{..} Ping{..}
+    | null failingTests && setupStep == Nothing = (Just $ Question active Nothing 1 pClient, Nothing, False)
+    | null failingTests && setupStep == Just Nothing = (Nothing, Nothing, False)
+    | null failingTests && null testsTodo = (Nothing, Nothing, True)
+    | null failingTests = (fmap (\t -> Question active (Just t) 1 pClient) $ listToMaybe $ filter suitableTest testsTodo, Nothing, False)
+    | otherwise = case dropWhile ((== Just False) . snd) $ reverse failingOn of
+        [] -> (Nothing, Just $ head patches, False)
+        (_,Just True):rest -> (Nothing, Just $ patches !! (length rest + 1), False)
+        (ps,Nothing):_ -> error $ "brains, need to attempt with " ++ show ps
     where
         -- history for those who match the active candidate
         historyActive = filter ((==) active . qCandidate . snd3) history
@@ -46,3 +92,10 @@ brains depends Server{..} Ping{..}
             pNowThreads >= 1 &&
             t `elem` fst (fromJust $ fromJust setupStep) &&
             all (`elem` testsDoneMe) (depends t)
+
+        Candidate state patches = active
+
+        -- for each patch in the candidate state, does the first failing test fail or not (or unknown)
+        failingOn = [ (p,) $ listToMaybe [aSuccess | (_,Question{..},Just Answer{..}) <- history, qCandidate == Candidate state p, qTest == head failingTests]
+                    | p <- tail $ inits patches]
+

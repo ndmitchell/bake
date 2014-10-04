@@ -59,7 +59,8 @@ operate timeout oven message server = case message of
         server <- return $ prune (addUTCTime (fromRational $ toRational $ negate timeout) now) $ server
             {pings = (now,ping) : filter ((/= pClient ping) . pClient . snd) (pings server)}
         let depends = testRequire . ovenTestInfo oven
-        let (q,upd) = brains depends server ping
+        let (q,rem,upd) = brains depends server ping
+        server <- return $ case rem of Nothing -> server; Just p -> let Candidate s ps = active server in server{active=Candidate s $ delete p ps}
         server <- return $ server{history = map (now,,Nothing) (maybeToList q) ++ history server}
         server <- if not upd then return server else do
             s <- withTempDirCurrent $ ovenUpdateState oven $ Just $ active server
