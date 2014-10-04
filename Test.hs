@@ -40,7 +40,7 @@ execute :: (Platform,Action) -> TestInfo (Platform,Action)
 execute (p,Compile) = matchOS p $ run $ do
     cmd "ghc --make Main.hs"
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
-    cmd "Main" (show i)
+    cmd ("." </> "Main") (show i)
 
 matchOS :: Platform -> TestInfo t -> TestInfo t
 matchOS p = suitable (fmap (== show p) $ getEnv "PLATFORM")
