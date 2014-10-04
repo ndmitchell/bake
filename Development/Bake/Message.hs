@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
 module Development.Bake.Message(
-    Message(..), Ping(..), Question(..), Answer(..), Status(..),
+    Message(..), Ping(..), Question(..), Answer(..),
     sendMessage, messageFromInput, questionToOutput
     ) where
 
@@ -36,12 +36,12 @@ data Question = Question
 data Answer = Answer
     {aStdout :: String
     ,aDuration :: Double
-    ,aTests :: [Test] -- only filled in if qTest is Nothing
-    ,aStatus :: Status
+    ,aTests :: ([Test],[Test])
+        -- only filled in if qTest is Nothing
+        -- (those tests which are suitable, those which are unsuitable)
+    ,aSuccess :: Bool
     }
     deriving (Show,Eq)
-
-data Status = Success | Failure | NotApplicable deriving (Show,Eq)
 
 data Ping = Ping
     {pClient :: Client
@@ -83,18 +83,11 @@ instance ToJSON Answer where
         ["stdout" .= aStdout
         ,"duration" .= aDuration
         ,"tests" .= aTests
-        ,"status" .= aStatus]
+        ,"success" .= aSuccess]
 
 instance FromJSON Answer where
     parseJSON (Object v) = Answer <$>
-        (v .: "stdout") <*> (v .: "duration") <*> (v .: "tests") <*> (v .: "status")
-    parseJSON _ = mzero
-
-instance ToJSON Status where toJSON = toJSON . show
-instance FromJSON Status where
-    parseJSON (String "Success") = return Success
-    parseJSON (String "Failure") = return Failure
-    parseJSON (String "NotApplicable") = return NotApplicable
+        (v .: "stdout") <*> (v .: "duration") <*> (v .: "tests") <*> (v .: "success")
     parseJSON _ = mzero
 
 

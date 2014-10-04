@@ -10,7 +10,8 @@ module Development.Bake.Util(
     unit,
     try_, handle_,
     trim, ltrim, rtrim,
-    rep, reps
+    rep, reps,
+    partitionM
     ) where
 
 import qualified System.IO.Temp as T
@@ -98,3 +99,10 @@ rep from to x = if x == from then to else x
 
 reps :: Eq a => a -> a -> [a] -> [a]
 reps from to = map (rep from to)
+
+partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a], [a])
+partitionM f [] = return ([], [])
+partitionM f (x:xs) = do
+    res <- f x
+    (as,bs) <- partitionM f xs
+    return ([x | res]++as, [x | not res]++bs)

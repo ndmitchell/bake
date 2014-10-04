@@ -23,7 +23,7 @@ import Data.Char
 data Platform = Linux | Windows deriving (Show,Read)
 data Action = Compile | Run Int deriving (Show,Read)
 
-platforms = [Linux]
+platforms = [Linux,Windows]
 
 main :: IO ()
 main = do
@@ -34,7 +34,7 @@ main = do
         ovenTest readShowStringy (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
 
-allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1..3]]
+allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1,2,10]]
 
 execute :: (Platform,Action) -> TestInfo (Platform,Action)
 execute (p,Compile) = matchOS p $ run $ do

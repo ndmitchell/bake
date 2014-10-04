@@ -59,7 +59,9 @@ bake oven@Oven{..} = do
                     res <- ovenPrepare $ Candidate
                         (stringyFrom ovenStringyState state)
                         (map (stringyFrom ovenStringyPatch) patch)
-                    writeFile output $ unlines $ map (stringyTo ovenStringyTest) res
+                    (yes,no) <- partitionM (testSuitable . ovenTestInfo) res
+                    let op = map (stringyTo ovenStringyTest)
+                    writeFile output $ show (op yes, op no)
                 Just test -> do
                     testAction $ ovenTestInfo $ stringyFrom ovenStringyTest test
     where

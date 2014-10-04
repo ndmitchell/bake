@@ -31,28 +31,25 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
         now <- readIORef nowThreads
         q <- sendMessage hp $ Pinged $ Ping client author maxThreads now
         whenJust q $ \q@Question{qCandidate=qCandidate@(Candidate qState qPatches),..} -> do
-            suitable <- maybe (return True) (testSuitable . ovenTestInfo oven) qTest
-            if not suitable then do
-                sendMessage hp $ Finished q $ Answer "" 0 [] NotApplicable
+            atomicModifyIORef nowThreads $ \now -> (now - qThreads, ())
+            writeChan queue ()
+            void $ forkIO $ safeguard $ do
+                dir <- candidateDir qCandidate
+                (time, (exit, Stdout sout, Stderr serr)) <- duration $
+                    cmd (Cwd dir) exe "run"
+                        "--output=../tests.txt"
+                        ["--test=" ++ fromTest t | Just t <- [qTest]]
+                        ("--state=" ++ fromState qState)
+                        ["--patch=" ++ fromPatch p | p <- qPatches]
+                tests <- if isJust qTest || exit /= ExitSuccess then return ([],[]) else do
+                    src ::  ([String],[String]) <- fmap read $ readFile "tests.txt"
+                    let op = map (stringyFrom (ovenStringyTest oven))
+                    return (op (fst src), op (snd src))
+                putStrLn "FIXME: Should validate the next set forms a DAG"
+                atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
+                sendMessage hp $ Finished q $
+                    Answer (sout++serr) time tests $ exit == ExitSuccess
                 writeChan queue ()
-             else do
-                atomicModifyIORef nowThreads $ \now -> (now - qThreads, ())
-                writeChan queue ()
-                void $ forkIO $ safeguard $ do
-                    dir <- candidateDir qCandidate
-                    (time, (exit, Stdout sout, Stderr serr)) <- duration $
-                        cmd (Cwd dir) exe "run"
-                            "--output=../tests.txt"
-                            ["--test=" ++ fromTest t | Just t <- [qTest]]
-                            ("--state=" ++ fromState qState)
-                            ["--patch=" ++ fromPatch p | p <- qPatches]
-                    next <- if isJust qTest || exit /= ExitSuccess then return [] else
-                        fmap (map (stringyFrom (ovenStringyTest oven)) . lines) $ readFile "tests.txt"
-                    putStrLn "FIXME: Should validate the next set forms a DAG"
-                    atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
-                    sendMessage hp $ Finished q $
-                        Answer (sout++serr) time next $ if exit == ExitSuccess then Success else Failure
-                    writeChan queue ()
 
     forever $ writeChan queue () >> sleep ping
 

@@ -51,6 +51,7 @@ operate timeout oven message server = case message of
         dull server{paused=Nothing, active = Candidate s $ ps ++ fromMaybe [] (paused server)}
     Finished q a -> do
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
+        consistent server
         mapM_ (uncurry $ ovenNotify oven) $ notify q a server
         dull server 
     Pinged ping -> do
@@ -77,3 +78,7 @@ notify _ _ _ = [] -- FIXME: sometimes tell someone something
 prune :: UTCTime -> Server -> Server
 prune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
     where clients = [pClient | (t,Ping{..}) <- pings s, t >= cutoff]
+
+consistent :: Server -> IO ()
+consistent Server{..} = do
+    putStrLn "FIXME: Check all for a given Candidate, all aTest answers give the same set of results"

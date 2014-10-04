@@ -17,26 +17,32 @@ import Data.Maybe
 brains :: (Test -> [Test]) -> Server -> Ping -> (Maybe Question, Bool {- should I update -})
 brains _ Server{active=Candidate _ []} _ = (Nothing, False) -- no outstanding tasks
 brains depends Server{..} Ping{..}
-    | null failingTests && null todoTests = (Nothing, True)
-    | null failingTests = (fmap (\t -> Question active t 1 pClient) $ listToMaybe $ filter suitableTest todoTests, False)
+    | null failingTests && setupStep == Nothing = (Just $ Question active Nothing 1 pClient, False)
+    | null failingTests && setupStep == Just Nothing = (Nothing, False)
+    | null failingTests && null testsTodo = (Nothing, True)
+    | null failingTests = (fmap (\t -> Question active (Just t) 1 pClient) $ listToMaybe $ filter suitableTest testsTodo, False)
     | otherwise = error "brains, failing tests"
     where
         -- history for those who match the active candidate
         historyActive = filter ((==) active . qCandidate . snd3) history
 
         -- tests that have failed for the current candidate
-        failingTests = [qTest | (_,Question{..},Just Answer{aStatus=Failure}) <- historyActive]
+        failingTests = [qTest | (_,Question{..},Just Answer{aSuccess=False}) <- historyActive]
 
-        -- tests that have not been done on the current candidate, but were asked for
-        todoTests =
-            (Nothing : [Just t | (_,_,Just Answer{..}) <- historyActive, t <- aTests]) \\
-            [qTest | (_,Question{..},Just Answer{aStatus=Success}) <- historyActive]
+        -- Nothing = never run, Just Nothing = in progress, Just (Just t) = completed
+        setupStep = listToMaybe [fmap aTests a
+            | (_,Question{qTest=Nothing,..},a) <- historyActive, qClient == pClient]
+
+        testsDone = [t | (_,Question{qTest=Just t},Just Answer{aSuccess=True}) <- historyActive]
+        testsNeed = let (a,b) = fromJust (fromJust setupStep) in a ++ b
+        testsTodo = testsDone \\ testsNeed
+        testsDoneMe = [t | (_,Question{qTest=Just t,..},Just Answer{aSuccess=True}) <- historyActive, qClient == pClient]
 
         -- a test is suitable to run if:
-        -- 1) this client has never replied NotApplicable
-        -- 2) it's dependencies have all been run by this client
-        -- 3) there are enough threads outstanding
+        -- 1) there are enough threads outstanding
+        -- 2) this client is capable of running the test
+        -- 3) it's dependencies have all been run by this client
         suitableTest t =
             pNowThreads >= 1 &&
-            null [() | (_,Question{..},Just Answer{aStatus=NotApplicable}) <- historyActive, qTest == t] &&
-            null (maybe [] (map Just . depends) t `intersect` todoTests)
+            t `elem` fst (fromJust $ fromJust setupStep) &&
+            all (`elem` testsDoneMe) (depends t)
