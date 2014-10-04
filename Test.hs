@@ -94,32 +94,31 @@ test dir = do
         createProcessAlive (proc exe ["client","--ping=1","--name=" ++ show p])
             {cwd=Just $ dir </> "client-" ++ show p,env=Just $ ("PLATFORM",show p) : environment}
     flip finally (do writeIORef aborting True; mapM_ terminateProcess $ p0 : ps) $ do
+        let edit name act = withCurrentDirectory (dir </> "repo-" ++ name) $ do
+                act
+                () <- cmd "git add *"
+                () <- cmd "git commit -m" ["Update from " ++ name]
+                () <- cmd "git push origin" name
+                Stdout sha1 <- cmd "git rev-parse HEAD"
+                print "adding patch"
+                () <- cmd exe "addpatch" ("--name=" ++ sha1) ("--author=" ++ name)
+                return ()
 
-    let edit name act = withCurrentDirectory (dir </> "repo-" ++ name) $ do
-            act
-            () <- cmd "git add *"
-            () <- cmd "git commit -m" ["Update from " ++ name]
-            () <- cmd "git push origin" name
-            Stdout sha1 <- cmd "git rev-parse HEAD"
-            print "adding patch"
-            () <- cmd exe "addpatch" ("--name=" ++ sha1) ("--author=" ++ name)
-            return ()
+        putStrLn "% MAKING EDIT AS BOB"
+        edit "bob" $
+            writeFile "Main.hs" "module Main(main) where\n\n-- Entry point\nmain = print 1\n"
+        sleep 2
+        putStrLn "% MAKING EDIT AS TONY"
+        edit "tony" $
+            writeFile "Main.hs" "module Main where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
 
-    putStrLn "% MAKING EDIT AS BOB"
-    edit "bob" $
-        writeFile "Main.hs" "module Main(main) where\n\n-- Entry point\nmain = print 1\n"
-    sleep 2
-    putStrLn "% MAKING EDIT AS TONY"
-    edit "tony" $
-        writeFile "Main.hs" "module Main where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
+        sleep 10
+        withTempDir $ \d -> withCurrentDirectory d $ do
+            unit $ cmd "git clone" (dir </> "repo") "."
+            unit $ cmd "git checkout master"
+            src <- readFile "Main.hs"
+            let expect = "module Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
+            when (src /= expect) $ do
+                error $ "Expected to have updated Main, but got:\n" ++ src
 
-    sleep 10
-    withTempDir $ \d -> withCurrentDirectory d $ do
-        unit $ cmd "git clone" (dir </> "repo") "."
-        unit $ cmd "git checkout master"
-        src <- readFile "Main.hs"
-        let expect = "module Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
-        when (src /= expect) $ do
-            error $ "Expected to have updated Main, but got:\n" ++ src
-
-    putStrLn "Completed successfully!"
+        putStrLn "Completed successfully!"
