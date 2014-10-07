@@ -39,8 +39,8 @@ library
         http-types,
         deepseq,
         aeson,
-        wai > 3.0.1,
-        warp > 3.0
+        wai >= 3.0.1,
+        warp >= 3.0
 
     exposed-modules:
         Development.Bake
@@ -79,7 +79,7 @@ executable bake-test
         http-types,
         deepseq,
         aeson,
-        wai > 3.0.1,
-        warp > 3.0,
+        wai >= 3.0.1,
+        warp >= 3.0,
         process,
         filepath
