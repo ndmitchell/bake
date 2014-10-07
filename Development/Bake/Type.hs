@@ -10,10 +10,10 @@ module Development.Bake.Type(
     Author
     ) where
 
+import Development.Bake.Format
 import Control.Monad.Extra
 import Data.Monoid
 import Data.Aeson
-import Data.List
 
 
 type Author = String
@@ -52,7 +52,7 @@ ovenNotifyStdout :: Oven state patch test -> Oven state patch test
 ovenNotifyStdout o = o{ovenNotify = \a s -> f a s >> ovenNotify o a s}
     where f a s = putStr $ unlines
                     [replicate 70 '-'
-                    ,"To: " ++ intercalate ", " a
+                    ,"To: " ++ commas a
                     ,s
                     ,replicate 70 '-'
                     ]

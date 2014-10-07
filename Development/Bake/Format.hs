@@ -1,6 +1,8 @@
 
 module Development.Bake.Format(
-    tag, tag_, table
+    tag, tag_,
+    table,
+    commas, commasLimit, unwordsLimit
     ) where
 
 import Data.List.Extra
@@ -23,3 +25,15 @@ tag_ t = tag t []
 tag :: String -> [String] -> String -> String
 tag t at x = "<" ++ t ++ concatMap f at ++ ">" ++ x ++ "</" ++ t ++ ">"
     where f x = let (a,b) = break (== '=') x in ' ':a ++ (if null b then "" else "=\"" ++ drop1 b ++ "\"")
+
+
+commas :: [String] -> String
+commas = intercalate ", "
+
+commasLimit :: Int -> [String] -> String
+commasLimit i xs = intercalate ", " a ++ (if null b then "" else "...")
+    where (a,b) = splitAt i xs
+
+unwordsLimit :: Int -> [String] -> String
+unwordsLimit i xs = unwords a ++ (if null b then "" else "...")
+    where (a,b) = splitAt i xs

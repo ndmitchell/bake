@@ -15,16 +15,26 @@ import Data.Tuple.Extra
 
 
 web :: Oven State Patch Test -> Input -> Server -> IO Output
-web oven _ server = return $ OutputHTML $ unlines $
+web Oven{..} _ server = return $ OutputHTML $ unlines $
     prefix ++
     ["<h2>Patches</h2>"] ++
-    table "No patches submitted" ["Patch","Status"] (map (patch oven server) patches) ++
+    table "No patches submitted" ["Patch","Status"] (map (patch shower server) patches) ++
     ["<h2>Clients</h2>"] ++
-    table "No clients available" ["Name","Running"] (map (client oven server) clients) ++
+    table "No clients available" ["Name","Running"] (map (client shower server) clients) ++
     suffix
     where
         patches = submitted server
         clients = sort $ nub $ map (pClient . snd) $ pings server
+        shower = Shower
+            {showPatch = \p -> tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p)
+            ,showTest = \t -> maybe "Preparing" (stringyPretty ovenStringyTest) t
+            }
+
+data Shower = Shower
+    {showPatch :: Patch -> String
+    ,showTest :: Maybe Test -> String
+    }
+
 
 prefix =
     ["<!HTML>"
@@ -56,18 +66,20 @@ suffix =
     ,"</body>"
     ,"</html>"]
 
-patch :: Oven State Patch Test -> Server -> (UTCTime, Patch) -> [String]
-patch Oven{..} Server{..} (u, p) =
-    [tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p) ++
-     " by " ++ intercalate ", " [a | (pp,a) <- authors, Just p == pp] ++ "<br/>" ++
+patch :: Shower -> Server -> (UTCTime, Patch) -> [String]
+patch Shower{..} Server{..} (u, p) =
+    [showPatch p ++ " by " ++ commasLimit 3 [a | (pp,a) <- authors, Just p == pp] ++ "<br />" ++
      tag "span" ["class=info"] (maybe "" fst (lookup p extra))
     ,if p `elem` concatMap (candidatePatches . thd3) updates then tag "span" ["class=merged"] "Merged"
      else if p `elem` candidatePatches active then
-        "Actively being worked on " ++ show (length $ filter fst done) ++
-        " out of " ++ show todo ++ " (" ++ show (length $ filter (not . fst) done) ++ " failing)"
+        "Testing (passed " ++ show (length $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show todo) ++ ")<br />" ++
+        tag "span" ["class=info"]
+            (if any (not . fst) done then "Retrying " ++ commasLimit 3 [showTest t | (False,t) <- done]
+             else if not $ null running then "Running " ++ commasLimit 3 (map showTest running)
+             else "")
      else if p `elem` maybe [] (map snd) paused then "Paused"
      else tag "span" ["class=rejected"] "Rejected" ++ "<br />" ++
-          tag "span" ["class=info"] (intercalate ", " [maybe "Preparing" (stringyPretty ovenStringyTest) t | (False,t) <- done, (True,t) `notElem` done])
+          tag "span" ["class=info"] (commasLimit 3 [showTest t | (False,t) <- done, (True,t) `notElem` done])
     ]
     where
         todo = length $ nub
@@ -79,10 +91,14 @@ patch Oven{..} Server{..} (u, p) =
             [ (aSuccess,qTest)
             | (_,Question{..},Just Answer{..}) <- history
             , p `elem` candidatePatches qCandidate]
+        running = nub
+            [ qTest
+            | (_,Question{..},Nothing) <- history
+            , p `elem` candidatePatches qCandidate]
 
-client :: Oven State Patch Test -> Server -> Client -> [String]
-client Oven{..} Server{..} c =
+client :: Shower -> Server -> Client -> [String]
+client Shower{..} Server{..} c =
     [tag "a" ["href=?client=" ++ fromClient c] $ fromClient c
     ,if null active then "<i>None</i>"
-     else intercalate ", " $ map (maybe "Preparing" (stringyPretty ovenStringyTest)) active]
+     else commas $ map showTest active]
     where active = [qTest | (_,Question{..},Nothing) <- history, qClient == c]

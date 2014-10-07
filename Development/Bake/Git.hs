@@ -5,6 +5,7 @@ import Development.Bake.Type
 import Development.Shake.Command
 import Control.Monad.Extra
 import Data.List.Extra
+import Development.Bake.Format
 
 
 newtype SHA1 = SHA1 {fromSHA1 :: String} deriving (Show,Eq)
@@ -61,4 +62,4 @@ ovenGit repo branch o = o
             Stdout full <- cmd "git diff" ("origin/" ++ branch ++ ".." ++ fromSHA1 p)
             Stdout numstat <- cmd "git diff --numstat" ("origin/" ++ branch ++ ".." ++ fromSHA1 p)
             let xs = [x | [_,_,x] <- map words $ lines numstat]
-            return (unwords (take 3 xs) ++ (if length xs > 3 then "..." else ""), full)
+            return (unwordsLimit 3 xs, full)
