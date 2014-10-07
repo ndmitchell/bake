@@ -17,15 +17,15 @@ data Server = Server
     {history :: [(UTCTime, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
         --   The aStdout has been written to disk, and the value is a filename containing the stdout.
-    ,updates :: [(State, Candidate State Patch)]
+    ,updates :: [(UTCTime, State, Candidate State Patch)]
         -- ^ Updates that have been made
     ,pings :: [(UTCTime, Ping)]
         -- ^ Latest time of a ping sent by each client
     ,active :: Candidate State Patch
         -- ^ The candidate we are currently aiming to prove
-    ,paused :: Maybe [Patch]
+    ,paused :: Maybe [(UTCTime, Patch)]
         -- ^ 'Just' if we are paused, and the number of people queued up
-    ,submitted :: [Patch]
+    ,submitted :: [(UTCTime, Patch)]
         -- ^ List of all patches that have been submitted over time
     ,authors :: [(Maybe Patch, Author)]
         -- ^ Authors associated with each patch (Nothing is the server author)

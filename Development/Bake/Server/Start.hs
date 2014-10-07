@@ -35,7 +35,7 @@ startServer port author name timeout (concrete -> oven) = do
         handle_ (fmap OutputError . showException) $ do
             res <-
                 if null inputURL || ["ui"] `isPrefixOf` inputURL then
-                    web i{inputURL = drop 1 inputURL} =<< readMVar var
+                    web oven i{inputURL = drop 1 inputURL} =<< readMVar var
                 else if ["api"] `isPrefixOf` inputURL then
                     (case messageFromInput i{inputURL = drop 1 inputURL} of
                         Left e -> return $ OutputError e
@@ -50,17 +50,19 @@ operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, M
 operate timeout oven message server = case message of
     AddPatch author p | Candidate s ps <- active server -> do
         print ("Add patch to",Candidate s $ ps ++ [p])
-        dull server{active = Candidate s $ ps ++ [p], authors = (Just p, author) : authors server, submitted = p : submitted server}
+        now <- getCurrentTime
+        dull server{active = Candidate s $ ps ++ [p], authors = (Just p, author) : authors server, submitted = (now,p) : submitted server}
     DelPatch author p | Candidate s ps <- active server -> dull server{active = Candidate s $ delete p ps}
     Pause author -> dull server{paused = Just $ fromMaybe [] $ paused server}
     Unpause author | Candidate s ps <- active server ->
-        dull server{paused=Nothing, active = Candidate s $ ps ++ fromMaybe [] (paused server)}
+        dull server{paused=Nothing, active = Candidate s $ ps ++ maybe [] (map snd) (paused server)}
     Finished q a -> do
         when (not $ aSuccess a) $ print ("Test failed",qCandidate q == active server,q,a)
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
         consistent server
         dull server 
     Pinged ping -> do
+        print ping
         now <- getCurrentTime
         server <- return $ prune (addUTCTime (fromRational $ toRational $ negate timeout) now) $ server
             {pings = (now,ping) : filter ((/= pClient ping) . pClient . snd) (pings server)}
@@ -79,7 +81,7 @@ operate timeout oven message server = case message of
                     s <- withTempDirCurrent $ ovenUpdateState oven $ Just $ active server
                     ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` ps) p] $ unlines
                         ["Your patch just made it in"]
-                    return $ Left server{active=Candidate s [], updates=(s,active server):updates server}
+                    return $ Left server{active=Candidate s [], updates=(now,s,active server):updates server}
                 Reject p t -> do
                     server <- return $ let Candidate s ps = active server in server{active=Candidate s $ delete p ps}
                     ovenNotify oven [a | (pp,a) <- authors server, Just p == pp] $ unlines
