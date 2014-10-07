@@ -121,11 +121,19 @@ concrete o@Oven{..} = o
         fmap (State . stringyTo ovenStringyState) . ovenUpdateState . fmap stringyFromCandidate
     ,ovenPrepare = fmap (map (Test . stringyTo ovenStringyTest)) . ovenPrepare . stringyFromCandidate
     ,ovenTestInfo = fmap (Test . stringyTo ovenStringyTest) . ovenTestInfo . stringyFrom ovenStringyTest . fromTest
-    ,ovenStringyState = isoStringy State fromState
-    ,ovenStringyPatch = isoStringy Patch fromPatch
-    ,ovenStringyTest  = isoStringy Test  fromTest
+    ,ovenStringyState = f State fromState ovenStringyState
+    ,ovenStringyPatch = f Patch fromPatch ovenStringyPatch
+    ,ovenStringyTest  = f Test  fromTest  ovenStringyTest
     }
     where
         stringyFromCandidate (Candidate s ps) = Candidate
             (stringyFrom ovenStringyState $ fromState s) $
             map (stringyFrom ovenStringyPatch . fromPatch) ps
+
+        f :: (String -> c) -> (c -> String) -> Stringy a -> Stringy c
+        f inj proj Stringy{..} = Stringy
+            {stringyTo = proj
+            ,stringyFrom = inj
+            ,stringyPretty = stringyPretty . stringyFrom . proj
+            ,stringyExtra = stringyExtra . stringyFrom . proj
+            }

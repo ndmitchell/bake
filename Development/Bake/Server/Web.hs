@@ -10,10 +10,10 @@ import Development.Bake.Type
 import Development.Bake.Web
 import Data.List
 
-web :: Input -> Server -> IO Output
-web _ server = return $ OutputHTML $ unlines $
+web :: Oven State Patch Test -> Input -> Server -> IO Output
+web oven _ server = return $ OutputHTML $ unlines $
     prefix ++
-    concatMap (status server) (submitted server) ++
+    concatMap (status oven server) (submitted server) ++
     suffix
 
 prefix =
@@ -29,11 +29,11 @@ suffix =
     ,"</body>"
     ,"</html>"]
 
-status :: Server -> Patch -> [String]
-status Server{..} p =
+status :: Oven State Patch Test -> Server -> Patch -> [String]
+status Oven{..} Server{..} p =
     ["<tr>"
     ,"<td>"
-    ,"Patch " ++ show p ++ " from " ++ intercalate ", " [a | (pp,a) <- authors, Just p == pp]
+    ,"Patch " ++ stringyPretty ovenStringyPatch p ++ " from " ++ intercalate ", " [a | (pp,a) <- authors, Just p == pp]
     ,"</td>"
     ,"<td>"
     ,if p `elem` concatMap (candidatePatches . snd) updates then "In the main repo"
