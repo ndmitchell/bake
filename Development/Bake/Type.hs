@@ -4,7 +4,7 @@
 module Development.Bake.Type(
     Host, Port,
     Stringy(..), readShowStringy,
-    Candidate(..), Oven(..), TestInfo(..), defaultOven, ovenTest,
+    Candidate(..), Oven(..), TestInfo(..), defaultOven, ovenTest, ovenNotifyStdout,
     threads, threadsAll, require, run, suitable,
     State(..), Patch(..), Test(..), Client(..), concrete,
     Author
@@ -13,6 +13,7 @@ module Development.Bake.Type(
 import Control.Monad.Extra
 import Data.Monoid
 import Data.Aeson
+import Data.List
 
 
 type Author = String
@@ -43,6 +44,15 @@ data Oven state patch test = Oven
 ovenTest :: Stringy test -> IO [test] -> (test -> TestInfo test)
          -> Oven state patch () -> Oven state patch test
 ovenTest stringy prepare info o = o{ovenStringyTest=stringy, ovenPrepare=const prepare, ovenTestInfo=info}
+
+ovenNotifyStdout :: Oven state patch test -> Oven state patch test
+ovenNotifyStdout o = o{ovenNotify = \a s -> f a s >> ovenNotify o a s}
+    where f a s = putStr $ unlines
+                    [replicate 70 '-'
+                    ,"To: " ++ intercalate ", " a
+                    ,s
+                    ,replicate 70 '-'
+                    ]
 
 data Stringy s = Stringy
     {stringyTo :: s -> String
