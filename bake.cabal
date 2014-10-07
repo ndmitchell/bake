@@ -39,6 +39,7 @@ library
         http-types,
         deepseq,
         aeson,
+        extra >= 0.2,
         wai >= 3.0.1,
         warp >= 3.0
 
@@ -79,6 +80,7 @@ executable bake-test
         http-types,
         deepseq,
         aeson,
+        extra >= 0.2,
         wai >= 3.0.1,
         warp >= 3.0,
         process,
