@@ -14,7 +14,8 @@ import Control.Exception
 import Control.Concurrent
 import System.Process
 import Data.IORef
-import Data.List
+import Data.List.Extra
+import Control.Arrow
 import Data.Char
 
 
@@ -33,8 +34,12 @@ main = do
     if null args then test (dir ++ "/.bake-test") else bake $
         ovenGit (dir ++ "/.bake-test/repo") "master" $
         ovenNotifyStdout $
-        ovenTest readShowStringy (return allTests) execute
+        ovenTest testStringy (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
+
+testStringy = Stringy shw rd shw undefined
+    where shw (a,b) = show a ++ " " ++ show b
+          rd x = (read *** read) $ word1 x
 
 allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1,10,0]]
 

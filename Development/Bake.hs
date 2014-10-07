@@ -5,7 +5,7 @@ module Development.Bake(
     bake,
     -- * Central types
     Candidate(..), Oven(..), TestInfo,
-    defaultOven, readShowStringy, run,
+    defaultOven, Stringy(..), readShowStringy, run,
     ovenTest, ovenNotifyStdout,
     -- ** TestInfo mutators
     threads, threadsAll, require, suitable,

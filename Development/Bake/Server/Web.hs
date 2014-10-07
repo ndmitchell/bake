@@ -49,6 +49,11 @@ prefix =
     ,"a {text-decoration: none; color: #4183c4;}"
     ,"a:hover {text-decoration: underline;}"
     ,".patch {font-family: Consolas, monospace;}"
+    ,".info {font-size: 75%; color: #888;}"
+    ,"a.info {color: #4183c4;}" -- tie breaker
+    ,".merged {font-weight: bold; color: #480}"
+    ,".rejected {font-weight: bold; color: #800}"
+    ,"#footer {margin-top: 40px; font-size: 80%;}"
     ,"</style>"
     ,"</head>"
     ,"<body>"
@@ -69,14 +74,16 @@ tag t at x = "<" ++ t ++ concatMap f at ++ ">" ++ x ++ "</" ++ t ++ ">"
 
 patch :: Oven State Patch Test -> Server -> (UTCTime, Patch) -> [String]
 patch Oven{..} Server{..} (u, p) =
-    ["Patch " ++ tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p) ++
-     " from " ++ intercalate ", " [a | (pp,a) <- authors, Just p == pp]
-    ,if p `elem` concatMap (candidatePatches . thd3) updates then "In the main repo"
+    [tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p) ++
+     " by " ++ intercalate ", " [a | (pp,a) <- authors, Just p == pp] ++ "<br/>" ++
+     tag "span" ["class=info"] (maybe "" fst (lookup p extra))
+    ,if p `elem` concatMap (candidatePatches . thd3) updates then tag "span" ["class=merged"] "Merged"
      else if p `elem` candidatePatches active then
         "Actively being worked on " ++ show (length $ filter fst done) ++
         " out of " ++ show todo ++ " (" ++ show (length $ filter (not . fst) done) ++ " failing)"
      else if p `elem` maybe [] (map snd) paused then "Paused"
-     else "Rejected"
+     else tag "span" ["class=rejected"] "Rejected" ++ "<br />" ++
+          tag "span" ["class=info"] (intercalate ", " [maybe "Preparing" (stringyPretty ovenStringyTest) t | (False,t) <- done, (True,t) `notElem` done])
     ]
     where
         todo = length $ nub

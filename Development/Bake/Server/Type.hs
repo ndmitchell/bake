@@ -11,7 +11,7 @@ import Data.Time.Clock
 
 
 defaultServer :: State -> Server
-defaultServer s = Server [] [] [] (Candidate s []) Nothing [] []
+defaultServer s = Server [] [] [] (Candidate s []) Nothing [] [] []
 
 data Server = Server
     {history :: [(UTCTime, Question, Maybe Answer)]
@@ -29,4 +29,6 @@ data Server = Server
         -- ^ List of all patches that have been submitted over time
     ,authors :: [(Maybe Patch, Author)]
         -- ^ Authors associated with each patch (Nothing is the server author)
+    ,extra :: [(Patch, (String, String))]
+        -- ^ Extra information that was computed for each string (cached forever)
     } deriving Show

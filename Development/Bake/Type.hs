@@ -58,14 +58,14 @@ data Stringy s = Stringy
     {stringyTo :: s -> String
     ,stringyFrom :: String -> s
     ,stringyPretty :: s -> String
-    ,stringyExtra :: s -> IO String
+    ,stringyExtra :: s -> IO (String, String)
     }
 
 readShowStringy :: (Show s, Read s) => Stringy s
 readShowStringy = isoStringy read show
 
 isoStringy :: (String -> a) -> (a -> String) -> Stringy a
-isoStringy read show = Stringy show read show (const $ return "")
+isoStringy read show = Stringy show read show (const $ return ("",""))
 
 defaultOven :: Oven () () ()
 defaultOven = Oven

@@ -27,7 +27,8 @@ import System.Console.CmdArgs.Verbosity
 
 startServer :: Port -> Author -> String -> Double -> Oven state patch test -> IO ()
 startServer port author name timeout (concrete -> oven) = do
-    s <- withTempDirCurrent $ ovenUpdateState oven Nothing
+    curdirLock <- newMVar ()
+    s <- withTempDirCurrent curdirLock $ ovenUpdateState oven Nothing
     putStrLn $ "Initial state of: " ++ show s
     var <- newMVar $ (defaultServer s){authors = [(Nothing,author)]}
     server port $ \i@Input{..} -> do
@@ -39,15 +40,26 @@ startServer port author name timeout (concrete -> oven) = do
                 else if ["api"] `isPrefixOf` inputURL then
                     (case messageFromInput i{inputURL = drop 1 inputURL} of
                         Left e -> return $ OutputError e
-                        Right v -> fmap questionToOutput $ modifyMVar var $ operate timeout oven v
+                        Right v -> do
+                            fmap questionToOutput $ modifyMVar var $ \s -> do
+                                (s,q) <- operate curdirLock timeout oven v s
+                                case v of
+                                    AddPatch _ p | p `notElem` map fst (extra s) -> do
+                                        forkIO $ do
+                                            res <- try_ $ withTempDirCurrent curdirLock $
+                                                evaluate . force =<< stringyExtra (ovenStringyPatch oven) p
+                                            res <- either (fmap dupe . showException) return res
+                                            modifyMVar_ var $ \s -> return s{extra = (p,res) : extra s}
+                                        return (s{extra=(p,("","")):extra s}, q)
+                                    _ -> return (s,q)
                     )
                 else
                     return OutputMissing
             evaluate $ force res
 
 
-operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
-operate timeout oven message server = case message of
+operate :: MVar () -> Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
+operate curdirLock timeout oven message server = case message of
     AddPatch author p | Candidate s ps <- active server -> do
         whenLoud $ print ("Add patch to",Candidate s $ ps ++ [p])
         now <- getCurrentTime
@@ -76,7 +88,7 @@ operate timeout oven message server = case message of
                     return $ Right (server, Just q)
                 Update -> do
                     let Candidate _ ps = active server
-                    s <- withTempDirCurrent $ ovenUpdateState oven $ Just $ active server
+                    s <- withTempDirCurrent curdirLock $ ovenUpdateState oven $ Just $ active server
                     ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` ps) p] $ unlines
                         ["Your patch just made it in"]
                     return $ Left server{active=Candidate s [], updates=(now,s,active server):updates server}
@@ -104,10 +116,10 @@ consistent :: Server -> IO ()
 consistent Server{..} = do
     let xs = groupSort $ map (qCandidate . snd3 &&& id) $ filter (isNothing . qTest . snd3) history
     forM_ xs $ \(c,vs) -> do
-        case nub $ map (sort . uncurry (++) . aTests) $ mapMaybe thd3 vs of
+        case nub $ map (sort . uncurry (++) . aTests) $ filter aSuccess $ mapMaybe thd3 vs of
             a:b:_ -> error $ "Tests don't match for candidate: " ++ show (c,a,b,vs)
             _ -> return ()
 
 
-withTempDirCurrent :: IO a -> IO a
-withTempDirCurrent act = withTempDir $ \t -> withCurrentDirectory t act
+withTempDirCurrent :: MVar () -> IO a -> IO a
+withTempDirCurrent curdirLock act = withMVar curdirLock $ const $ withTempDir $ \t -> withCurrentDirectory t act
