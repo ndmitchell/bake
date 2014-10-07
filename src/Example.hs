@@ -7,6 +7,7 @@ import System.Environment
 import System.FilePath
 import Data.List.Extra
 import Control.Arrow
+import Data.Maybe
 
 
 data Platform = Linux | Windows deriving (Show,Read)
@@ -16,14 +17,13 @@ platforms = [Linux,Windows]
 
 main :: IO ()
 main = do
-    repo <- lookupEnv "REPO"
-    case repo of
-        Nothing -> error "You need to set an environment variable named $REPO for the Git repo"
-        Just repo -> bake $
-            ovenGit repo "master" $
-            ovenNotifyStdout $
-            ovenTest testStringy (return allTests) execute
-            defaultOven{ovenServer=("127.0.0.1",5000)}
+    let err = "You need to set an environment variable named $REPO for the Git repo"
+    repo <- fromMaybe (error err) `fmap` lookupEnv "REPO"
+    bake $
+        ovenGit repo "master" $
+        ovenNotifyStdout $
+        ovenTest testStringy (return allTests) execute
+        defaultOven{ovenServer=("127.0.0.1",5000)}
 
 testStringy = Stringy shw rd shw
     where shw (a,b) = show a ++ " " ++ show b
