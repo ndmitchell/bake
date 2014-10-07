@@ -32,6 +32,7 @@ main = do
     dir <- fmap (intercalate "/" . takeWhile (/= ".bake-test") . splitDirectories) $ getCurrentDirectory
     if null args then test (dir ++ "/.bake-test") else bake $
         ovenGit (dir ++ "/.bake-test/repo") "master" $
+        ovenNotifyStdout $
         ovenTest readShowStringy (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
 
@@ -127,24 +128,27 @@ test dir = do
             when (src /= expect) $ do
                 error $ "Expected to have updated Main, but got:\n" ++ src
 
-        when False $ do
-            putStrLn "% MAKING A GOOD EDIT AS BOB"
-            edit "bob" $
-                writeFile "Main.hs" "module Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n\n"
-            putStrLn "% MAKING A BAD EDIT AS BOB"
-            edit "bob" $
-                writeFile "Main.hs" "module Main(main) where\nimport System.Environment\n-- Entry point\nmain :: IO ()\nmain = do [[_]] <- getArgs; print 1\n\n"
-            putStrLn "% MAKING A GOOD EDIT AS TONY"
-            edit "tony" $
-                writeFile "Main.hs" "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
+        putStrLn "% MAKING A GOOD EDIT AS BOB"
+        edit "bob" $ do
+            unit $ cmd "git fetch origin"
+            unit $ cmd "git merge origin/master"
+            writeFile "Main.hs" "module Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n\n"
+        putStrLn "% MAKING A BAD EDIT AS BOB"
+        edit "bob" $
+            writeFile "Main.hs" "module Main(main) where\nimport System.Environment\n-- Entry point\nmain :: IO ()\nmain = do [[_]] <- getArgs; print 1\n\n"
+        putStrLn "% MAKING A GOOD EDIT AS TONY"
+        edit "tony" $ do
+            unit $ cmd "git fetch origin"
+            unit $ cmd "git merge origin/master"
+            writeFile "Main.hs" "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
 
-            sleep 10
-            withTempDir $ \d -> withCurrentDirectory d $ do
-                unit $ cmd "git clone" (dir </> "repo") "."
-                unit $ cmd "git checkout master"
-                src <- readFile "Main.hs"
-                let expect = "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n\n"
-                when (src /= expect) $ do
-                    error $ "Expected to have updated Main, but got:\n" ++ src
+        sleep 10
+        withTempDir $ \d -> withCurrentDirectory d $ do
+            unit $ cmd "git clone" (dir </> "repo") "."
+            unit $ cmd "git checkout master"
+            src <- readFile "Main.hs"
+            let expect = "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n\n"
+            when (src /= expect) $ do
+                error $ "Expected to have updated Main, but got:\n" ++ src
 
         putStrLn "Completed successfully!"
