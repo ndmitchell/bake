@@ -10,7 +10,7 @@ Bake is a continuous integration server, designed for large, productive, semi-tr
 
 To give a flavour, the web GUI looks of a running bake system looks like:
 
-![](https://raw.githubusercontent.com/ndmitchell/bake/master/screenshot.png)
+![](https://raw.githubusercontent.com/ndmitchell/bake/master/screenshot-part.png)
 
 _Acknowledgements:_ The name "Bake" is thanks to Andy Adams-Moran.
 
