@@ -19,3 +19,4 @@ There are a few aspects that make Bake unique:
 * Patches are submitted to Bake, but are not applied to the main repo until they have passed all their tests. There is no way for someone to "break the build" - at all points the repo will build on all platforms and all tests will pass.
 * Bake scales up so that even if you have 5 hours of testing and 50 commits a day it will not require 250 hours of computation per day. In order for Bake to prove that a set of patches pass a test, it does not have to test each patch individually.
 * Bake allows multiple clients to run tests, even if some tests are only able to be run on some clients, allowing both parallelisation and specialisation (testing both Windows and Linux, for example).
+* Bake can detect that tests are no longer valid, for example because they access a server that is no longer running, and report the issue without blaming the submitted patches.
