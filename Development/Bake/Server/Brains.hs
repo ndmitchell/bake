@@ -1,26 +1,47 @@
-{-# LANGUAGE RecordWildCards, TupleSections #-}
+{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns #-}
 
 module Development.Bake.Server.Brains(
-    brains
+    brains, Neuron(..)
     ) where
 
 import Development.Bake.Message
 import Development.Bake.Type
 import Development.Bake.Server.Type
 import Data.Maybe
+import Control.Monad
+import Data.List.Extra
 
+
+data Neuron
+    = Sleep -- nothing useful to do
+    | Task Question
+    | Update (Candidate State Patch) -- update the active state
+    | Reject Patch (Maybe Test) -- reject this patch
+    | Broken State (Maybe Test) -- the state with zero patches has ended up broken
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything
--- Any client who hasn't ping'd us since cutoff is considered dead
-brains :: (Test -> [Test]) -> Server -> Ping -> (Maybe Question, Maybe Patch, Bool {- should I update -})
-brains _ Server{active=Candidate _ []} _ = (Nothing, Nothing, False) -- no outstanding tasks
+brains :: (Test -> [Test]) -> Server -> Ping -> Neuron
+brains _ Server{active=Candidate _ []} _ = Sleep -- no outstanding tasks
 
 brains depends Server{..} Ping{..}
-    | allTestsPass active = (Nothing, Nothing, True) -- Update active
-    | t:_ <- failingTests active = error $ "brains, failing test: " ++ show t
+    | allTestsPass active = Update active
+    | t:_ <- minimumRelation dependsMay $ failingTests active = erroneous t active
     | otherwise = let next = filter (suitableTest active) $ allTests active
-                  in (fmap (\t -> Question active t 1 pClient) $ listToMaybe next, Nothing, False)
+                  in taskMay active $ listToMaybe next
     where
+        taskMay c t = maybe Sleep (\t -> Task $ Question c t 1 pClient) t
+        dependsMay Nothing = []
+        dependsMay (Just t) = Nothing : map Just (depends t)
+
+        erroneous t (Candidate s o@(unsnoc -> Just (ps,p))) =
+            case (stateTest (Candidate s o) t, stateTest (Candidate s ps) t) of
+                (Just True, _) -> error "logical inconsistentcy in brains, expected erroneous test"
+                (Just False, Just True) -> Reject p t
+                (Just False, Just False) -> erroneous t $ Candidate s ps
+                (Nothing, _) -> taskMay (Candidate s o ) $ scheduleTest (Candidate s o ) t
+                (_, Nothing) -> taskMay (Candidate s ps) $ scheduleTest (Candidate s ps) t
+        erroneous t (Candidate s []) = Broken s t
+
         -- all the tests we know about for this candidate, may be incomplete if Nothing has not passed (yet)
         allTests c = (Nothing:) $ map Just $ concat $ take 1 $
             map (uncurry (++) . aTests . snd) $ success' $ test' Nothing $ answered' $ candidate' c it
@@ -41,11 +62,24 @@ brains depends Server{..} Ping{..}
         suitableTest c t@(Just tt)
             | [clientTests] <- map (fst . aTests . snd) $ self' $ success' $ test' Nothing $ answered' $ candidate' c it
             , tt `elem` clientTests -- it is one of the tests this client is suitable for
-            , null $ test' t $ self' $ candidate' c it -- I am not running it already
+            , null $ test' t $ self' $ candidate' c it -- I am not running it or have run it
             , clientDone <- map (qTest . fst) $ success' $ answered' $ self' $ candidate' c it
             , all (`elem` clientDone) $ map Just $ depends tt
             = True
         suitableTest _ _ = False
+
+        -- what is the state of this candidate/test, either Just v (aSuccess) or Nothing (not tried)
+        stateTest c t = fmap aSuccess $ join $ fmap snd $ listToMaybe $ test' t $ candidate' c it
+
+        -- given that I want to run this particular test, what test should I do next
+        -- must pass suitableTest
+        scheduleTest c Nothing =
+            if suitableTest c Nothing then Just Nothing else Nothing
+        scheduleTest c t@(Just tt)
+            | [clientTests] <- map (fst . aTests . snd) $ self' $ success' $ test' Nothing $ answered' $ candidate' c it
+            , tt `elem` clientTests -- the target is one of the tests this client is suitable for
+            = listToMaybe $ filter (suitableTest c) $ transitiveClosure dependsMay t
+        scheduleTest _ _ = Nothing
 
         -- query language
         it = [(q,a) | (_,q,a) <- history]
@@ -97,3 +131,12 @@ brains depends Server{..} Ping{..}
         failingOn = [ (p,) $ listToMaybe [aSuccess | (_,Question{..},Just Answer{..}) <- history, qCandidate == Candidate state p, qTest == head failingTests]
                     | p <- tail $ inits patches]
 -}
+
+
+transitiveClosure :: Eq a => (a -> [a]) -> a -> [a]
+transitiveClosure f = nub . g
+    where g x = x : concatMap g (f x)
+
+minimumRelation :: Eq a => (a -> [a]) -> [a] -> [a]
+minimumRelation f (x:xs) = [x | disjoint (transitiveClosure f x) xs] ++ minimumRelation f xs
+minimumRelation f [] = []

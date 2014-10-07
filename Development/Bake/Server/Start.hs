@@ -61,14 +61,22 @@ operate timeout oven message server = case message of
         server <- return $ prune (addUTCTime (fromRational $ toRational $ negate timeout) now) $ server
             {pings = (now,ping) : filter ((/= pClient ping) . pClient . snd) (pings server)}
         let depends = testRequire . ovenTestInfo oven
-        let (q,rem,upd) = brains depends server ping
-        server <- return $ case rem of Nothing -> server; Just p -> let Candidate s ps = active server in server{active=Candidate s $ delete p ps}
-        server <- return $ server{history = map (now,,Nothing) (maybeToList q) ++ history server}
-        server <- if not upd then return server else do
-            s <- withTempDirCurrent $ ovenUpdateState oven $ Just $ active server
-            return server{active=Candidate s [], updates=(s,active server):updates server}
-        whenJust q $ \q -> when (qClient q /= pClient ping) $ error "client doesn't match the ping"
-        return (server, q)
+        flip loopM server $ \server ->
+            case brains depends server ping of
+                Sleep ->
+                    return $ Right (server, Nothing)
+                Task q -> do
+                    when (qClient q /= pClient ping) $ error "client doesn't match the ping"
+                    server <- return $ server{history = (now,q,Nothing) : history server}
+                    return $ Right (server, Just q)
+                Update c -> do
+                    s <- withTempDirCurrent $ ovenUpdateState oven $ Just $ active server
+                    return $ Left server{active=Candidate s [], updates=(s,active server):updates server}
+                Reject p t -> do
+                    server <- return $ let Candidate s ps = active server in server{active=Candidate s $ delete p ps}
+                    return $ Left server
+                Broken s ps -> do
+                    error "failure in zero mode, eek, it's all gone wrong"
     where
         dull s = return (s,Nothing)
 
