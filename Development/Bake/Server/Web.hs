@@ -8,7 +8,7 @@ module Development.Bake.Server.Web(
 import Development.Bake.Server.Type
 import Development.Bake.Type
 import Development.Bake.Web
-import Data.List
+import Data.List.Extra
 import Data.Time.Clock
 import Data.Tuple.Extra
 
@@ -48,7 +48,7 @@ prefix =
     ,"thead {font-weight: bold;}"
     ,"a {text-decoration: none; color: #4183c4;}"
     ,"a:hover {text-decoration: underline;}"
-    ,".patch {background-color: #eee; font-family: Consolas, monospace; border-radius: 3px;}"
+    ,".patch {font-family: Consolas, monospace;}"
     ,"</style>"
     ,"</head>"
     ,"<body>"
@@ -61,11 +61,16 @@ suffix =
     ,"</html>"]
 
 tag_ :: String -> String -> String
-tag_ t x = "<" ++ t ++ ">" ++ x ++ "</" ++ t ++ ">"
+tag_ t = tag t []
+
+tag :: String -> [String] -> String -> String
+tag t at x = "<" ++ t ++ concatMap f at ++ ">" ++ x ++ "</" ++ t ++ ">"
+    where f x = let (a,b) = break (== '=') x in ' ':a ++ (if null b then "" else "=\"" ++ drop1 b ++ "\"")
 
 patch :: Oven State Patch Test -> Server -> (UTCTime, Patch) -> [String]
 patch Oven{..} Server{..} (u, p) =
-    ["Patch <a href='?patch=" ++ fromPatch p ++ "'' class=patch>" ++ stringyPretty ovenStringyPatch p ++ "</a> from " ++ intercalate ", " [a | (pp,a) <- authors, Just p == pp]
+    ["Patch " ++ tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p) ++
+     " from " ++ intercalate ", " [a | (pp,a) <- authors, Just p == pp]
     ,if p `elem` concatMap (candidatePatches . thd3) updates then "In the main repo"
      else if p `elem` candidatePatches active then
         "Actively being worked on " ++ show (length $ filter fst done) ++
@@ -86,7 +91,7 @@ patch Oven{..} Server{..} (u, p) =
 
 client :: Oven State Patch Test -> Server -> Client -> [String]
 client Oven{..} Server{..} c =
-    [fromClient c
+    [tag "a" ["href=?client=" ++ fromClient c] $ fromClient c
     ,if null active then "<i>None</i>"
      else intercalate ", " $ map (maybe "Preparing" (stringyPretty ovenStringyTest)) active]
     where active = [qTest | (_,Question{..},Nothing) <- history, qClient == c]
