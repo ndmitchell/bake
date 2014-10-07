@@ -13,8 +13,9 @@ import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
 import Control.Concurrent
 import Control.DeepSeq
+import Control.Arrow
 import Control.Exception.Extra
-import Data.List
+import Data.List.Extra
 import Data.Maybe
 import Data.Time.Clock
 import Control.Monad.Extra
@@ -98,7 +99,12 @@ prune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ histo
 
 consistent :: Server -> IO ()
 consistent Server{..} = do
-    putStrLn "FIXME: Check all for a given Candidate, all aTest answers give the same set of results"
+    let xs = groupSort $ map (qCandidate . snd3 &&& id) $ filter (isNothing . qTest . snd3) history
+    forM_ xs $ \(c,vs) -> do
+        case nub $ map (sort . uncurry (++) . aTests) $ mapMaybe thd3 vs of
+            a:b:_ -> error $ "Tests don't match for candidate: " ++ show (c,a,b,vs)
+            _ -> return ()
+
 
 withTempDirCurrent :: IO a -> IO a
 withTempDirCurrent act = withTempDir $ \t -> withCurrentDirectory t act
