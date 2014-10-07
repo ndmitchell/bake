@@ -8,7 +8,7 @@ Bake is a continuous integration server, designed for large, productive, semi-tr
 * _Productive teams_ which are regularly pushing code, many times a day.
 * _Semi-trusted teams_ where code does not go through manual code review, but code does need to pass a test suite and perhaps some static analysis. People are assumed to be fallible.
 
-To give a flavour, the web GUI looks of a running bake system looks like:
+To give a flavour, the web GUI looks of a running Bake system looks like:
 
 ![](https://raw.githubusercontent.com/ndmitchell/bake/master/screenshot-part.png)
 
