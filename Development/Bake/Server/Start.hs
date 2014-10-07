@@ -28,7 +28,7 @@ startServer :: Port -> Author -> String -> Double -> Oven state patch test -> IO
 startServer port author name timeout (concrete -> oven) = do
     s <- withTempDirCurrent $ ovenUpdateState oven Nothing
     putStrLn $ "Initial state of: " ++ show s
-    var <- newMVar $ defaultServer s
+    var <- newMVar $ (defaultServer s){authors = [(Nothing,author)]}
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
@@ -47,7 +47,8 @@ startServer port author name timeout (concrete -> oven) = do
 
 operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
 operate timeout oven message server = case message of
-    AddPatch author p | Candidate s ps <- active server -> dull server{active = Candidate s $ ps ++ [p]}
+    AddPatch author p | Candidate s ps <- active server ->
+        dull server{active = Candidate s $ ps ++ [p], authors = (Just p, author) : authors server}
     DelPatch author p | Candidate s ps <- active server -> dull server{active = Candidate s $ delete p ps}
     Pause author -> dull server{paused = Just $ fromMaybe [] $ paused server}
     Unpause author | Candidate s ps <- active server ->
