@@ -23,9 +23,9 @@ web Oven{..} Input{..} server = return $ OutputHTML $ unlines $
                 runs shower (nostdout server) ((==) (Client c) . qClient)
           | Just t <- lookup "test" inputArgs, Just p <- lookup "patch" inputArgs ->
                 let tt = if t == "" then Nothing else Just $ Test t in
-                runs shower server (\Question{..} -> Patch p `elem` candidatePatches qCandidate && qTest == tt)
+                runs shower server (\Question{..} -> Patch p `elem` snd qCandidate && qTest == tt)
           | Just p <- lookup "patch" inputArgs ->
-                runs shower (nostdout server) (elem (Patch p) . candidatePatches . qCandidate) ++
+                runs shower (nostdout server) (elem (Patch p) . snd . qCandidate) ++
                 ["<h2>Patch information</h2>"] ++
                 [e | (pp,(_,e)) <- extra server, Patch p == pp]
           | otherwise ->
@@ -91,8 +91,8 @@ patch :: Shower -> Server -> (UTCTime, Patch) -> [String]
 patch Shower{..} Server{..} (u, p) =
     [showPatch p ++ " by " ++ commasLimit 3 [a | (pp,a) <- authors, Just p == pp] ++ "<br />" ++
      tag "span" ["class=info"] (maybe "" fst (lookup p extra))
-    ,if p `elem` concatMap (candidatePatches . thd3) updates then tag "span" ["class=good"] "Merged"
-     else if p `elem` candidatePatches active then
+    ,if p `elem` concatMap (snd . thd3) updates then tag "span" ["class=good"] "Merged"
+     else if p `elem` snd active then
         "Testing (passed " ++ show (length $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show todo) ++ ")<br />" ++
         tag "span" ["class=info"]
             (if any (not . fst) done then "Retrying " ++ commasLimit 3 [showTest p t | (False,t) <- done]
@@ -106,20 +106,20 @@ patch Shower{..} Server{..} (u, p) =
         todo = length $ nub
             [ t
             | (_,Question{..},Just Answer{..}) <- history
-            , p `elem` candidatePatches qCandidate
+            , p `elem` snd qCandidate
             , t <- uncurry (++) aTests]
         done = nub
             [ (aSuccess,qTest)
             | (_,Question{..},Just Answer{..}) <- history
-            , p `elem` candidatePatches qCandidate]
+            , p `elem` snd qCandidate]
         running = nub
             [ qTest
             | (_,Question{..},Nothing) <- history
-            , p `elem` candidatePatches qCandidate]
+            , p `elem` snd qCandidate]
 
 client :: Shower -> Server -> Client -> [String]
 client Shower{..} Server{..} c =
     [tag "a" ["href=?client=" ++ fromClient c] $ fromClient c
     ,if null active then "<i>None</i>"
      else commas $ map (uncurry showTest) active]
-    where active = [(last $ Patch "" : candidatePatches qCandidate, qTest) | (_,Question{..},Nothing) <- history, qClient == c]
+    where active = [(last $ Patch "" : snd qCandidate, qTest) | (_,Question{..},Nothing) <- history, qClient == c]

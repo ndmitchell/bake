@@ -31,7 +31,7 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
         readChan queue
         now <- readIORef nowThreads
         q <- sendMessage hp $ Pinged $ Ping client author maxThreads now
-        whenJust q $ \q@Question{qCandidate=qCandidate@(Candidate qState qPatches),..} -> do
+        whenJust q $ \q@Question{..} -> do
             atomicModifyIORef nowThreads $ \now -> (now - qThreads, ())
             writeChan queue ()
             void $ forkIO $ safeguard $ do
@@ -40,8 +40,8 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
                     cmd (Cwd dir) exe "run"
                         "--output=../tests.txt"
                         ["--test=" ++ fromTest t | Just t <- [qTest]]
-                        ("--state=" ++ fromState qState)
-                        ["--patch=" ++ fromPatch p | p <- qPatches]
+                        ("--state=" ++ fromState (fst qCandidate))
+                        ["--patch=" ++ fromPatch p | p <- snd qCandidate]
                 tests <- if isJust qTest || exit /= ExitSuccess then return ([],[]) else do
                     src ::  ([String],[String]) <- fmap read $ readFile "tests.txt"
                     let op = map (stringyFrom (ovenStringyTest oven))
@@ -56,8 +56,8 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
 
 
 -- | Find a directory for this patch
-candidateDir :: Candidate State Patch -> IO FilePath
-candidateDir (Candidate s ps) = do
+candidateDir :: (State, [Patch]) -> IO FilePath
+candidateDir (s, ps) = do
     let file = "candidates.txt"
     let c_ = (fromState s, map fromPatch ps)
     b <- doesFileExist file

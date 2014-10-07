@@ -60,14 +60,14 @@ startServer port author name timeout (concrete -> oven) = do
 
 operate :: MVar () -> Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
 operate curdirLock timeout oven message server = case message of
-    AddPatch author p | Candidate s ps <- active server -> do
-        whenLoud $ print ("Add patch to",Candidate s $ ps ++ [p])
+    AddPatch author p | (s, ps) <- active server -> do
+        whenLoud $ print ("Add patch to",s,snoc ps p)
         now <- getCurrentTime
-        dull server{active = Candidate s $ ps ++ [p], authors = (Just p, author) : authors server, submitted = (now,p) : submitted server}
-    DelPatch author p | Candidate s ps <- active server -> dull server{active = Candidate s $ delete p ps}
+        dull server{active = (s, snoc ps p), authors = (Just p, author) : authors server, submitted = (now,p) : submitted server}
+    DelPatch author p | (s, ps) <- active server -> dull server{active = (s, delete p ps)}
     Pause author -> dull server{paused = Just $ fromMaybe [] $ paused server}
-    Unpause author | Candidate s ps <- active server ->
-        dull server{paused=Nothing, active = Candidate s $ ps ++ maybe [] (map snd) (paused server)}
+    Unpause author | (s, ps) <- active server ->
+        dull server{paused=Nothing, active = (s, ps ++ maybe [] (map snd) (paused server))}
     Finished q a -> do
         whenLoud $ when (not $ aSuccess a) $ print ("Test failed",qCandidate q == active server,q,a)
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
@@ -87,22 +87,18 @@ operate curdirLock timeout oven message server = case message of
                     server <- return $ server{history = (now,q,Nothing) : history server}
                     return $ Right (server, Just q)
                 Update -> do
-                    let Candidate _ ps = active server
                     s <- withTempDirCurrent curdirLock $ ovenUpdateState oven $ Just $ active server
-                    ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` ps) p] $ unlines
+                    ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` snd (active server)) p] $ unlines
                         ["Your patch just made it in"]
-                    return $ Left server{active=Candidate s [], updates=(now,s,active server):updates server}
+                    return $ Left server{active=(s, []), updates=(now,s,active server):updates server}
                 Reject p t -> do
-                    server <- return $ let Candidate s ps = active server in server{active=Candidate s $ delete p ps}
                     ovenNotify oven [a | (pp,a) <- authors server, Just p == pp] $ unlines
                         ["Your patch " ++ show p ++ " got rejected","Failure in test " ++ show t]
-                    return $ Left server
+                    return $ Left server{active=second (delete p) $ active server}
                 Broken t -> do
-                    let Candidate s ps = active server
-                    server <- return $ server{active=Candidate s []}
-                    ovenNotify oven [a | (p,a) <- authors server, maybe True (`elem` ps) p] $ unlines
+                    ovenNotify oven [a | (p,a) <- authors server, maybe True (`elem` snd (active server)) p] $ unlines
                         ["Eek, it's all gone horribly wrong","Failure with no patches in test " ++ show t]
-                    return $ Left server
+                    return $ Left server{active=(fst $ active server, [])}
     where
         dull s = return (s,Nothing)
 

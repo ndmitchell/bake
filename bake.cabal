@@ -44,13 +44,13 @@ library
 
     exposed-modules:
         Development.Bake
-        Development.Bake.Git
-        Development.Bake.Email
 
     other-modules:
         Development.Bake.Args
         Development.Bake.Client
+        Development.Bake.Email
         Development.Bake.Format
+        Development.Bake.Git
         Development.Bake.Message
         Development.Bake.Send
         Development.Bake.Server.Brains

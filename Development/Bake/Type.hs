@@ -4,7 +4,7 @@
 module Development.Bake.Type(
     Host, Port,
     Stringy(..), readShowStringy,
-    Candidate(..), Oven(..), TestInfo(..), defaultOven, ovenTest, ovenNotifyStdout,
+    Oven(..), TestInfo(..), defaultOven, ovenTest, ovenNotifyStdout,
     threads, threadsAll, require, run, suitable,
     State(..), Patch(..), Test(..), Client(..), concrete,
     Author
@@ -14,6 +14,7 @@ import Development.Bake.Format
 import Control.Monad.Extra
 import Data.Monoid
 import Data.Aeson
+import Control.Arrow
 
 
 type Author = String
@@ -22,13 +23,11 @@ type Host = String
 
 type Port = Int
 
-data Candidate state patch = Candidate {candidateState :: state, candidatePatches :: [patch]} deriving (Show,Eq,Ord)
-
 data Oven state patch test = Oven
-    {ovenUpdateState :: Maybe (Candidate state patch) -> IO state
+    {ovenUpdateState :: Maybe (state, [patch]) -> IO state
         -- ^ Given a state, and a set of candiates that have passed,
         --   merge to create a new state.
-    ,ovenPrepare :: Candidate state patch -> IO [test]
+    ,ovenPrepare :: state -> [patch] -> IO [test]
         -- ^ Prepare a candidate to be run, produces the tests that must pass
     ,ovenTestInfo :: test -> TestInfo test
         -- ^ Produce information about a test
@@ -46,7 +45,7 @@ data Oven state patch test = Oven
 
 ovenTest :: Stringy test -> IO [test] -> (test -> TestInfo test)
          -> Oven state patch () -> Oven state patch test
-ovenTest stringy prepare info o = o{ovenStringyTest=stringy, ovenPrepare=const prepare, ovenTestInfo=info}
+ovenTest stringy prepare info o = o{ovenStringyTest=stringy, ovenPrepare= \_ _ -> prepare, ovenTestInfo=info}
 
 ovenNotifyStdout :: Oven state patch test -> Oven state patch test
 ovenNotifyStdout o = o{ovenNotify = \a s -> f a s >> ovenNotify o a s}
@@ -70,7 +69,7 @@ defaultOven :: Oven () () ()
 defaultOven = Oven
     {ovenUpdateState = \_ -> return ()
     ,ovenNotify = \_ _ -> return ()
-    ,ovenPrepare = \_ -> return []
+    ,ovenPrepare = \_ _ -> return []
     ,ovenTestInfo = \_ -> mempty
     ,ovenPatchExtra = \_ -> return ("","")
     ,ovenServer = ("127.0.0.1",80)
@@ -117,23 +116,21 @@ newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,From
 
 concrete :: Oven state patch test -> Oven State Patch Test
 concrete o@Oven{..} = o
-    {ovenUpdateState =
-        fmap (State . stringyTo ovenStringyState) . ovenUpdateState . fmap stringyFromCandidate
-    ,ovenPrepare = fmap (map (Test . stringyTo ovenStringyTest)) . ovenPrepare . stringyFromCandidate
-    ,ovenTestInfo = fmap (Test . stringyTo ovenStringyTest) . ovenTestInfo . stringyFrom ovenStringyTest . fromTest
-    ,ovenPatchExtra = ovenPatchExtra . stringyFrom ovenStringyPatch . fromPatch
-    ,ovenStringyState = f State fromState ovenStringyState
-    ,ovenStringyPatch = f Patch fromPatch ovenStringyPatch
-    ,ovenStringyTest  = f Test  fromTest  ovenStringyTest
+    {ovenUpdateState = fmap restate . ovenUpdateState . fmap (unstate *** map unpatch)
+    ,ovenPrepare = \s ps -> fmap (map retest) $ ovenPrepare (unstate s) (map unpatch ps)
+    ,ovenTestInfo = fmap retest . ovenTestInfo . untest
+    ,ovenPatchExtra = ovenPatchExtra . unpatch
+    ,ovenStringyState = state
+    ,ovenStringyPatch = patch
+    ,ovenStringyTest  = test
     }
     where
-        stringyFromCandidate (Candidate s ps) = Candidate
-            (stringyFrom ovenStringyState $ fromState s) $
-            map (stringyFrom ovenStringyPatch . fromPatch) ps
+        (patch,unpatch,_      ) = f Patch fromPatch ovenStringyPatch
+        (state,unstate,restate) = f State fromState ovenStringyState
+        (test ,untest ,retest ) = f Test  fromTest  ovenStringyTest
 
-        f :: (String -> c) -> (c -> String) -> Stringy a -> Stringy c
-        f inj proj Stringy{..} = Stringy
-            {stringyTo = proj
-            ,stringyFrom = inj
-            ,stringyPretty = stringyPretty . stringyFrom . proj
-            }
+        f :: (String -> s) -> (s -> String) -> Stringy o -> (Stringy s, s -> o, o -> s)
+        f inj proj Stringy{..} =
+            (Stringy proj inj (stringyPretty . stringyFrom . proj)
+            ,stringyFrom . proj
+            ,inj . stringyTo)

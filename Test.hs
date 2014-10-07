@@ -2,7 +2,6 @@
 module Main(main) where
 
 import Development.Bake
-import Development.Bake.Git
 import Development.Shake.Command
 import System.Directory.Extra
 import System.IO.Extra

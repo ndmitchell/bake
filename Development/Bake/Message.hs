@@ -26,7 +26,7 @@ data Message
     deriving (Show,Eq)
 
 data Question = Question
-    {qCandidate :: Candidate State Patch
+    {qCandidate :: (State, [Patch])
     ,qTest :: Maybe Test
     ,qThreads :: Int
     ,qClient :: Client
@@ -73,9 +73,9 @@ instance FromJSON Question where
         (fromJSONCandidate =<< (v .: "candidate")) <*> (v .: "test") <*> (v .: "threads") <*> (v .: "client")
     parseJSON _ = mzero
 
-toJSONCandidate (Candidate s ps) = object ["state" .= s, "patches" .= ps]
+toJSONCandidate (s, ps) = object ["state" .= s, "patches" .= ps]
 
-fromJSONCandidate (Object v) = Candidate <$> (v .: "state") <*> (v .: "patches")
+fromJSONCandidate (Object v) = (,) <$> (v .: "state") <*> (v .: "patches")
 fromJSONCandidate _ = mzero
 
 instance ToJSON Answer where

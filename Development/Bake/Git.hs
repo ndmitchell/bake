@@ -27,29 +27,27 @@ stringySHA1 = Stringy
 ovenGit :: String -> String -> Oven () () test -> Oven SHA1 SHA1 test
 ovenGit repo branch o = o
     {ovenUpdateState = gitUpdateState
-    ,ovenPrepare = \c -> do gitCheckout c; ovenPrepare o (down c)
+    ,ovenPrepare = \s ps -> do gitCheckout s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenPatchExtra = gitPatchExtra
     ,ovenStringyState = stringySHA1
     ,ovenStringyPatch = stringySHA1
     }
     where
-        down (Candidate s ps) = Candidate () $ map (const ()) ps
-
         gitUpdateState Nothing = do
             Stdout hash <- cmd "git ls-remote" repo ("refs/heads/" ++ branch)
             case words hash of
                 [] -> error "Couldn't find branch"
                 x:xs -> return $ sha1 $ strip x
 
-        gitUpdateState (Just c) = do
-            gitCheckout c
+        gitUpdateState (Just (s, ps)) = do
+            gitCheckout s ps
             Stdout x <- cmd "git rev-parse HEAD"
             unit $ cmd "git checkout -b temp"
             unit $ cmd "git checkout -B master temp"
             unit $ cmd "git push origin master --force"
             return $ sha1 $ strip x
 
-        gitCheckout (Candidate s ps) = do
+        gitCheckout s ps = do
             unit $ cmd "git clone" repo "."
             unit $ cmd "git config user.email" ["https://github.com/ndmitchell/bake"]
             unit $ cmd "git config user.name" ["Bake Continuous Integration"]

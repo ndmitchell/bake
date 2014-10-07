@@ -56,7 +56,7 @@ bake oven@Oven{..} = do
         Run{..} -> do
             case test of
                 Nothing -> do
-                    res <- ovenPrepare $ Candidate
+                    res <- ovenPrepare
                         (stringyFrom ovenStringyState state)
                         (map (stringyFrom ovenStringyPatch) patch)
                     (yes,no) <- partitionM (testSuitable . ovenTestInfo) res

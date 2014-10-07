@@ -22,7 +22,7 @@ data Neuron
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 brains :: (Test -> [Test]) -> Server -> Ping -> Neuron
-brains _ Server{active=Candidate _ []} _ = Sleep -- no outstanding tasks
+brains _ Server{active=(_, [])} _ = Sleep -- no outstanding tasks
 
 brains depends Server{..} Ping{..}
     | allTestsPass active = Update
@@ -34,14 +34,14 @@ brains depends Server{..} Ping{..}
         dependsMay Nothing = []
         dependsMay (Just t) = Nothing : map Just (depends t)
 
-        erroneous t (Candidate s o@(unsnoc -> Just (ps,p))) =
-            case (stateTest (Candidate s o) t, stateTest (Candidate s ps) t) of
+        erroneous t (s, o@(unsnoc -> Just (ps,p))) =
+            case (stateTest (s, o) t, stateTest (s, ps) t) of
                 (Just True, _) -> error "logical inconsistentcy in brains, expected erroneous test"
                 (Just False, Just True) -> Reject p t
-                (Just False, Just False) -> erroneous t $ Candidate s ps
-                (Nothing, _) -> taskMay (Candidate s o ) $ scheduleTest (Candidate s o ) t
-                (_, Nothing) -> taskMay (Candidate s ps) $ scheduleTest (Candidate s ps) t
-        erroneous t (Candidate s []) = Broken t
+                (Just False, Just False) -> erroneous t (s,ps)
+                (Nothing, _) -> taskMay (s, o ) $ scheduleTest (s, o ) t
+                (_, Nothing) -> taskMay (s, ps) $ scheduleTest (s, ps) t
+        erroneous t (s, []) = Broken t
 
         -- all the tests we know about for this candidate, may be incomplete if Nothing has not passed (yet)
         allTests c = (Nothing:) $ map Just $ concat $ take 1 $

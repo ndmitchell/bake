@@ -11,17 +11,17 @@ import Data.Time.Clock
 
 
 defaultServer :: State -> Server
-defaultServer s = Server [] [] [] (Candidate s []) Nothing [] [] []
+defaultServer s = Server [] [] [] (s,[]) Nothing [] [] []
 
 data Server = Server
     {history :: [(UTCTime, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
         --   The aStdout has been written to disk, and the value is a filename containing the stdout.
-    ,updates :: [(UTCTime, State, Candidate State Patch)]
+    ,updates :: [(UTCTime, State, (State, [Patch]))]
         -- ^ Updates that have been made
     ,pings :: [(UTCTime, Ping)]
         -- ^ Latest time of a ping sent by each client
-    ,active :: Candidate State Patch
+    ,active :: (State, [Patch])
         -- ^ The candidate we are currently aiming to prove
     ,paused :: Maybe [(UTCTime, Patch)]
         -- ^ 'Just' if we are paused, and the number of people queued up
