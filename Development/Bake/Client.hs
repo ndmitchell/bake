@@ -5,12 +5,13 @@ module Development.Bake.Client(
     ) where
 
 import Development.Bake.Type
-import Development.Bake.Util
 import Development.Bake.Message
 import System.Exit
+import Control.Exception.Extra
 import Development.Shake.Command
 import Control.Concurrent
-import Control.Monad
+import Control.Monad.Extra
+import System.Time.Extra
 import Data.IORef
 import Data.Maybe
 import System.Environment

@@ -2,9 +2,9 @@
 module Development.Bake.Git(SHA1, ovenGit) where
 
 import Development.Bake.Type
-import Development.Bake.Util
 import Development.Shake.Command
-import Control.Monad
+import Control.Monad.Extra
+import Data.List.Extra
 
 
 newtype SHA1 = SHA1 {fromSHA1 :: String} deriving Show

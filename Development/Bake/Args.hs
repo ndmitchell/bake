@@ -11,10 +11,10 @@ import Development.Bake.Type hiding (Client)
 import Development.Bake.Client
 import Development.Bake.Server.Start
 import Development.Bake.Send
-import Development.Bake.Util
-import Control.Exception
+import Control.Exception.Extra
 import Control.DeepSeq
 import Data.Maybe
+import Control.Monad.Extra
 
 
 type HostPort = String

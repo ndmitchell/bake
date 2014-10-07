@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Start(
@@ -7,18 +7,20 @@ module Development.Bake.Server.Start(
 
 import Development.Bake.Type
 import Development.Bake.Web
-import Development.Bake.Util
 import Development.Bake.Message
 import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
 import Control.Concurrent
 import Control.DeepSeq
-import Control.Exception
+import Control.Exception.Extra
 import Data.List
 import Data.Maybe
 import Data.Time.Clock
-import Control.Monad
+import Control.Monad.Extra
+import Data.Tuple.Extra
+import System.Directory.Extra
+import System.IO.Extra
 
 
 startServer :: Port -> Author -> String -> Double -> Oven state patch test -> IO ()
@@ -28,7 +30,7 @@ startServer port author name timeout (concrete -> oven) = do
     var <- newMVar $ defaultServer s
     server port $ \i@Input{..} -> do
         print i
-        handle (\(e :: SomeException) -> fmap OutputError $ showException e) $ do
+        handle_ (fmap OutputError . showException) $ do
             res <-
                 if null inputURL || ["ui"] `isPrefixOf` inputURL then
                     web i{inputURL = drop 1 inputURL} =<< readMVar var

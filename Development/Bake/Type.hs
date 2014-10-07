@@ -10,8 +10,7 @@ module Development.Bake.Type(
     Author
     ) where
 
-import Development.Bake.Util
-import Control.Monad
+import Control.Monad.Extra
 import Data.Monoid
 import Data.Aeson
 

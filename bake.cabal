@@ -58,7 +58,6 @@ library
         Development.Bake.Server.Type
         Development.Bake.Server.Web
         Development.Bake.Type
-        Development.Bake.Util
         Development.Bake.Web
 
 -- don't use 'cabal test' since that loses the child stdout

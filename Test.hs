@@ -4,11 +4,12 @@ module Main(main) where
 import Development.Bake
 import Development.Bake.Git
 import Development.Shake.Command
-import Development.Bake.Util
-import System.Directory
+import System.Directory.Extra
+import System.IO.Extra
+import System.Time.Extra
 import System.Environment
 import System.FilePath
-import Control.Monad
+import Control.Monad.Extra
 import Control.Exception
 import Control.Concurrent
 import System.Process
