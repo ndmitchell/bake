@@ -48,13 +48,15 @@ startServer port author name timeout (concrete -> oven) = do
 
 operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
 operate timeout oven message server = case message of
-    AddPatch author p | Candidate s ps <- active server ->
+    AddPatch author p | Candidate s ps <- active server -> do
+        print ("Add patch to",Candidate s $ ps ++ [p])
         dull server{active = Candidate s $ ps ++ [p], authors = (Just p, author) : authors server}
     DelPatch author p | Candidate s ps <- active server -> dull server{active = Candidate s $ delete p ps}
     Pause author -> dull server{paused = Just $ fromMaybe [] $ paused server}
     Unpause author | Candidate s ps <- active server ->
         dull server{paused=Nothing, active = Candidate s $ ps ++ fromMaybe [] (paused server)}
     Finished q a -> do
+        when (not $ aSuccess a) $ print ("Test failed",qCandidate q == active server,q,a)
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
         consistent server
         dull server 
@@ -63,7 +65,8 @@ operate timeout oven message server = case message of
         server <- return $ prune (addUTCTime (fromRational $ toRational $ negate timeout) now) $ server
             {pings = (now,ping) : filter ((/= pClient ping) . pClient . snd) (pings server)}
         let depends = testRequire . ovenTestInfo oven
-        flip loopM server $ \server ->
+        flip loopM server $ \server -> do
+            print $ brains depends server ping
             case brains depends server ping of
                 Sleep ->
                     return $ Right (server, Nothing)

@@ -18,6 +18,7 @@ data Neuron
     | Update -- update to the active state
     | Reject Patch (Maybe Test) -- reject this patch
     | Broken (Maybe Test) -- the active state with zero patches has ended up broken
+      deriving Show
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 brains :: (Test -> [Test]) -> Server -> Ping -> Neuron
