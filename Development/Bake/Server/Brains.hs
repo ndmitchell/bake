@@ -15,16 +15,16 @@ import Data.List.Extra
 data Neuron
     = Sleep -- nothing useful to do
     | Task Question
-    | Update (Candidate State Patch) -- update the active state
+    | Update -- update to the active state
     | Reject Patch (Maybe Test) -- reject this patch
-    | Broken State (Maybe Test) -- the state with zero patches has ended up broken
+    | Broken (Maybe Test) -- the active state with zero patches has ended up broken
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 brains :: (Test -> [Test]) -> Server -> Ping -> Neuron
 brains _ Server{active=Candidate _ []} _ = Sleep -- no outstanding tasks
 
 brains depends Server{..} Ping{..}
-    | allTestsPass active = Update active
+    | allTestsPass active = Update
     | t:_ <- minimumRelation dependsMay $ failingTests active = erroneous t active
     | otherwise = let next = filter (suitableTest active) $ allTests active
                   in taskMay active $ listToMaybe next
@@ -40,7 +40,7 @@ brains depends Server{..} Ping{..}
                 (Just False, Just False) -> erroneous t $ Candidate s ps
                 (Nothing, _) -> taskMay (Candidate s o ) $ scheduleTest (Candidate s o ) t
                 (_, Nothing) -> taskMay (Candidate s ps) $ scheduleTest (Candidate s ps) t
-        erroneous t (Candidate s []) = Broken s t
+        erroneous t (Candidate s []) = Broken t
 
         -- all the tests we know about for this candidate, may be incomplete if Nothing has not passed (yet)
         allTests c = (Nothing:) $ map Just $ concat $ take 1 $

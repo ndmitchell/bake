@@ -11,7 +11,7 @@ import Data.Time.Clock
 
 
 defaultServer :: State -> Server
-defaultServer s = Server [] [] [] (Candidate s []) Nothing
+defaultServer s = Server [] [] [] (Candidate s []) Nothing []
 
 data Server = Server
     {history :: [(UTCTime, Question, Maybe Answer)]
@@ -25,4 +25,6 @@ data Server = Server
         -- ^ The candidate we are currently aiming to prove
     ,paused :: Maybe [Patch]
         -- ^ 'Just' if we are paused, and the number of people queued up
+    ,authors :: [(Maybe Patch, Author)]
+        -- ^ Authors associated with each patch (Nothing is the server author)
     } deriving Show

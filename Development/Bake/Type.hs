@@ -31,7 +31,7 @@ data Oven state patch test = Oven
         -- ^ Prepare a candidate to be run, produces the tests that must pass
     ,ovenTestInfo :: test -> TestInfo test
         -- ^ Produce information about a test
-    ,ovenNotify :: Author -> String -> IO ()
+    ,ovenNotify :: [Author] -> String -> IO ()
         -- ^ Tell an author some information contained in the string (usually an email)
     ,ovenServer :: (Host, Port)
         -- ^ Default server to use

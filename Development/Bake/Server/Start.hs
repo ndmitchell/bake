@@ -54,7 +54,6 @@ operate timeout oven message server = case message of
     Finished q a -> do
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
         consistent server
-        mapM_ (uncurry $ ovenNotify oven) $ notify q a server
         dull server 
     Pinged ping -> do
         now <- getCurrentTime
@@ -69,20 +68,25 @@ operate timeout oven message server = case message of
                     when (qClient q /= pClient ping) $ error "client doesn't match the ping"
                     server <- return $ server{history = (now,q,Nothing) : history server}
                     return $ Right (server, Just q)
-                Update c -> do
+                Update -> do
+                    let Candidate _ ps = active server
                     s <- withTempDirCurrent $ ovenUpdateState oven $ Just $ active server
+                    ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` ps) p] $ unlines
+                        ["Your patch just made it in"]
                     return $ Left server{active=Candidate s [], updates=(s,active server):updates server}
                 Reject p t -> do
                     server <- return $ let Candidate s ps = active server in server{active=Candidate s $ delete p ps}
+                    ovenNotify oven [a | (pp,a) <- authors server, Just p == pp] $ unlines
+                        ["Your patch " ++ show p ++ " got rejected","Failure in test " ++ show t]
                     return $ Left server
-                Broken s ps -> do
-                    error "failure in zero mode, eek, it's all gone wrong"
+                Broken t -> do
+                    let Candidate s ps = active server
+                    server <- return $ server{active=Candidate s []}
+                    ovenNotify oven [a | (p,a) <- authors server, maybe True (`elem` ps) p] $ unlines
+                        ["Eek, it's all gone horribly wrong","Failure with no patches in test " ++ show t]
+                    return $ Left server
     where
         dull s = return (s,Nothing)
-
-
-notify :: Question -> Answer -> Server -> [(Author, String)]
-notify _ _ _ = [] -- FIXME: sometimes tell someone something
 
 
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
