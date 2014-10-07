@@ -64,7 +64,8 @@ library
 executable bake-test
     default-language: Haskell2010
     main-is: Test.hs
-    ghc-options: -threaded
+    other-modules: Example
+    ghc-options: -threaded -main-is Test.main
     build-depends:
         base == 4.*,
         cmdargs >= 0.10,

@@ -1,34 +1,43 @@
 
-module Example(main) where
+module Example(main, platforms) where
 
 import Development.Bake
-import Development.Bake.Git
-import Development.Bake.Email
 import Development.Shake.Command
+import System.Environment
+import System.FilePath
+import Data.List.Extra
+import Control.Arrow
 
 
-data Step
-    = Test String
-    | Benchmark
-      deriving (Show,Read)
+data Platform = Linux | Windows deriving (Show,Read)
+data Action = Compile | Run Int deriving (Show,Read)
 
+platforms = [Linux,Windows]
 
 main :: IO ()
-main = bake $
-    ovenEmail ("smtp.server.com",25) $
-    ovenGit "https://github.com/ndmitchell/bake.git" "master" $
-    ovenTest readShowStringy (const execute)
-    defaultOven
+main = do
+    repo <- lookupEnv "REPO"
+    case repo of
+        Nothing -> error "You need to set an environment variable named $REPO for the Git repo"
+        Just repo -> bake $
+            ovenGit repo "master" $
+            ovenNotifyStdout $
+            ovenTest testStringy (return allTests) execute
+            defaultOven{ovenServer=("127.0.0.1",5000)}
 
+testStringy = Stringy shw rd shw
+    where shw (a,b) = show a ++ " " ++ show b
+          rd x = (read *** read) $ word1 x
 
-execute :: Maybe Step -> TestInfo Step
-execute Nothing = threadsAll $ run $ do
-    () <- cmd "ghc --make -j"
-    tests <- readFile "tests.txt"
-    return $ Benchmark : map Test (lines tests)
-execute (Just Benchmark) = run $ do
-    () <- cmd "runhaskell Benchmark"
-    return []
-execute (Just (Test test)) = run $ do
-    () <- cmd "runhaskell Main" test
-    return []
+allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1,10,0]]
+
+execute :: (Platform,Action) -> TestInfo (Platform,Action)
+execute (p,Compile) = matchOS p $ run $ do
+    cmd "ghc --make Main.hs"
+execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
+    cmd ("." </> "Main") (show i)
+
+-- So we can run both clients on one platform we use an environment variable
+-- to fake changing OS
+matchOS :: Platform -> TestInfo t -> TestInfo t
+matchOS p = suitable (fmap (== show p) $ getEnv "PLATFORM")

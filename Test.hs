@@ -1,7 +1,6 @@
 
-module Main(main) where
+module Test(main) where
 
-import Development.Bake
 import Development.Shake.Command
 import System.Directory.Extra
 import System.IO.Extra
@@ -13,47 +12,16 @@ import Control.Exception
 import Control.Concurrent
 import System.Process
 import Data.IORef
-import Data.List.Extra
-import Control.Arrow
 import Data.Char
+import qualified Example
 
-
----------------------------------------------------------------------
--- NORMAL CODE
-
-data Platform = Linux | Windows deriving (Show,Read)
-data Action = Compile | Run Int deriving (Show,Read)
-
-platforms = [Linux,Windows]
 
 main :: IO ()
 main = do
     args <- getArgs
-    dir <- fmap (intercalate "/" . takeWhile (/= ".bake-test") . splitDirectories) $ getCurrentDirectory
-    if null args then test (dir ++ "/.bake-test") else bake $
-        ovenGit (dir ++ "/.bake-test/repo") "master" $
-        ovenNotifyStdout $
-        ovenTest testStringy (return allTests) execute
-        defaultOven{ovenServer=("127.0.0.1",5000)}
-
-testStringy = Stringy shw rd shw
-    where shw (a,b) = show a ++ " " ++ show b
-          rd x = (read *** read) $ word1 x
-
-allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1,10,0]]
-
-execute :: (Platform,Action) -> TestInfo (Platform,Action)
-execute (p,Compile) = matchOS p $ run $ do
-    cmd "ghc --make Main.hs"
-execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
-    cmd ("." </> "Main") (show i)
-
-matchOS :: Platform -> TestInfo t -> TestInfo t
-matchOS p = suitable (fmap (== show p) $ getEnv "PLATFORM")
-
-
----------------------------------------------------------------------
--- TEST BITS
+    if args /= [] then Example.main else do
+        dir <- getCurrentDirectory
+        test $ dir ++ "/.bake-test"
 
 test :: FilePath -> IO ()
 test dir = do
@@ -97,9 +65,10 @@ test dir = do
             return pid
     exe <- getExecutablePath
     createDirectoryIfMissing True $ dir </> "server"
-    p0 <- createProcessAlive (proc exe ["server"]){cwd=Just $ dir </> "server"}
-    environment <- getEnvironment
-    ps <- forM platforms $ \p -> do
+    environment <- fmap (("REPO",dir ++ "/repo"):) $ getEnvironment
+    p0 <- createProcessAlive (proc exe ["server"])
+        {cwd=Just $ dir </> "server", env=Just environment}
+    ps <- forM Example.platforms $ \p -> do
         sleep 0.5 -- so they don't ping at the same time
         createDirectoryIfMissing True $ dir </> "client-" ++ show p
         createProcessAlive (proc exe ["client","--ping=1","--name=" ++ show p])
