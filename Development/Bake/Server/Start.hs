@@ -21,6 +21,7 @@ import Control.Monad.Extra
 import Data.Tuple.Extra
 import System.Directory.Extra
 import System.IO.Extra
+import System.Console.CmdArgs.Verbosity
 
 
 startServer :: Port -> Author -> String -> Double -> Oven state patch test -> IO ()
@@ -29,7 +30,7 @@ startServer port author name timeout (concrete -> oven) = do
     putStrLn $ "Initial state of: " ++ show s
     var <- newMVar $ defaultServer s
     server port $ \i@Input{..} -> do
-        print i
+        whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
             res <-
                 if null inputURL || ["ui"] `isPrefixOf` inputURL then

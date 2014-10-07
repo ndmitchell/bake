@@ -14,6 +14,7 @@ import Network.HTTP hiding (Request)
 import qualified Data.Text as Text
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
+import System.Console.CmdArgs.Verbosity
 
 
 data Input = Input
@@ -40,7 +41,7 @@ send :: (Host,Port) -> Input -> IO String
 send (host,port) Input{..} = do
     let url = "http://" ++ host ++ ":" ++ show port ++ concatMap ('/':) inputURL ++
               concat (zipWith (++) ("?":repeat "&") [a ++ "=" ++ b | (a,b) <- inputArgs])
-    print ("sending",inputBody,host,port)
+    whenLoud $ print ("sending",inputBody,host,port)
     res <- simpleHTTP (getRequest url)
         {rqBody=inputBody
         ,rqHeaders=[Header HdrContentType "application/x-www-form-urlencoded", Header HdrContentLength $ show $ length inputBody]}
@@ -54,7 +55,7 @@ send (host,port) Input{..} = do
 server :: Port -> (Input -> IO Output) -> IO ()
 server port act = runSettings (setOnException exception $ setPort port defaultSettings) $ \req reply -> do
     bod <- strictRequestBody req
-    print ("receiving",bod,requestHeaders req,port)
+    whenLoud $ print ("receiving",bod,requestHeaders req,port)
     let pay = Input
             (map Text.unpack $ pathInfo req)
             [(BS.unpack a, maybe "" BS.unpack b) | (a,b) <- queryString req]

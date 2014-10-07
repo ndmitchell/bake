@@ -40,7 +40,7 @@ bakeMode = cmdArgsMode $ modes
     ,Pause{}
     ,Unpause{}
     ,Run "" Nothing "" []
-    ]
+    ] &= verbosity
 
 bake :: Oven state patch test -> IO ()
 bake oven@Oven{..} = do
