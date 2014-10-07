@@ -21,7 +21,7 @@ type Host = String
 
 type Port = Int
 
-data Candidate state patch = Candidate state [patch] deriving (Show,Eq)
+data Candidate state patch = Candidate state [patch] deriving (Show,Eq,Ord)
 
 data Oven state patch test = Oven
     {ovenUpdateState :: Maybe (Candidate state patch) -> IO state
@@ -100,10 +100,10 @@ suitable :: IO Bool -> TestInfo test -> TestInfo test
 suitable query t = t{testSuitable = query &&^ testSuitable t}
 
 
-newtype State = State {fromState :: String} deriving (Show,Eq,ToJSON,FromJSON)
-newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,ToJSON,FromJSON)
-newtype Test = Test {fromTest :: String} deriving (Show,Eq,ToJSON,FromJSON)
-newtype Client = Client {fromClient :: String} deriving (Show,Eq,ToJSON,FromJSON)
+newtype State = State {fromState :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON)
+newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON)
+newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON)
+newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON)
 
 concrete :: Oven state patch test -> Oven State Patch Test
 concrete o@Oven{..} = o
