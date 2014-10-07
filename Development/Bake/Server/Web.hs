@@ -19,7 +19,7 @@ web oven _ server = return $ OutputHTML $ unlines $
     ["<h2>Patches</h2>"] ++
     table "No patches submitted" ["Patch","Status"] (map (patch oven server) patches) ++
     ["<h2>Clients</h2>"] ++
-    table "No clients available" ["Name"] (map (client server) clients) ++
+    table "No clients available" ["Name","Running"] (map (client server) clients) ++
     suffix
     where
         patches = submitted server
@@ -74,4 +74,5 @@ patch Oven{..} Server{..} (u, p) =
             , p `elem` candidatePatches qCandidate]
 
 client :: Server -> Client -> [String]
-client Server{..} c = [show c]
+client Server{..} c = [show c, show active]
+    where active = [qTest | (_,Question{..},Nothing) <- history, qClient == c]
