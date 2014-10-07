@@ -1,11 +1,12 @@
 
--- | Define a continuous integration system.
+-- | A continuous integration system. For an example of how to get started
+--   see <https://github.com/ndmitchell/bake#readme>.
 module Development.Bake(
     -- * Execute
     bake,
     -- * Central types
-    Stringy(..), readShowStringy,
     Oven(..), defaultOven,
+    Stringy(..), readShowStringy,
     -- ** Oven modifiers
     ovenTest, ovenGit, ovenNotifyStdout, ovenNotifyEmail,
     -- ** TestInfo members
@@ -14,7 +15,7 @@ module Development.Bake(
     startServer, startClient,
     module Development.Bake.Send,
     -- * Utility types
-    Host, Port
+    Host, Port, Author
     ) where
 
 import Development.Bake.Type

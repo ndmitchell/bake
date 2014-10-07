@@ -23,6 +23,13 @@ type Host = String
 
 type Port = Int
 
+-- | The central type defining a continuous integration system.
+--   Usually constructed with 'defaultOven' then filled out with other
+--   'Oven' modifiers such as 'ovenGit' and 'ovenTest'.
+--
+--   The types are: @state@ is the base state of the system (think HEAD on the master branch);
+--   @patch@ is a change that is proposed (think a diff); @test@ is the type of tests that
+--   are run.
 data Oven state patch test = Oven
     {ovenUpdateState :: Maybe (state, [patch]) -> IO state
         -- ^ Given a state, and a set of candiates that have passed,
@@ -43,10 +50,14 @@ data Oven state patch test = Oven
     ,ovenStringyTest :: Stringy test
     }
 
+-- | Given a 'Stringy' for @test@, and a function that when run on a code base
+--   returns the list of tests that need running, and a function to populate
+--   a 'TestInfo', modify the 'Oven' with a test type.
 ovenTest :: Stringy test -> IO [test] -> (test -> TestInfo test)
          -> Oven state patch () -> Oven state patch test
 ovenTest stringy prepare info o = o{ovenStringyTest=stringy, ovenPrepare= \_ _ -> prepare, ovenTestInfo=info}
 
+-- | Produce notifications on 'stdout' when users should be notified about success/failure.
 ovenNotifyStdout :: Oven state patch test -> Oven state patch test
 ovenNotifyStdout o = o{ovenNotify = \a s -> f a s >> ovenNotify o a s}
     where f a s = putStr $ unlines
@@ -56,15 +67,22 @@ ovenNotifyStdout o = o{ovenNotify = \a s -> f a s >> ovenNotify o a s}
                     ,replicate 70 '-'
                     ]
 
+-- | A type representing a translation between a value and a string, which can be
+--   produced by 'readShowStringy' if the type has both 'Read' and 'Show' instances.
+--   The functions 'stringyTo' and 'stringyFrom' should be inverses of each other.
+--   The function 'stringyPretty' shows a value in a way suitable for humans, and can
+--   discard uninteresting information.
 data Stringy s = Stringy
     {stringyTo :: s -> String
     ,stringyFrom :: String -> s
     ,stringyPretty :: s -> String
     }
 
+-- | Produce a 'Stringy' for a type with 'Read' and 'Show'.
 readShowStringy :: (Show s, Read s) => Stringy s
 readShowStringy = Stringy show read show
 
+-- | The default oven, which doesn't do anything interesting. Usually the starting point.
 defaultOven :: Oven () () ()
 defaultOven = Oven
     {ovenUpdateState = \_ -> return ()
@@ -78,6 +96,7 @@ defaultOven = Oven
     ,ovenStringyTest = readShowStringy
     }
 
+-- | Information about a test.
 data TestInfo test = TestInfo
     {testThreads :: Maybe Int -- number of threads, defaults to 1, Nothing for use all
     ,testAction :: IO ()
@@ -93,18 +112,27 @@ instance Monoid (TestInfo test) where
     mappend (TestInfo x1 x2 x3 x4) (TestInfo y1 y2 y3 y4) =
         TestInfo (liftM2 (+) x1 y1) (x2 >> y2) (x3 &&^ y3) (x4 ++ y4)
 
+-- | Change the number of threads a test requires, defaults to 1.
 threads :: Int -> TestInfo test -> TestInfo test
 threads j t = t{testThreads=Just j}
 
+-- | Record that a test requires all available threads on a machine,
+--   typically used for the build step.
 threadsAll :: TestInfo test -> TestInfo test
 threadsAll t = t{testThreads=Nothing}
 
+-- | Require the following tests have been evaluated on this machine
+--   before this test is run. Typically used to require compilation
+--   before running most tests.
 require :: [test] -> TestInfo test -> TestInfo test
 require xs t = t{testRequire=testRequire t++xs}
 
+-- | The action associated with a @test@.
 run :: IO () -> TestInfo test
 run act = mempty{testAction=act}
 
+-- | Is a particular client capable of running a test.
+--   Usually an OS check.
 suitable :: IO Bool -> TestInfo test -> TestInfo test
 suitable query t = t{testSuitable = query &&^ testSuitable t}
 

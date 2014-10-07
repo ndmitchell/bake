@@ -42,6 +42,12 @@ bakeMode = cmdArgsMode $ modes
     ,Run "" Nothing "" []
     ] &= verbosity
 
+-- | The entry point to the system. Usually you will define:
+--
+-- > main = bake myOven
+--
+--   Where @myOven@ defines details about the server. The program
+--   deals with command line arguments, run @--help@ for details.
 bake :: Oven state patch test -> IO ()
 bake oven@Oven{..} = do
     x <- cmdArgsRun bakeMode

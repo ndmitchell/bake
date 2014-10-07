@@ -23,7 +23,9 @@ stringySHA1 = Stringy
     }
 
 
--- | Given a repo name, and a set of tests, produce something that runs from git
+-- | Modify an 'Oven' to work with the Git version control system.
+--   Requires the name of the repo (e.g. @https:\/\/github.com\/ndmitchell\/bake.git@)
+--   and the name of a branch (e.g. @master@).
 ovenGit :: String -> String -> Oven () () test -> Oven SHA1 SHA1 test
 ovenGit repo branch o = o
     {ovenUpdateState = gitUpdateState

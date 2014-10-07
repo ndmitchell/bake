@@ -8,10 +8,15 @@ category:           Development
 author:             Neil Mitchell <ndmitchell@gmail.com>
 maintainer:         Neil Mitchell <ndmitchell@gmail.com>
 copyright:          Neil Mitchell 2014
-synopsis:           Continuous integration library.
+synopsis:           Continuous integration system
 description:
-    Used for large scale continuous integration.
-    NOT READY FOR USE BY ANYONE - HALF THE FUNCTIONS ARE UNDEFINED!
+    Bake is a continuous integration server, designed for large, productive, semi-trusted teams.
+    .
+    * /Large teams/ where there are at least several contributors working full-time on a single code base.
+    .
+    * /Productive teams/ which are regularly pushing code, many times a day.
+    .
+    * /Semi-trusted teams/ where code does not go through manual code review, but code does need to pass a test suite and perhaps some static analysis. People are assumed not to be malicious, but are fallible.
 homepage:           https://github.com/ndmitchell/bake#readme
 bug-reports:        https://github.com/ndmitchell/bake/issues
 tested-with:        GHC==7.8.2, GHC==7.6.3, GHC==7.4.2, GHC==7.2.2
