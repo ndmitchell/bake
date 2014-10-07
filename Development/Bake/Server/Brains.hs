@@ -80,6 +80,9 @@ brains depends Server{..} Ping{..}
             | [clientTests] <- map (fst . aTests . snd) $ self' $ success' $ test' Nothing $ answered' $ candidate' c it
             , tt `elem` clientTests -- the target is one of the tests this client is suitable for
             = listToMaybe $ filter (suitableTest c) $ transitiveClosure dependsMay t
+        scheduleTest c t@(Just tt)
+            | null $ self' $ test' Nothing $ candidate' c it -- have never prepared on this client
+            = Just Nothing
         scheduleTest _ _ = Nothing
 
         -- query language
