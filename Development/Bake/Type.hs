@@ -22,7 +22,7 @@ type Host = String
 
 type Port = Int
 
-data Candidate state patch = Candidate state [patch] deriving (Show,Eq,Ord)
+data Candidate state patch = Candidate {candidateState :: state, candidatePatches :: [patch]} deriving (Show,Eq,Ord)
 
 data Oven state patch test = Oven
     {ovenUpdateState :: Maybe (Candidate state patch) -> IO state

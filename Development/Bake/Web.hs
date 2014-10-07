@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings #-}
 
 module Development.Bake.Web(
     Input(..), Output(..), send, server
@@ -25,6 +25,7 @@ data Input = Input
 
 data Output
     = OutputString String
+    | OutputHTML String
     | OutputFile FilePath
     | OutputError String
     | OutputMissing
@@ -32,6 +33,7 @@ data Output
 
 instance NFData Output where
     rnf (OutputString x) = rnf x
+    rnf (OutputHTML x) = rnf x
     rnf (OutputFile x) = rnf x
     rnf (OutputError x) = rnf x
     rnf OutputMissing = ()
@@ -64,6 +66,7 @@ server port act = runSettings (setOnException exception $ setPort port defaultSe
     reply $ case res of
         OutputFile file -> responseFile status200 [] file Nothing
         OutputString msg -> responseLBS status200 [] $ LBS.pack msg
+        OutputHTML msg -> responseLBS status200 [("content-type","text/html")] $ LBS.pack msg
         OutputError msg -> responseLBS status500 [] $ LBS.pack msg
         OutputMissing -> responseLBS status404 [] $ LBS.pack "Resource not found"
 

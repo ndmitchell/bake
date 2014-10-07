@@ -50,7 +50,7 @@ operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, M
 operate timeout oven message server = case message of
     AddPatch author p | Candidate s ps <- active server -> do
         print ("Add patch to",Candidate s $ ps ++ [p])
-        dull server{active = Candidate s $ ps ++ [p], authors = (Just p, author) : authors server}
+        dull server{active = Candidate s $ ps ++ [p], authors = (Just p, author) : authors server, submitted = p : submitted server}
     DelPatch author p | Candidate s ps <- active server -> dull server{active = Candidate s $ delete p ps}
     Pause author -> dull server{paused = Just $ fromMaybe [] $ paused server}
     Unpause author | Candidate s ps <- active server ->
