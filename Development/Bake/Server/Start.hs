@@ -83,3 +83,6 @@ prune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ histo
 consistent :: Server -> IO ()
 consistent Server{..} = do
     putStrLn "FIXME: Check all for a given Candidate, all aTest answers give the same set of results"
+
+withTempDirCurrent :: IO a -> IO a
+withTempDirCurrent act = withTempDir $ \t -> withCurrentDirectory t act
