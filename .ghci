@@ -8,7 +8,7 @@
 
 :{
 :def test \_ -> return $ unlines
-        [":!ghc --make -o .test/bake-test -outputdir .test Test.hs -package=wai-3.0.1.1 -package=text-0.11.3.1 -threaded"
+        [":!ghc --make -o .test/bake-test -outputdir .test -isrc Test -main-is Test.main -package=wai-3.0.1.1 -package=text-0.11.3.1 -threaded"
         ,":!.test\\bake-test"
         ]
 :}
