@@ -50,6 +50,7 @@ library
     other-modules:
         Development.Bake.Args
         Development.Bake.Client
+        Development.Bake.Format
         Development.Bake.Message
         Development.Bake.Send
         Development.Bake.Server.Brains
