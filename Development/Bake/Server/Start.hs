@@ -47,7 +47,7 @@ startServer port author name timeout (concrete -> oven) = do
                                     AddPatch _ p | p `notElem` map fst (extra s) -> do
                                         forkIO $ do
                                             res <- try_ $ withTempDirCurrent curdirLock $
-                                                evaluate . force =<< stringyExtra (ovenStringyPatch oven) p
+                                                evaluate . force =<< ovenPatchExtra oven p
                                             res <- either (fmap dupe . showException) return res
                                             modifyMVar_ var $ \s -> return s{extra = (p,res) : extra s}
                                         return (s{extra=(p,("","")):extra s}, q)

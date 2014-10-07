@@ -37,7 +37,7 @@ main = do
         ovenTest testStringy (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
 
-testStringy = Stringy shw rd shw undefined
+testStringy = Stringy shw rd shw
     where shw (a,b) = show a ++ " " ++ show b
           rd x = (read *** read) $ word1 x
 

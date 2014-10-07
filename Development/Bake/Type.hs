@@ -34,6 +34,9 @@ data Oven state patch test = Oven
         -- ^ Produce information about a test
     ,ovenNotify :: [Author] -> String -> IO ()
         -- ^ Tell an author some information contained in the string (usually an email)
+    ,ovenPatchExtra :: patch -> IO (String, String)
+        -- ^ Extra information about a patch, a single line (HTML span),
+        --   and a longer chunk (HTML block)
     ,ovenServer :: (Host, Port)
         -- ^ Default server to use
     ,ovenStringyState :: Stringy state
@@ -58,14 +61,10 @@ data Stringy s = Stringy
     {stringyTo :: s -> String
     ,stringyFrom :: String -> s
     ,stringyPretty :: s -> String
-    ,stringyExtra :: s -> IO (String, String)
     }
 
 readShowStringy :: (Show s, Read s) => Stringy s
-readShowStringy = isoStringy read show
-
-isoStringy :: (String -> a) -> (a -> String) -> Stringy a
-isoStringy read show = Stringy show read show (const $ return ("",""))
+readShowStringy = Stringy show read show
 
 defaultOven :: Oven () () ()
 defaultOven = Oven
@@ -73,6 +72,7 @@ defaultOven = Oven
     ,ovenNotify = \_ _ -> return ()
     ,ovenPrepare = \_ -> return []
     ,ovenTestInfo = \_ -> mempty
+    ,ovenPatchExtra = \_ -> return ("","")
     ,ovenServer = ("127.0.0.1",80)
     ,ovenStringyState = readShowStringy
     ,ovenStringyPatch = readShowStringy
@@ -121,6 +121,7 @@ concrete o@Oven{..} = o
         fmap (State . stringyTo ovenStringyState) . ovenUpdateState . fmap stringyFromCandidate
     ,ovenPrepare = fmap (map (Test . stringyTo ovenStringyTest)) . ovenPrepare . stringyFromCandidate
     ,ovenTestInfo = fmap (Test . stringyTo ovenStringyTest) . ovenTestInfo . stringyFrom ovenStringyTest . fromTest
+    ,ovenPatchExtra = ovenPatchExtra . stringyFrom ovenStringyPatch . fromPatch
     ,ovenStringyState = f State fromState ovenStringyState
     ,ovenStringyPatch = f Patch fromPatch ovenStringyPatch
     ,ovenStringyTest  = f Test  fromTest  ovenStringyTest
@@ -135,5 +136,4 @@ concrete o@Oven{..} = o
             {stringyTo = proj
             ,stringyFrom = inj
             ,stringyPretty = stringyPretty . stringyFrom . proj
-            ,stringyExtra = stringyExtra . stringyFrom . proj
             }

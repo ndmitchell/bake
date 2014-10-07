@@ -5,8 +5,6 @@ import Development.Bake.Type
 import Development.Shake.Command
 import Control.Monad.Extra
 import Data.List.Extra
-import System.Exit
-import System.Directory
 
 
 newtype SHA1 = SHA1 {fromSHA1 :: String} deriving (Show,Eq)
@@ -21,7 +19,6 @@ stringySHA1 = Stringy
     {stringyTo = \(SHA1 x) -> x
     ,stringyFrom = sha1
     ,stringyPretty = \(SHA1 x) -> take 7 x
-    ,stringyExtra = \x -> return ("","")
     }
 
 
@@ -30,8 +27,9 @@ ovenGit :: String -> String -> Oven () () test -> Oven SHA1 SHA1 test
 ovenGit repo branch o = o
     {ovenUpdateState = gitUpdateState
     ,ovenPrepare = \c -> do gitCheckout c; ovenPrepare o (down c)
+    ,ovenPatchExtra = gitPatchExtra
     ,ovenStringyState = stringySHA1
-    ,ovenStringyPatch = stringySHA1{stringyExtra = gitExtra}
+    ,ovenStringyPatch = stringySHA1
     }
     where
         down (Candidate s ps) = Candidate () $ map (const ()) ps
@@ -55,17 +53,12 @@ ovenGit repo branch o = o
             unit $ cmd "git config user.email" ["https://github.com/ndmitchell/bake"]
             unit $ cmd "git config user.name" ["Bake Continuous Integration"]
             unit $ cmd "git checkout" (fromSHA1 s)
-            forM_ ps $ \p -> do
+            forM_ ps $ \p ->
                 unit $ cmd "git merge" (fromSHA1 p)
 
-        gitExtra p = do
+        gitPatchExtra p = do
             unit $ cmd "git clone" repo "."
-            (Stdout full, Exit e) <- cmd "git diff" ("origin/" ++ branch ++ ".." ++ fromSHA1 p)
-            if e /= ExitSuccess then do
-                Stdout s <- cmd "git log"
-                dir <- getCurrentDirectory
-                return (repo ++ "|" ++ dir ++ "|" ++ s,s)
-             else do
-                Stdout numstat <- cmd "git diff --numstat" ("origin/" ++ branch ++ ".." ++ fromSHA1 p)
-                let xs = [x | [_,_,x] <- map words $ lines numstat]
-                return (unwords (take 3 xs) ++ (if length xs > 3 then "..." else ""), full)
+            Stdout full <- cmd "git diff" ("origin/" ++ branch ++ ".." ++ fromSHA1 p)
+            Stdout numstat <- cmd "git diff --numstat" ("origin/" ++ branch ++ ".." ++ fromSHA1 p)
+            let xs = [x | [_,_,x] <- map words $ lines numstat]
+            return (unwords (take 3 xs) ++ (if length xs > 3 then "..." else ""), full)
