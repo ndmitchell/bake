@@ -45,8 +45,8 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
                 tests <- if isJust qTest || exit /= ExitSuccess then return ([],[]) else do
                     src ::  ([String],[String]) <- fmap read $ readFile "tests.txt"
                     let op = map (stringyFrom (ovenStringyTest oven))
+                    putStrLn "FIXME: Should validate the next set forms a DAG"
                     return (op (fst src), op (snd src))
-                putStrLn "FIXME: Should validate the next set forms a DAG"
                 atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
                 sendMessage hp $ Finished q $
                     Answer (sout++serr) time tests $ exit == ExitSuccess
