@@ -26,6 +26,10 @@ There are a few aspects that make Bake different from most alternatives:
 * Bake allows multiple clients to run tests, even if some tests are only able to be run on some clients, allowing both parallelisation and specialisation (testing both Windows and Linux, for example).
 * Bake can detect that tests are no longer valid, for example because they access a server that is no longer running, and report the issue without blaming the submitted patches.
 
+## The Workflow
+
+Bake is highly parametrisable, and can be reconfigured to support several different styles of use, but here I give one plausible workflow. Imagine a number of developers, somewhere between 5 and 50. Each developer has 1 or 2 active branches they are working on. You have a master branch, which developers merge from once a day. When a developer has completed something they push their branch to the Git repo and register the SHA1 with Bake. Bake then tests the patch on all tests (in conjunction with all other patches that got promoted) and if it passes merges it into the master branch. Once a day (say 7pm) you pause the incoming patches, ensure the queue has emptied, then resume.
+
 
 ## An Example
 
