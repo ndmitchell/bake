@@ -30,6 +30,12 @@ type Port = Int
 --   The types are: @state@ is the base state of the system (think HEAD on the master branch);
 --   @patch@ is a change that is proposed (think a diff); @test@ is the type of tests that
 --   are run.
+--
+--   All IO operations will be called in a direct subdirectory of the directory you start
+--   'bake' from. In particular:
+--   'ovenUpdateState' will always be called single-threaded from @bake-server@;
+--   'ovenPatchExtra' will always be called from @bake-patch-/hash/@;
+--   'ovenPrepare' and 'run' will always be called from @bake-test-/hash/@.
 data Oven state patch test = Oven
     {ovenUpdateState :: Maybe (state, [patch]) -> IO state
         -- ^ Given a state, and a set of candiates that have passed,
