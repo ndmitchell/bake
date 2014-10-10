@@ -55,13 +55,13 @@ startServer port author name timeout (concrete -> oven) = do
                                             let dir = "bake-patch-" ++ show (hash p)
                                             createDirectoryIfMissing True dir
                                             res <- try_ $ do
-                                                unit $ cmd (Cwd dir) exe "runpatch"
+                                                unit $ cmd (Cwd dir) exe "runextra"
                                                     "--output=extra.txt"
                                                     ["--patch=" ++ fromPatch p]
                                                 fmap read $ readFile $ dir </> "extra.txt"
                                             res <- either (fmap dupe . showException) return res
                                             modifyMVar_ var $ \s -> return s{extra = (p,res) : extra s}
-                                        return (s{extra=(p,("","")):extra s}, q)
+                                        return (s{extra=(p,dupe "Calculating..."):extra s}, q)
                                     _ -> return (s,q)
                     )
                 else
