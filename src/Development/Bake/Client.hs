@@ -40,7 +40,7 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
             void $ forkIO $ safeguard $ do
                 let dir = "bake-test-" ++ show (hash qCandidate)
                 createDirectoryIfMissing True dir
-                writeFile (dir </> ".bake") (show qCandidate)
+                writeFile (dir <.> "txt") (show qCandidate)
                 (time, (exit, Stdout sout, Stderr serr)) <- duration $
                     cmd (Cwd dir) exe "runtest"
                         "--output=tests.txt"
