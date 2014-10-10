@@ -44,6 +44,7 @@ library
         HTTP,
         http-types,
         deepseq,
+        filepath,
         aeson,
         extra >= 0.2,
         wai >= 3.0.1,
