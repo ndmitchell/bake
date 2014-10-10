@@ -21,14 +21,14 @@ import Data.Time.Clock
 import Control.Monad.Extra
 import Data.Tuple.Extra
 import System.Directory.Extra
-import System.IO.Extra
 import System.Console.CmdArgs.Verbosity
 
 
 startServer :: Port -> Author -> String -> Double -> Oven state patch test -> IO ()
 startServer port author name timeout (concrete -> oven) = do
     curdirLock <- newMVar ()
-    s <- withTempDirCurrent curdirLock $ ovenUpdateState oven Nothing
+    ignore $ removeDirectoryRecursive "bake-server"
+    s <- withServerDir curdirLock $ ovenUpdateState oven Nothing
     putStrLn $ "Initial state of: " ++ show s
     var <- newMVar $ (defaultServer s){authors = [(Nothing,author)]}
     server port $ \i@Input{..} -> do
@@ -46,7 +46,7 @@ startServer port author name timeout (concrete -> oven) = do
                                 case v of
                                     AddPatch _ p | p `notElem` map fst (extra s) -> do
                                         forkIO $ do
-                                            res <- try_ $ withTempDirCurrent curdirLock $
+                                            res <- try_ $ withServerDir curdirLock $
                                                 evaluate . force =<< ovenPatchExtra oven p
                                             res <- either (fmap dupe . showException) return res
                                             modifyMVar_ var $ \s -> return s{extra = (p,res) : extra s}
@@ -87,7 +87,7 @@ operate curdirLock timeout oven message server = case message of
                     server <- return $ server{history = (now,q,Nothing) : history server}
                     return $ Right (server, Just q)
                 Update -> do
-                    s <- withTempDirCurrent curdirLock $ ovenUpdateState oven $ Just $ active server
+                    s <- withServerDir curdirLock $ ovenUpdateState oven $ Just $ active server
                     ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` snd (active server)) p] $ unlines
                         ["Your patch just made it in"]
                     return $ Left server{active=(s, []), updates=(now,s,active server):updates server}
@@ -117,5 +117,5 @@ consistent Server{..} = do
             _ -> return ()
 
 
-withTempDirCurrent :: MVar () -> IO a -> IO a
-withTempDirCurrent curdirLock act = withMVar curdirLock $ const $ withTempDir $ \t -> withCurrentDirectory t act
+withServerDir :: MVar () -> IO a -> IO a
+withServerDir curdirLock act = withMVar curdirLock $ const $ withCurrentDirectory "bake-server" act
