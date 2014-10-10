@@ -6,6 +6,7 @@ import Development.Shake.Command
 import Control.Monad.Extra
 import Data.List.Extra
 import Development.Bake.Format
+import System.Directory
 
 
 newtype SHA1 = SHA1 {fromSHA1 :: String} deriving (Show,Eq)
@@ -35,6 +36,15 @@ ovenGit repo branch o = o
     ,ovenStringyPatch = stringySHA1
     }
     where
+        gitClone = do
+            b <- doesDirectoryExist ".git"
+            if b then
+                unit $ cmd "git fetch"
+             else do
+                unit $ cmd "git clone" repo "."
+                unit $ cmd "git config user.email" ["https://github.com/ndmitchell/bake"]
+                unit $ cmd "git config user.name" ["Bake Continuous Integration"]
+
         gitUpdateState Nothing = do
             Stdout hash <- cmd "git ls-remote" repo ("refs/heads/" ++ branch)
             case words hash of
@@ -44,21 +54,20 @@ ovenGit repo branch o = o
         gitUpdateState (Just (s, ps)) = do
             gitCheckout s ps
             Stdout x <- cmd "git rev-parse HEAD"
-            unit $ cmd "git checkout -b temp"
-            unit $ cmd "git checkout -B master temp"
+            unit $ cmd "git checkout -b bake-temp"
+            unit $ cmd "git checkout -B master bake-temp"
             unit $ cmd "git push origin master --force"
+            unit $ cmd "git branch -D bake-temp"
             return $ sha1 $ strip x
 
         gitCheckout s ps = do
-            unit $ cmd "git clone" repo "."
-            unit $ cmd "git config user.email" ["https://github.com/ndmitchell/bake"]
-            unit $ cmd "git config user.name" ["Bake Continuous Integration"]
+            gitClone
             unit $ cmd "git checkout" (fromSHA1 s)
             forM_ ps $ \p ->
                 unit $ cmd "git merge" (fromSHA1 p)
 
         gitPatchExtra p = do
-            unit $ cmd "git clone" repo "."
+            gitClone
             Stdout full <- cmd "git diff" ("origin/" ++ branch ++ ".." ++ fromSHA1 p)
             Stdout numstat <- cmd "git diff --numstat" ("origin/" ++ branch ++ ".." ++ fromSHA1 p)
             let xs = [x | [_,_,x] <- map words $ lines numstat]
