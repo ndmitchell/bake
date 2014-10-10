@@ -14,8 +14,8 @@ import Control.Monad.Extra
 import System.Time.Extra
 import Data.IORef
 import Data.Maybe
+import Data.Hashable
 import System.Environment
-import System.Directory
 
 
 -- given server, name, threads
@@ -35,7 +35,7 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
             atomicModifyIORef nowThreads $ \now -> (now - qThreads, ())
             writeChan queue ()
             void $ forkIO $ safeguard $ do
-                dir <- candidateDir qCandidate
+                let dir = "bake-test-" ++ show (hash qCandidate)
                 (time, (exit, Stdout sout, Stderr serr)) <- duration $
                     cmd (Cwd dir) exe "runtest"
                         "--output=../tests.txt"
@@ -53,19 +53,3 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
                 writeChan queue ()
 
     forever $ writeChan queue () >> sleep ping
-
-
--- | Find a directory for this patch
-candidateDir :: (State, [Patch]) -> IO FilePath
-candidateDir (s, ps) = do
-    let file = "candidates.txt"
-    let c_ = (fromState s, map fromPatch ps)
-    b <- doesFileExist file
-    src :: [((String, [String]), FilePath)] <- if b then fmap read $ readFile file else return []
-    case lookup c_ src of
-        Just p -> return p
-        Nothing -> do
-            let res = show $ length src
-            createDirectoryIfMissing True res
-            writeFile "candidates.txt" $ show $ (c_,res):src
-            return res
