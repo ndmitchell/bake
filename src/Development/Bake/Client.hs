@@ -12,10 +12,12 @@ import Development.Shake.Command
 import Control.Concurrent
 import Control.Monad.Extra
 import System.Time.Extra
+import System.FilePath
 import Data.IORef
 import Data.Maybe
 import Data.Hashable
 import System.Environment
+import System.Directory
 
 
 -- given server, name, threads
@@ -36,14 +38,15 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
             writeChan queue ()
             void $ forkIO $ safeguard $ do
                 let dir = "bake-test-" ++ show (hash qCandidate)
+                createDirectoryIfMissing True dir
                 (time, (exit, Stdout sout, Stderr serr)) <- duration $
                     cmd (Cwd dir) exe "runtest"
-                        "--output=../tests.txt"
+                        "--output=tests.txt"
                         ["--test=" ++ fromTest t | Just t <- [qTest]]
                         ("--state=" ++ fromState (fst qCandidate))
                         ["--patch=" ++ fromPatch p | p <- snd qCandidate]
                 tests <- if isJust qTest || exit /= ExitSuccess then return ([],[]) else do
-                    src ::  ([String],[String]) <- fmap read $ readFile "tests.txt"
+                    src ::  ([String],[String]) <- fmap read $ readFile $ dir </> "tests.txt"
                     let op = map (stringyFrom (ovenStringyTest oven))
                     putStrLn "FIXME: Should validate the next set forms a DAG"
                     return (op (fst src), op (snd src))

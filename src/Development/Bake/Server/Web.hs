@@ -10,7 +10,6 @@ import Development.Bake.Type
 import Development.Bake.Web
 import Development.Bake.Format
 import Data.List.Extra
-import Data.Time.Clock
 import Data.Tuple.Extra
 
 
@@ -87,7 +86,7 @@ runs :: Shower -> Server -> (Question -> Bool) -> [String]
 runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
     [[show t, show q, show a] | (t,q,a) <- history, pred q]
 
-patch :: Shower -> Server -> (UTCTime, Patch) -> [String]
+patch :: Shower -> Server -> (Timestamp, Patch) -> [String]
 patch Shower{..} Server{..} (u, p) =
     [showPatch p ++ " by " ++ commasLimit 3 [a | (pp,a) <- authors, Just p == pp] ++ "<br />" ++
      tag "span" ["class=info"] (maybe "" fst (lookup p extra))

@@ -25,6 +25,7 @@ import Control.Monad.Extra
 import Data.Tuple.Extra
 import System.Directory.Extra
 import System.Console.CmdArgs.Verbosity
+import System.FilePath
 
 
 startServer :: Port -> Author -> String -> Double -> Oven state patch test -> IO ()
@@ -32,6 +33,7 @@ startServer port author name timeout (concrete -> oven) = do
     exe <- getExecutablePath
     curdirLock <- newMVar ()
     ignore $ removeDirectoryRecursive "bake-server"
+    createDirectoryIfMissing True "bake-server"
     s <- withServerDir curdirLock $ ovenUpdateState oven Nothing
     putStrLn $ "Initial state of: " ++ show s
     var <- newMVar $ (defaultServer s){authors = [(Nothing,author)]}
@@ -51,11 +53,12 @@ startServer port author name timeout (concrete -> oven) = do
                                     AddPatch _ p | p `notElem` map fst (extra s) -> do
                                         forkIO $ do
                                             let dir = "bake-patch-" ++ show (hash p)
+                                            createDirectoryIfMissing True dir
                                             res <- try_ $ do
                                                 unit $ cmd (Cwd dir) exe "runpatch"
                                                     "--output=extra.txt"
                                                     ["--patch=" ++ fromPatch p]
-                                                fmap read $ readFile "extra.txt"
+                                                fmap read $ readFile $ dir </> "extra.txt"
                                             res <- either (fmap dupe . showException) return res
                                             modifyMVar_ var $ \s -> return s{extra = (p,res) : extra s}
                                         return (s{extra=(p,("","")):extra s}, q)
@@ -70,7 +73,7 @@ operate :: MVar () -> Double -> Oven State Patch Test -> Message -> Server -> IO
 operate curdirLock timeout oven message server = case message of
     AddPatch author p | (s, ps) <- active server -> do
         whenLoud $ print ("Add patch to",s,snoc ps p)
-        now <- getCurrentTime
+        now <- getTimestamp
         dull server{active = (s, snoc ps p), authors = (Just p, author) : authors server, submitted = (now,p) : submitted server}
     DelPatch author p | (s, ps) <- active server -> dull server{active = (s, delete p ps)}
     Pause author -> dull server{paused = Just $ fromMaybe [] $ paused server}
@@ -82,8 +85,9 @@ operate curdirLock timeout oven message server = case message of
         consistent server
         dull server 
     Pinged ping -> do
-        now <- getCurrentTime
-        server <- return $ prune (addUTCTime (fromRational $ toRational $ negate timeout) now) $ server
+        limit <- getCurrentTime
+        now <- getTimestamp
+        server <- return $ prune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $ server
             {pings = (now,ping) : filter ((/= pClient ping) . pClient . snd) (pings server)}
         let depends = testRequire . ovenTestInfo oven
         flip loopM server $ \server ->
@@ -114,7 +118,7 @@ operate curdirLock timeout oven message server = case message of
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
 prune :: UTCTime -> Server -> Server
 prune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
-    where clients = [pClient | (t,Ping{..}) <- pings s, t >= cutoff]
+    where clients = [pClient | (Timestamp t _,Ping{..}) <- pings s, t >= cutoff]
 
 consistent :: Server -> IO ()
 consistent Server{..} = do
