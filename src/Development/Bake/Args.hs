@@ -13,27 +13,24 @@ import Development.Bake.Server.Start
 import Development.Bake.Send
 import Control.Exception.Extra
 import Control.DeepSeq
-import Data.Maybe
 import Control.Monad.Extra
 
 
-type HostPort = String
-
 data Bake
-    = Server {port :: Maybe Port, author :: Author, name :: String, timeout :: Double}
-    | Client {server :: HostPort, author :: Author, name :: String, threads :: Int, ping :: Double}
-    | AddPatch {server :: HostPort, author :: Author, name :: String}
-    | DelPatch {server :: HostPort, author :: Author, name :: String}
-    | DelPatches {server :: HostPort, author :: Author}
-    | Pause {server :: HostPort, author :: Author}
-    | Unpause {server :: HostPort, author :: Author}
+    = Server {port :: Port, author :: Author, name :: String, timeout :: Double}
+    | Client {host :: Host, port :: Port, author :: Author, name :: String, threads :: Int, ping :: Double}
+    | AddPatch {host :: Host, port :: Port, author :: Author, name :: String}
+    | DelPatch {host :: Host, port :: Port, author :: Author, name :: String}
+    | DelPatches {host :: Host, port :: Port, author :: Author}
+    | Pause {host :: Host, port :: Port, author :: Author}
+    | Unpause {host :: Host, port :: Port, author :: Author}
     | Run {output :: FilePath, test :: Maybe String, state :: String, patch :: [String]}
       deriving (Typeable,Data)
 
 
 bakeMode = cmdArgsMode $ modes
-    [Server{port = Nothing, author = "unknown", name = "", timeout = 5*60}
-    ,Client{server = "", threads = 1, ping = 60}
+    [Server{port = 0, author = "unknown", name = "", timeout = 5*60}
+    ,Client{host = "", threads = 1, ping = 60}
     ,AddPatch{}
     ,DelPatch{}
     ,DelPatches{}
@@ -52,13 +49,13 @@ bake :: Oven state patch test -> IO ()
 bake oven@Oven{..} = do
     x <- cmdArgsRun bakeMode
     case x of
-        Server{..} -> startServer (fromMaybe (snd ovenServer) port) author name timeout oven
-        Client{..} -> startClient (hp server) author name threads ping oven
-        AddPatch{..} -> sendAddPatch (hp server) author =<< check "patch" ovenStringyPatch name
-        DelPatch{..} -> sendDelPatch (hp server) author =<< check "patch" ovenStringyPatch name
-        DelPatches{..} -> sendDelAllPatches (hp server) author
-        Pause{..} -> sendPause (hp server) author
-        Unpause{..} -> sendUnpause (hp server) author
+        Server{..} -> startServer (getPort port) author name timeout oven
+        Client{..} -> startClient (getHostPort host port) author name threads ping oven
+        AddPatch{..} -> sendAddPatch (getHostPort host port) author =<< check "patch" ovenStringyPatch name
+        DelPatch{..} -> sendDelPatch (getHostPort host port) author =<< check "patch" ovenStringyPatch name
+        DelPatches{..} -> sendDelAllPatches (getHostPort host port) author
+        Pause{..} -> sendPause (getHostPort host port) author
+        Unpause{..} -> sendUnpause (getHostPort host port) author
         Run{..} -> do
             case test of
                 Nothing -> do
@@ -71,9 +68,8 @@ bake oven@Oven{..} = do
                 Just test -> do
                     testAction $ ovenTestInfo $ stringyFrom ovenStringyTest test
     where
-        hp "" = ovenServer
-        hp s = (h, read $ drop 1 p)
-            where (h,p) = break (== ':') s
+        getPort p = if p == 0 then snd ovenServer else p
+        getHostPort h p = (if h == "" then fst ovenServer else h, getPort p)
 
 
 check :: String -> Stringy s -> String -> IO String
