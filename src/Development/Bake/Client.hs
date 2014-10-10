@@ -37,7 +37,7 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
             void $ forkIO $ safeguard $ do
                 dir <- candidateDir qCandidate
                 (time, (exit, Stdout sout, Stderr serr)) <- duration $
-                    cmd (Cwd dir) exe "run"
+                    cmd (Cwd dir) exe "runtest"
                         "--output=../tests.txt"
                         ["--test=" ++ fromTest t | Just t <- [qTest]]
                         ("--state=" ++ fromState (fst qCandidate))

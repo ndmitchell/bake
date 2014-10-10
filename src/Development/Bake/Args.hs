@@ -24,7 +24,8 @@ data Bake
     | DelPatches {host :: Host, port :: Port, author :: Author}
     | Pause {host :: Host, port :: Port, author :: Author}
     | Unpause {host :: Host, port :: Port, author :: Author}
-    | Run {output :: FilePath, test :: Maybe String, state :: String, patch :: [String]}
+    | RunTest {output :: FilePath, test :: Maybe String, state :: String, patch :: [String]}
+    | RunExtra {output :: FilePath, patch :: [String]}
       deriving (Typeable,Data)
 
 
@@ -36,7 +37,8 @@ bakeMode = cmdArgsMode $ modes
     ,DelPatches{}
     ,Pause{}
     ,Unpause{}
-    ,Run "" Nothing "" []
+    ,RunTest "" Nothing "" []
+    ,RunExtra "" []
     ] &= verbosity
 
 -- | The entry point to the system. Usually you will define:
@@ -56,7 +58,7 @@ bake oven@Oven{..} = do
         DelPatches{..} -> sendDelAllPatches (getHostPort host port) author
         Pause{..} -> sendPause (getHostPort host port) author
         Unpause{..} -> sendUnpause (getHostPort host port) author
-        Run{..} -> do
+        RunTest{..} -> do
             case test of
                 Nothing -> do
                     res <- ovenPrepare
@@ -67,6 +69,9 @@ bake oven@Oven{..} = do
                     writeFile output $ show (op yes, op no)
                 Just test -> do
                     testAction $ ovenTestInfo $ stringyFrom ovenStringyTest test
+        RunExtra{..} -> do
+            res <- ovenPatchExtra $ stringyFrom ovenStringyPatch $ head patch
+            writeFile output $ show res
     where
         getPort p = if p == 0 then snd ovenServer else p
         getHostPort h p = (if h == "" then fst ovenServer else h, getPort p)

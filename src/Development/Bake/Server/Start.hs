@@ -11,6 +11,7 @@ import Development.Bake.Message
 import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
+import Development.Shake.Command
 import Control.Concurrent
 import Control.DeepSeq
 import Control.Arrow
@@ -18,6 +19,8 @@ import Control.Exception.Extra
 import Data.List.Extra
 import Data.Maybe
 import Data.Time.Clock
+import Data.Hashable
+import System.Environment.Extra
 import Control.Monad.Extra
 import Data.Tuple.Extra
 import System.Directory.Extra
@@ -26,6 +29,7 @@ import System.Console.CmdArgs.Verbosity
 
 startServer :: Port -> Author -> String -> Double -> Oven state patch test -> IO ()
 startServer port author name timeout (concrete -> oven) = do
+    exe <- getExecutablePath
     curdirLock <- newMVar ()
     ignore $ removeDirectoryRecursive "bake-server"
     s <- withServerDir curdirLock $ ovenUpdateState oven Nothing
@@ -46,8 +50,12 @@ startServer port author name timeout (concrete -> oven) = do
                                 case v of
                                     AddPatch _ p | p `notElem` map fst (extra s) -> do
                                         forkIO $ do
-                                            res <- try_ $ withServerDir curdirLock $
-                                                evaluate . force =<< ovenPatchExtra oven p
+                                            let dir = "bake-patch-" ++ show (hash p)
+                                            res <- try_ $ do
+                                                unit $ cmd (Cwd dir) exe "runpatch"
+                                                    "--output=extra.txt"
+                                                    ["--patch=" ++ fromPatch p]
+                                                fmap read $ readFile "extra.txt"
                                             res <- either (fmap dupe . showException) return res
                                             modifyMVar_ var $ \s -> return s{extra = (p,res) : extra s}
                                         return (s{extra=(p,("","")):extra s}, q)

@@ -14,6 +14,7 @@ import Development.Bake.Format
 import Control.Monad.Extra
 import Data.Monoid
 import Data.Aeson
+import Data.Hashable
 import Control.Arrow
 
 
@@ -143,10 +144,10 @@ suitable :: IO Bool -> TestInfo test -> TestInfo test
 suitable query t = t{testSuitable = query &&^ testSuitable t}
 
 
-newtype State = State {fromState :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON)
-newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON)
-newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON)
-newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON)
+newtype State = State {fromState :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable)
+newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable)
+newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable)
+newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable)
 
 concrete :: Oven state patch test -> Oven State Patch Test
 concrete o@Oven{..} = o
