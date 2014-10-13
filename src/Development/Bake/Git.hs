@@ -9,6 +9,7 @@ import Development.Bake.Format
 import System.Directory
 import Data.Hashable
 import System.FilePath
+import System.IO.Extra
 import Data.Maybe
 
 
@@ -74,8 +75,7 @@ ovenGit repo branch path o = o
         gitUpdateState Nothing = do
             print "gitUpdateState Nothing"
             gitInitMirror
-            unit $ cmd (Cwd mirror) "git ls-remote"
-            Stdout hash <- cmd (Cwd mirror) "git rev-parse" ("refs/heads/" ++ branch)
+            hash <- readFile' $ mirror </> ".git/refs/heads" </> branch
             case words hash of
                 [] -> error "Couldn't find branch"
                 x:xs -> return $ sha1 $ strip x
