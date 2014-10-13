@@ -54,7 +54,7 @@ startServer port author name timeout (concrete -> oven) = do
                                         forkIO $ do
                                             let dir = "bake-patch-" ++ show (hash p)
                                             createDirectoryIfMissing True dir
-                                            writeFile (dir <.> "txt") (show p)
+                                            writeFile (dir <.> "txt") $ fromPatch p ++ "\n"
                                             res <- try_ $ do
                                                 unit $ cmd (Cwd dir) exe "runextra"
                                                     "--output=extra.txt"

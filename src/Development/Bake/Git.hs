@@ -48,7 +48,7 @@ ovenGit repo branch path o = o
         gitInitMirror = do
             print "gitInitMirror"
             createDirectoryIfMissing True mirror
-            writeFile (mirror <.> "txt") (show (repo, branch))
+            writeFile (mirror <.> "txt") $ unlines [repo, branch]
             b <- doesDirectoryExist $ mirror </> ".git"
             if b then
                 unit $ cmd (Cwd mirror) "git fetch"
