@@ -6,7 +6,7 @@ import Development.Shake.Command
 import Control.Monad.Extra
 import Data.List.Extra
 import Development.Bake.Format
-import System.Directory
+import System.Directory.Extra
 import Data.Hashable
 import System.FilePath
 import Data.Maybe
@@ -79,8 +79,9 @@ ovenGit repo branch path o = o
             gitInitMirror
             print "GETTING INFORMATION"
             dir <- getCurrentDirectory
-            ls <- getDirectoryContents mirror
-            print ("info",dir,ls)
+            ls1 <- getDirectoryContentsRecursive mirror
+            ls2 <- getDirectoryContentsRecursive $ mirror </> ".git"
+            print ("info",mirror,ls1,ls2)
             unit $ cmd (Cwd mirror) "git ls-remote"
             print "after ls-remote"
             Stdout hash <- cmd (Cwd mirror) "git rev-parse" ("refs/heads/" ++ branch)
