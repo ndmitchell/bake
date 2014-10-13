@@ -1,5 +1,7 @@
 Changelog for Bake
 
+    #1, add incremental building
+    #1, mirror the Git repo
     Require a name for the client
     Sort out which directory things are run from
     Change to a separate --host and --port flag
