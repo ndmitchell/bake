@@ -83,5 +83,3 @@ check typ Stringy{..} x = do
     case res of
         Left err -> error $ "Couldn't stringify the " ++ typ ++ " " ++ show x ++ ", got " ++ show err
         Right v -> return v
-
-
