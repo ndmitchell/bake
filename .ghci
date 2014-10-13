@@ -1,4 +1,3 @@
-:set -package=wai-3.0.1.1 -package=text-0.11.3.1
 :set -fwarn-unused-binds -fwarn-unused-imports
 :set -isrc
 :load Test
@@ -8,7 +7,7 @@
 
 :{
 :def test \_ -> return $ unlines
-        [":!ghc --make -o .test/bake-test -outputdir .test -isrc Test -main-is Test.main -package=wai-3.0.1.1 -package=text-0.11.3.1 -threaded"
+        [":!ghc --make -o .test/bake-test -outputdir .test -isrc Test -main-is Test.main -threaded"
         ,":!.test\\bake-test"
         ]
 :}
