@@ -9,7 +9,6 @@ import Development.Bake.Format
 import System.Directory
 import Data.Hashable
 import System.FilePath
-import System.IO.Extra
 import Data.Maybe
 
 
@@ -64,6 +63,9 @@ ovenGit repo branch path o = o
         gitInitCopy = do
             gitInitMirror
             print "gitInitCopy"
+            lst <- getDirectoryContents "."
+            cdr <- getCurrentDirectory
+            print (cdr, lst)
             b <- doesDirectoryExist ".git"
             if b then
                 unit $ cmd cwd "git fetch"
@@ -75,7 +77,13 @@ ovenGit repo branch path o = o
         gitUpdateState Nothing = do
             print "gitUpdateState Nothing"
             gitInitMirror
-            hash <- readFile' $ mirror </> ".git/refs/heads" </> branch
+            print "GETTING INFORMATION"
+            dir <- getCurrentDirectory
+            ls <- getDirectoryContents mirror
+            print ("info",dir,ls)
+            unit $ cmd (Cwd mirror) "git ls-remote"
+            print "after ls-remote"
+            Stdout hash <- cmd (Cwd mirror) "git rev-parse" ("refs/heads/" ++ branch)
             case words hash of
                 [] -> error "Couldn't find branch"
                 x:xs -> return $ sha1 $ strip x
