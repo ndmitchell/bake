@@ -20,6 +20,7 @@ main = do
     let err = "You need to set an environment variable named $REPO for the Git repo"
     repo <- fromMaybe (error err) `fmap` lookupEnv "REPO"
     bake $
+        ovenIncremental $
         ovenGit repo "master" Nothing $
         ovenNotifyStdout $
         ovenTest testStringy (return allTests) execute
@@ -33,7 +34,8 @@ allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1,10,0]]
 
 execute :: (Platform,Action) -> TestInfo (Platform,Action)
 execute (p,Compile) = matchOS p $ run $ do
-    cmd "ghc --make Main.hs"
+    () <- cmd "ghc --make Main.hs"
+    incrementalDone
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
     cmd ("." </> "Main") (show i)
 
