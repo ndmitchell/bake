@@ -74,6 +74,7 @@ ovenGit repo branch path o = o
         gitUpdateState Nothing = do
             print "gitUpdateState Nothing"
             gitInitMirror
+            unit $ cmd (Cwd mirror) "git ls-remote"
             Stdout hash <- cmd (Cwd mirror) "git rev-parse" ("refs/heads/" ++ branch)
             case words hash of
                 [] -> error "Couldn't find branch"
