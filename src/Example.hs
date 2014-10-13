@@ -20,7 +20,7 @@ main = do
     let err = "You need to set an environment variable named $REPO for the Git repo"
     repo <- fromMaybe (error err) `fmap` lookupEnv "REPO"
     bake $
-        ovenGit repo "master" $
+        ovenGit repo "master" Nothing $
         ovenNotifyStdout $
         ovenTest testStringy (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}

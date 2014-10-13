@@ -7,6 +7,9 @@ import Control.Monad.Extra
 import Data.List.Extra
 import Development.Bake.Format
 import System.Directory
+import Data.Hashable
+import System.FilePath
+import Data.Maybe
 
 
 newtype SHA1 = SHA1 {fromSHA1 :: String} deriving (Show,Eq)
@@ -26,9 +29,10 @@ stringySHA1 = Stringy
 
 -- | Modify an 'Oven' to work with the Git version control system.
 --   Requires the name of the repo (e.g. @https:\/\/github.com\/ndmitchell\/bake.git@)
---   and the name of a branch (e.g. @master@).
-ovenGit :: String -> String -> Oven () () test -> Oven SHA1 SHA1 test
-ovenGit repo branch o = o
+--   and the name of a branch (e.g. @master@). You can optionally give a path fragment
+--   which is used to clone into.
+ovenGit :: String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SHA1 test
+ovenGit repo branch path o = o
     {ovenUpdateState = gitUpdateState
     ,ovenPrepare = \s ps -> do gitCheckout s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenPatchExtra = gitPatchExtra
@@ -36,39 +40,66 @@ ovenGit repo branch o = o
     ,ovenStringyPatch = stringySHA1
     }
     where
-        gitClone = do
+        -- the directory where my git repo mirror is stored
+        mirror = "../bake-git-" ++ show (hash (repo, branch))
+        cwd = fmap Cwd path
+
+        -- initialise the mirror, or make it up to date
+        gitInitMirror = do
+            print "gitInitMirror"
+            createDirectoryIfMissing True mirror
+            writeFile (mirror <.> "txt") (show (repo, branch))
+            b <- doesDirectoryExist $ mirror </> ".git"
+            if b then
+                unit $ cmd (Cwd mirror) "git fetch"
+             else do
+                print ("git clone","repo",repo)
+                unit $ cmd (Cwd mirror) "git clone" repo "."
+                unit $ cmd (Cwd mirror) "git config user.email" ["https://github.com/ndmitchell/bake"]
+                unit $ cmd (Cwd mirror) "git config user.name" ["Bake Continuous Integration"]
+            print "gitInitMirror end"
+
+        -- initialise a copy of the mirror, or make it up to date
+        gitInitCopy = do
+            gitInitMirror
+            print "gitInitCopy"
             b <- doesDirectoryExist ".git"
             if b then
-                unit $ cmd "git fetch"
+                unit $ cmd cwd "git fetch"
              else do
-                unit $ cmd "git clone" repo "."
-                unit $ cmd "git config user.email" ["https://github.com/ndmitchell/bake"]
-                unit $ cmd "git config user.name" ["Bake Continuous Integration"]
+                unit $ cmd "git clone" repo $ fromMaybe "." path
+                unit $ cmd cwd "git config user.email" ["https://github.com/ndmitchell/bake"]
+                unit $ cmd cwd "git config user.name" ["Bake Continuous Integration"]
 
         gitUpdateState Nothing = do
-            Stdout hash <- cmd "git ls-remote" repo ("refs/heads/" ++ branch)
+            print "gitUpdateState Nothing"
+            gitInitMirror
+            Stdout hash <- cmd (Cwd mirror) "git rev-parse" ("refs/heads/" ++ branch)
             case words hash of
                 [] -> error "Couldn't find branch"
                 x:xs -> return $ sha1 $ strip x
 
         gitUpdateState (Just (s, ps)) = do
+            print "gitUpdateState Just"
             gitCheckout s ps
-            Stdout x <- cmd "git rev-parse HEAD"
-            unit $ cmd "git checkout -b bake-temp"
-            unit $ cmd "git checkout -B master bake-temp"
-            unit $ cmd "git push origin master --force"
-            unit $ cmd "git branch -D bake-temp"
+            Stdout x <- cmd cwd "git rev-parse HEAD"
+            unit $ cmd cwd "git checkout -b bake-temp"
+            unit $ cmd cwd "git checkout -B master bake-temp"
+            unit $ cmd cwd "git push origin master --force"
+            unit $ cmd cwd "git branch -D bake-temp"
             return $ sha1 $ strip x
 
         gitCheckout s ps = do
-            gitClone
-            unit $ cmd "git checkout" (fromSHA1 s)
+            print "gitCheckout"
+            gitInitCopy
+            unit $ cmd cwd "git checkout" (fromSHA1 s)
             forM_ ps $ \p ->
-                unit $ cmd "git merge" (fromSHA1 p)
+                unit $ cmd cwd "git merge" (fromSHA1 p)
 
         gitPatchExtra p = do
-            gitClone
-            Stdout full <- cmd "git diff" ("origin/" ++ branch ++ ".." ++ fromSHA1 p)
-            Stdout numstat <- cmd "git diff --numstat" ("origin/" ++ branch ++ ".." ++ fromSHA1 p)
+            gitInitMirror
+            print "gitPatchExtra"
+            Stdout full <- cmd (Cwd mirror) "git diff" (branch ++ ".." ++ fromSHA1 p)
+            Stdout numstat <- cmd (Cwd mirror) "git diff --numstat" (branch ++ ".." ++ fromSHA1 p)
             let xs = [x | [_,_,x] <- map words $ lines numstat]
             return (unwordsLimit 3 xs, tag_ "pre" full)
