@@ -8,9 +8,10 @@ import System.Time.Extra
 import System.Environment
 import System.FilePath
 import Control.Monad.Extra
-import Control.Exception
+import Control.Exception.Extra
 import Control.Concurrent
 import System.Process
+import Data.List.Extra
 import Data.IORef
 import Data.Char
 import qualified Example
@@ -25,6 +26,7 @@ main = do
 
 test :: FilePath -> IO ()
 test dir = do
+    let repo = "file://" ++ replace "\\" "/" dir ++ "/repo"
     b <- doesDirectoryExist dir
     when b $ do
         () <- cmd "chmod -R 755 .bake-test"
@@ -46,7 +48,7 @@ test dir = do
         createDirectoryIfMissing True (dir </> "repo-" ++ s)
         withCurrentDirectory (dir </> "repo-" ++ s) $ do
             print "clone"
-            () <- cmd "git clone ../repo ."
+            () <- cmd "git clone" repo "."
             () <- cmd "git config user.email" [s ++ "@example.com"]
             () <- cmd "git config user.name" ["Mr " ++ toUpper (head s) : map toLower (tail s)]
             print "checkout"
@@ -65,7 +67,7 @@ test dir = do
             return pid
     exe <- getExecutablePath
     createDirectoryIfMissing True $ dir </> "server"
-    environment <- fmap (("REPO",dir ++ "/repo"):) $ getEnvironment
+    environment <- fmap (("REPO",repo):) $ getEnvironment
     p0 <- createProcessAlive (proc exe ["server"])
         {cwd=Just $ dir </> "server", env=Just environment}
     ps <- forM Example.platforms $ \p -> do
@@ -92,14 +94,15 @@ test dir = do
         edit "tony" $
             writeFile "Main.hs" "module Main where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
 
-        sleep 10
-        withTempDir $ \d -> withCurrentDirectory d $ do
-            unit $ cmd "git clone" (dir </> "repo") "."
-            unit $ cmd "git checkout master"
-            src <- readFile "Main.hs"
-            let expect = "module Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
-            when (src /= expect) $ do
-                error $ "Expected to have updated Main, but got:\n" ++ src
+        retry 3 $ do
+            sleep 10
+            withTempDir $ \d -> withCurrentDirectory d $ do
+                unit $ cmd "git clone" repo "."
+                unit $ cmd "git checkout master"
+                src <- readFile "Main.hs"
+                let expect = "module Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
+                when (src /= expect) $ do
+                    error $ "Expected to have updated Main, but got:\n" ++ src
 
         putStrLn "% MAKING A GOOD EDIT AS BOB"
         edit "bob" $ do
@@ -115,13 +118,14 @@ test dir = do
             unit $ cmd "git merge origin/master"
             writeFile "Main.hs" "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
 
-        sleep 10
-        withTempDir $ \d -> withCurrentDirectory d $ do
-            unit $ cmd "git clone" (dir </> "repo") "."
-            unit $ cmd "git checkout master"
-            src <- readFile "Main.hs"
-            let expect = "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n\n"
-            when (src /= expect) $ do
-                error $ "Expected to have updated Main, but got:\n" ++ src
+        retry 5 $ do
+            sleep 10
+            withTempDir $ \d -> withCurrentDirectory d $ do
+                unit $ cmd "git clone" repo "."
+                unit $ cmd "git checkout master"
+                src <- readFile "Main.hs"
+                let expect = "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n\n"
+                when (src /= expect) $ do
+                    error $ "Expected to have updated Main, but got:\n" ++ src
 
         putStrLn "Completed successfully!"
