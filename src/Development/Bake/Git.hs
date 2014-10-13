@@ -84,7 +84,7 @@ ovenGit repo branch path o = o
             print ("info",mirror,ls1,ls2)
             unit $ cmd (Cwd mirror) "git ls-remote"
             print "after ls-remote"
-            Stdout hash <- cmd (Cwd mirror) "git rev-parse" ("refs/heads/" ++ branch)
+            Stdout hash <- cmd (Cwd mirror) "git rev-parse" branch
             case words hash of
                 [] -> error "Couldn't find branch"
                 x:xs -> return $ sha1 $ strip x
