@@ -83,6 +83,7 @@ ovenGit repo branch path o = o
             ls2 <- getDirectoryContentsRecursive $ mirror </> ".git"
             print ("info",mirror,ls1,ls2)
             unit $ cmd (Cwd mirror) "git ls-remote"
+            unit $ cmd (Cwd mirror) "git branch -a"
             print "after ls-remote"
             Stdout hash <- cmd (Cwd mirror) "git rev-parse" branch
             case words hash of
