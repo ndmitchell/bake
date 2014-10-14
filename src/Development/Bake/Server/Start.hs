@@ -100,7 +100,11 @@ operate curdirLock timeout oven message server = case message of
                     server <- return $ server{history = (now,q,Nothing) : history server}
                     return $ Right (server, Just q)
                 Update -> do
-                    s <- withServerDir curdirLock $ ovenUpdateState oven $ Just $ active server
+                    let dir = "bake-test-" ++ show (hash $ active server)
+                    createDirectoryIfMissing True dir
+                    writeFile (dir <.> "txt") $ unlines $ fromState (fst $ active server) : map fromPatch (snd $ active server)
+                    s <- withServerDir curdirLock $ withCurrentDirectory (".." </> dir) $
+                        ovenUpdateState oven $ Just $ active server
                     ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` snd (active server)) p] $ unlines
                         ["Your patch just made it in"]
                     return $ Left server{active=(s, []), updates=(now,s,active server):updates server}
