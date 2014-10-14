@@ -94,7 +94,7 @@ test dir = do
         edit "tony" $
             writeFile "Main.hs" "module Main where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
 
-        retry 3 $ do
+        retry 5 $ do
             sleep 10
             withTempDir $ \d -> withCurrentDirectory d $ do
                 unit $ cmd "git clone" repo "."
@@ -118,7 +118,7 @@ test dir = do
             unit $ cmd "git merge origin/master"
             writeFile "Main.hs" "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
 
-        retry 5 $ do
+        retry 10 $ do
             sleep 10
             withTempDir $ \d -> withCurrentDirectory d $ do
                 unit $ cmd "git clone" repo "."
