@@ -83,9 +83,9 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             mirror <- gitInitMirror
             b <- doesDirectoryExist $ path </>".git"
             if b then
-                unit $ cmd (Cwd path) "git pull"
+                unit $ cmd (Cwd path) "git pull origin" [branch]
              else do
-                unit $ cmd (Cwd path) "git clone" [(if path == "." then "" else "../") ++ mirror] "."
+                unit $ cmd (Cwd path) "git clone" [(if path == "." then "" else "../") ++ mirror] "." ["--branch",branch]
                 gitSafe path
             unit $ cmd (Cwd path) "git checkout" [branch]
             unit $ cmd (Cwd path) "git reset --hard" ["origin/" ++ branch]
