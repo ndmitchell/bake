@@ -5,6 +5,7 @@ module Development.Bake.Client(
     ) where
 
 import Development.Bake.Type
+import Development.Bake.Util
 import Development.Bake.Message
 import System.Exit
 import Control.Exception.Extra
@@ -15,9 +16,7 @@ import System.Time.Extra
 import System.FilePath
 import Data.IORef
 import Data.Maybe
-import Data.Hashable
 import System.Environment
-import System.Directory
 
 
 -- given server, name, threads
@@ -38,9 +37,7 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> oven) = do
             atomicModifyIORef nowThreads $ \now -> (now - qThreads, ())
             writeChan queue ()
             void $ forkIO $ safeguard $ do
-                let dir = "bake-test-" ++ show (hash qCandidate)
-                createDirectoryIfMissing True dir
-                writeFile (dir <.> "txt") $ unlines $ fromState (fst qCandidate) : map fromPatch (snd qCandidate)
+                dir <- createDir "bake-test" $ fromState (fst qCandidate) : map fromPatch (snd qCandidate)
                 (time, (exit, Stdout sout, Stderr serr)) <- duration $
                     cmd (Cwd dir) exe "runtest"
                         "--output=tests.txt"

@@ -20,7 +20,6 @@ import Control.Exception.Extra
 import Data.List.Extra
 import Data.Maybe
 import Data.Time.Clock
-import Data.Hashable
 import System.Environment.Extra
 import Control.Monad.Extra
 import Data.Tuple.Extra
@@ -53,9 +52,7 @@ startServer port author name timeout (concrete -> oven) = do
                                 case v of
                                     AddPatch _ p | p `notElem` map fst (extra s) -> do
                                         forkIO $ do
-                                            let dir = "bake-patch-" ++ show (hash p)
-                                            createDirectoryIfMissing True dir
-                                            writeFile (dir <.> "txt") $ fromPatch p ++ "\n"
+                                            dir <- createDir "bake-patch" [fromPatch p]
                                             res <- try_ $ do
                                                 unit $ cmd (Cwd dir) exe "runextra"
                                                     "--output=extra.txt"
@@ -105,9 +102,7 @@ operate curdirLock timeout oven message server = case message of
                     server <- return $ server{history = (now,q,Nothing) : history server}
                     return $ Right (server, Just q)
                 Update -> do
-                    let dir = "bake-test-" ++ show (hash $ active server)
-                    createDirectoryIfMissing True dir
-                    writeFile (dir <.> "txt") $ unlines $ fromState (fst $ active server) : map fromPatch (snd $ active server)
+                    dir <- createDir "bake-test" $ fromState (fst $ active server) : map fromPatch (snd $ active server)
                     s <- withServerDir curdirLock $ withCurrentDirectory (".." </> dir) $
                         ovenUpdateState oven $ Just $ active server
                     ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` snd (active server)) p] $ unlines

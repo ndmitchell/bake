@@ -5,12 +5,12 @@ module Development.Bake.Git(
     ) where
 
 import Development.Bake.Type
+import Development.Bake.Util
 import Development.Shake.Command
 import Control.Monad.Extra
 import Data.List.Extra
 import Development.Bake.Format
 import System.Directory.Extra
-import Data.Hashable
 import System.FilePath
 import Data.Maybe
 
@@ -55,14 +55,12 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
 
         -- initialise the mirror, or make it up to date
         gitInitMirror = traced "gitInitMirror" $ do
-            let mirror = "../bake-git-" ++ show (hash repo)
+            mirror <- createDir "../bake-git" [repo]
             -- see http://blog.plataformatec.com.br/2013/05/how-to-properly-mirror-a-git-repository/
-            b <- doesDirectoryExist mirror
-            writeFile (mirror <.> "txt") $ unlines [repo]
-            if b then
+            ready <- doesFileExist $ mirror </> "HEAD"
+            if ready then
                 unit $ cmd (Cwd mirror) "git fetch --prune"
              else do
-                createDirectoryIfMissing True mirror
                 unit $ cmd (Cwd mirror) "git clone --mirror" [repo] "."
                 gitSafe mirror
             return mirror
