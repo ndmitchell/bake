@@ -60,6 +60,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
         gitInitMirror = traced "gitInitMirror" $ do
             -- see http://blog.plataformatec.com.br/2013/05/how-to-properly-mirror-a-git-repository/
             b <- doesDirectoryExist mirror
+            writeFile (mirror <.> "txt") $ unlines [repo]
             if b then
                 unit $ cmd (Cwd mirror) "git fetch --prune"
              else do
