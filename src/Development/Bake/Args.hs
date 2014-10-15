@@ -14,6 +14,7 @@ import Development.Bake.Send
 import Control.Exception.Extra
 import Control.DeepSeq
 import Control.Monad.Extra
+import System.Random
 
 
 data Bake
@@ -52,7 +53,9 @@ bake oven@Oven{..} = do
     x <- cmdArgsRun bakeMode
     case x of
         Server{..} -> startServer (getPort port) author name timeout oven
-        Client{..} -> startClient (getHostPort host port) author name threads ping oven
+        Client{..} -> do
+            name <- if name /= "" then return name else pick defaultNames
+            startClient (getHostPort host port) author name threads ping oven
         AddPatch{..} -> sendAddPatch (getHostPort host port) author =<< check "patch" ovenStringyPatch name
         DelPatch{..} -> sendDelPatch (getHostPort host port) author =<< check "patch" ovenStringyPatch name
         DelPatches{..} -> sendDelAllPatches (getHostPort host port) author
@@ -83,3 +86,9 @@ check typ Stringy{..} x = do
     case res of
         Left err -> error $ "Couldn't stringify the " ++ typ ++ " " ++ show x ++ ", got " ++ show err
         Right v -> return v
+
+
+defaultNames = words "Simon Lennart Dave Brian Warren Joseph Kevin Ralf Paul John Thomas Mark Erik Alastair Colin Philip"
+
+pick :: [a] -> IO a
+pick xs = randomRIO (0, (length xs - 1)) >>= return . (xs !!)
