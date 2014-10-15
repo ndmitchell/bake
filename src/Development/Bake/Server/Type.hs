@@ -3,15 +3,11 @@
 module Development.Bake.Server.Type(
     Server(..), defaultServer,
     Question(..), Answer(..), Ping(..),
-    Timestamp(..), getTimestamp
     ) where
 
 import Development.Bake.Type
 import Development.Bake.Message
-import Data.Time.Clock
-import System.IO.Unsafe
-import Data.IORef
-import Data.Tuple.Extra
+import Development.Bake.Util
 
 
 defaultServer :: State -> Server
@@ -36,16 +32,3 @@ data Server = Server
     ,extra :: [(Patch, (String, String))]
         -- ^ Extra information that was computed for each string (cached forever)
     } deriving Show
-
-
-data Timestamp = Timestamp UTCTime Int deriving (Show,Eq)
-
-{-# NOINLINE timestamp #-}
-timestamp :: IORef Int
-timestamp = unsafePerformIO $ newIORef 0
-
-getTimestamp :: IO Timestamp
-getTimestamp = do
-    t <- getCurrentTime
-    i <- atomicModifyIORef timestamp $ dupe . (+1)
-    return $ Timestamp t i

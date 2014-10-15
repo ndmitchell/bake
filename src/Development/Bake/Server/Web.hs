@@ -8,6 +8,7 @@ module Development.Bake.Server.Web(
 import Development.Bake.Server.Type
 import Development.Bake.Type
 import Development.Bake.Web
+import Development.Bake.Util
 import Development.Bake.Format
 import Data.List.Extra
 import Data.Tuple.Extra

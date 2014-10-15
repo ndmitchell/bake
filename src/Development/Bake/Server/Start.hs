@@ -8,6 +8,7 @@ module Development.Bake.Server.Start(
 import Development.Bake.Type
 import Development.Bake.Web
 import Development.Bake.Message
+import Development.Bake.Util
 import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
