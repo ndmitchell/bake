@@ -43,9 +43,6 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
     ,ovenStringyPatch = stringySHA1
     }
     where
-        -- the directory where my git repo mirror is stored
-        mirror = "../bake-git-" ++ show (hash repo)
-
         traced msg act = do
             putStrLn $ "% GIT: Begin " ++ msg
             res <- act
@@ -58,6 +55,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
 
         -- initialise the mirror, or make it up to date
         gitInitMirror = traced "gitInitMirror" $ do
+            let mirror = "../bake-git-" ++ show (hash repo)
             -- see http://blog.plataformatec.com.br/2013/05/how-to-properly-mirror-a-git-repository/
             b <- doesDirectoryExist mirror
             writeFile (mirror <.> "txt") $ unlines [repo]
@@ -67,9 +65,10 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
                 createDirectoryIfMissing True mirror
                 unit $ cmd (Cwd mirror) "git clone --mirror" [repo] "."
                 gitSafe mirror
+            return mirror
 
         gitUpdateState Nothing = traced "gitUpdateState Nothing" $ do
-            gitInitMirror
+            mirror <- gitInitMirror
             Stdout hash <- cmd (Cwd mirror) "git rev-parse" [branch]
             case words hash of
                 [] -> error "Couldn't find branch"
@@ -98,7 +97,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
                 unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
 
         gitPatchExtra p = traced "gitPatchExtra" $ do
-            gitInitMirror
+            mirror <- gitInitMirror
             Stdout full <- cmd (Cwd mirror) "git diff" (branch ++ ".." ++ fromSHA1 p)
             Stdout numstat <- cmd (Cwd mirror) "git diff --numstat" (branch ++ ".." ++ fromSHA1 p)
             let xs = [x | [_,_,x] <- map words $ lines numstat]
