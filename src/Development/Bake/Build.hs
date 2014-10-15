@@ -14,6 +14,8 @@ import System.FilePath
 import Data.Maybe
 
 
+-- | This requires a version of @cp@. On Windows, you can get that here:
+--   <http://gnuwin32.sourceforge.net/packages/coreutils.htm>
 ovenIncremental :: Oven state patch test -> Oven state patch test
 ovenIncremental oven@Oven{..} = oven
     {ovenUpdateState = \s -> do r <- ovenUpdateState s; whenJust s $ addUpdateState r; return r
@@ -54,7 +56,7 @@ ovenIncremental oven@Oven{..} = oven
 
             when (not $ null poss) $ do
                 let best = snd $ minimumBy (compare `on` fst) poss
-                unit $ cmd "cp --preserve --recursive --no-target-directory" ("../" ++ best) "."
+                unit $ cmd "cp --preserve=timestamps --recursive --no-target-directory" ("../" ++ best) "."
 
 
 incrementalDone :: IO ()
