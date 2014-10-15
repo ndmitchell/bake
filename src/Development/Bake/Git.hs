@@ -44,7 +44,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
     }
     where
         -- the directory where my git repo mirror is stored
-        mirror = "../bake-git-" ++ show (hash (repo, branch))
+        mirror = "../bake-git-" ++ show (hash repo)
 
         traced msg act = do
             putStrLn $ "% GIT: Begin " ++ msg
