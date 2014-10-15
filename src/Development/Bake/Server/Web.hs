@@ -24,7 +24,7 @@ web Oven{..} Input{..} server = return $ OutputHTML $ unlines $
                 let tt = if t == "" then Nothing else Just $ Test t in
                 runs shower server (\Question{..} -> Patch p `elem` snd qCandidate && qTest == tt)
           | Just p <- lookup "patch" inputArgs ->
-                runs shower (nostdout server) (elem (Patch p) . snd . qCandidate) ++
+                runs shower server (elem (Patch p) . snd . qCandidate) ++
                 ["<h2>Patch information</h2>"] ++
                 [e | (pp,(_,e)) <- extra server, Patch p == pp]
           | otherwise ->
@@ -80,7 +80,7 @@ suffix =
     ,"</html>"]
 
 nostdout :: Server -> Server
-nostdout s = s -- s{history = [(t,q,fmap (\a -> a{aStdout=""}) a) | (t,q,a) <- history s]}
+nostdout s = s{history = [(t,q,fmap (\a -> a{aStdout=""}) a) | (t,q,a) <- history s]}
 
 runs :: Shower -> Server -> (Question -> Bool) -> [String]
 runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
