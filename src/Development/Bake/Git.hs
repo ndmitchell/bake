@@ -82,16 +82,19 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
 
         gitCheckout s ps = traced "gitCheckout" $ do
             createDirectoryIfMissing True path
+            gitInitMirror
             b <- doesDirectoryExist $ path </>".git"
-            when (not b) $ do
-                gitInitMirror
+            if b then
+                unit $ cmd (Cwd path) "git pull"
+             else do
                 unit $ cmd (Cwd path) "git clone" [repo] "."
                 gitSafe path
-                unit $ cmd (Cwd path) "git checkout" [branch]
-                Stdout x <- cmd (Cwd path) "git rev-parse HEAD"
-                when (strip x /= fromSHA1 s) $ error "Branch changed while running"
-                forM_ ps $ \p ->
-                    unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
+            unit $ cmd (Cwd path) "git checkout" [branch]
+            unit $ cmd (Cwd path) "git reset --hard" ["origin/" ++ branch]
+            Stdout x <- cmd (Cwd path) "git rev-parse HEAD"
+            when (strip x /= fromSHA1 s) $ error "Branch changed while running"
+            forM_ ps $ \p ->
+                unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
 
         gitPatchExtra p = traced "gitPatchExtra" $ do
             gitInitMirror
