@@ -81,7 +81,11 @@ operate curdirLock timeout oven message server = case message of
     Unpause author | (s, ps) <- active server ->
         dull server{paused=Nothing, active = (s, ps ++ maybe [] (map snd) (paused server))}
     Finished q a -> do
-        whenLoud $ when (not $ aSuccess a) $ print ("Test failed",qCandidate q == active server,q,a)
+        when (not $ aSuccess a) $ do
+            putStrLn $ replicate 70 '#'
+            print (active server, q, a{aStdout=""})
+            putStrLn $ aStdout a
+            putStrLn $ replicate 70 '#'
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
         consistent server
         dull server 
