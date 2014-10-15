@@ -80,7 +80,7 @@ suffix =
     ,"</html>"]
 
 nostdout :: Server -> Server
-nostdout s = s{history = [(t,q,fmap (\a -> a{aStdout=""}) a) | (t,q,a) <- history s]}
+nostdout s = s -- s{history = [(t,q,fmap (\a -> a{aStdout=""}) a) | (t,q,a) <- history s]}
 
 runs :: Shower -> Server -> (Question -> Bool) -> [String]
 runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
