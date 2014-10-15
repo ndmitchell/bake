@@ -43,20 +43,23 @@ ovenIncremental oven@Oven{..} = oven
             return (readState state, map readPatch patches)
 
         incPrepare s ps = do
-            dir <- getDirectoryContents ".."
-            states <- fmap (map (first showState)) readUpdateState
-            let resolve (s,ps) | Just new <- lookup (showState s) states = resolve $ second (++ps) new
-                               | otherwise = (showState s, map showPatch ps)
-            (selfState, selfPatches) <- return $ resolve (s,ps)
+            me <- getDirectoryContents "."
+            -- check we haven't already been prepared, probably in a previous client run
+            when (null $ filter (not . all (== '.')) me) $ do
+                dir <- getDirectoryContents ".."
+                states <- fmap (map (first showState)) readUpdateState
+                let resolve (s,ps) | Just new <- lookup (showState s) states = resolve $ second (++ps) new
+                                   | otherwise = (showState s, map showPatch ps)
+                (selfState, selfPatches) <- return $ resolve (s,ps)
 
-            poss <- fmap catMaybes $ forM [x | x <- dir, "bake-test-" `isPrefixOf` x, takeExtension x == ".incremental"] $ \x -> do
-                (state, patches) <- fmap resolve $ readCandidate $ "../" ++ replaceExtension x ".txt"
-                return $ if state /= selfState && any (`notElem` selfPatches) patches then Nothing else
-                    Just (length $ filter (`notElem` patches) selfPatches, dropExtension x)
+                poss <- fmap catMaybes $ forM [x | x <- dir, "bake-test-" `isPrefixOf` x, takeExtension x == ".incremental"] $ \x -> do
+                    (state, patches) <- fmap resolve $ readCandidate $ "../" ++ replaceExtension x ".txt"
+                    return $ if state /= selfState && any (`notElem` selfPatches) patches then Nothing else
+                        Just (length $ filter (`notElem` patches) selfPatches, dropExtension x)
 
-            when (not $ null poss) $ do
-                let best = snd $ minimumBy (compare `on` fst) poss
-                unit $ cmd "cp --preserve=timestamps --recursive --no-target-directory" ("../" ++ best) "."
+                when (not $ null poss) $ do
+                    let best = snd $ minimumBy (compare `on` fst) poss
+                    unit $ cmd "cp --preserve=timestamps --recursive --no-target-directory" ("../" ++ best) "."
 
 
 incrementalDone :: IO ()
