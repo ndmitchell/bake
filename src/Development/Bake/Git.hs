@@ -75,7 +75,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
         gitUpdateState (Just (s, ps)) = traced "gitUpdateState Just" $ do
             gitCheckout s ps
             Stdout x <- cmd (Cwd path) "git rev-parse" [branch]
-            unit $ cmd "git push" [repo] [branch ++ ":" ++ branch]
+            unit $ cmd (Cwd path) "git push" [repo] [branch ++ ":" ++ branch]
             return $ sha1 $ strip x
 
         gitCheckout s ps = traced "gitCheckout" $ do
