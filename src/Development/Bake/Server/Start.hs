@@ -95,9 +95,8 @@ operate curdirLock timeout oven message server = case message of
         now <- getTimestamp
         server <- return $ prune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $ server
             {pings = (now,ping) : filter ((/= pClient ping) . pClient . snd) (pings server)}
-        let depends = testRequire . ovenTestInfo oven
         flip loopM server $ \server ->
-            case brains depends server ping of
+            case brains (ovenTestInfo oven) server ping of
                 Sleep ->
                     return $ Right (server, Nothing)
                 Task q -> do

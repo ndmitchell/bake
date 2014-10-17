@@ -21,10 +21,10 @@ data Neuron
       deriving Show
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything
-brains :: (Test -> [Test]) -> Server -> Ping -> Neuron
+brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron
 brains _ Server{active=(_, [])} _ = Sleep -- no outstanding tasks
 
-brains depends Server{..} Ping{..}
+brains info Server{..} Ping{..}
     | allTestsPass active = Update
     | t:_ <- minimumRelation dependsMay $ failingTests active = erroneous t active
     | otherwise = let next = filter (suitableTest active) $ allTests active
@@ -32,7 +32,7 @@ brains depends Server{..} Ping{..}
     where
         taskMay c t = maybe Sleep (\t -> Task $ Question c t 1 pClient) t
         dependsMay Nothing = []
-        dependsMay (Just t) = Nothing : map Just (depends t)
+        dependsMay (Just t) = Nothing : map Just (testRequire $ info t)
 
         erroneous t (s, o@(unsnoc -> Just (ps,p))) =
             case (stateTest (s, o) t, stateTest (s, ps) t) of
@@ -65,7 +65,7 @@ brains depends Server{..} Ping{..}
             , tt `elem` clientTests -- it is one of the tests this client is suitable for
             , null $ test' t $ self' $ candidate' c it -- I am not running it or have run it
             , clientDone <- map (qTest . fst) $ success' $ answered' $ self' $ candidate' c it
-            , all (`elem` clientDone) $ map Just $ depends tt
+            , all (`elem` clientDone) $ map Just $ testRequire $ info tt
             = True
         suitableTest _ _ = False
 
