@@ -139,14 +139,14 @@ patch Shower{..} Server{..} (u, p) =
      tag "span" ["class=info"] (maybe "" fst (lookup p extra))
     ,if p `elem` concatMap (snd . thd3) updates then tag "span" ["class=good"] "Merged"
      else if p `elem` snd active then
-        "Testing (passed " ++ show (length $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show todo) ++ ")<br />" ++
+        "Testing (passed " ++ show (length $ nubOn (qTest . snd) $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show (todo+1)) ++ ")<br />" ++
         tag "span" ["class=info"]
-            (if any (not . fst) done then "Retrying " ++ commasLimit 3 [showTestPatch p (qTest t) | (False,t) <- done]
+            (if any (not . fst) done then "Retrying " ++ commasLimit 3 (nub [showTestPatch p (qTest t) | (False,t) <- done])
              else if not $ null running then "Running " ++ commasLimit 3 (map showTestQuestion running)
              else "")
      else if p `elem` maybe [] (map snd) paused then "Paused"
      else tag "span" ["class=bad"] "Rejected" ++ "<br />" ++
-          tag "span" ["class=info"] (commasLimit 3 [showTestQuestion q | (False,q) <- done, (True,qTest q) `notElem` map (second qTest) done])
+          tag "span" ["class=info"] (commasLimit 3 [showTestQuestion q | (False,q) <- done, [p] `isSuffixOf` snd (qCandidate q)])
     ]
     where
         todo = length $ nub
