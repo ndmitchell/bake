@@ -17,40 +17,49 @@ import Paths_bake
 
 
 web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
-web Oven{..} args server = return $ OutputHTML $ unlines $
-    prefix ++
-    (case () of
-        _ | Just c <- lookup "client" args ->
-                ["<h2>Runs on " ++ c ++ "</h2>"] ++
-                runs shower (nostdout server) ((==) (Client c) . qClient)
-          | Just t <- lookup "test" args, Just p <- lookup "patch" args ->
-                let tt = if t == "" then Nothing else Just $ Test t in
-                runs shower server (\Question{..} -> Patch p `elem` snd qCandidate && qTest == tt)
-          | Just p <- lookup "patch" args ->
-                runs shower server (elem (Patch p) . snd . qCandidate) ++
-                ["<h2>Patch information</h2>"] ++
-                [e | (pp,(_,e)) <- extra server, Patch p == pp]
-          | otherwise ->
-                ["<h2>Patches</h2>"] ++
-                table "No patches submitted" ["Patch","Status"] (map (patch shower server) patches) ++
-                ["<h2>Clients</h2>"] ++
-                table "No clients available" ["Name","Running"] (map (client shower server) clients)
-    ) ++
-    suffix
+web oven@Oven{..} args server = do
+    shower <- shower oven
+    return $ OutputHTML $ unlines $
+        prefix ++
+        [tag_ "h1" $ (if null args then id else tag "a" ["href=?"]) "Bake Continuous Integration"] ++
+        (case () of
+            _ | Just c <- lookup "client" args ->
+                    ["<h2>Runs on " ++ c ++ "</h2>"] ++
+                    runs shower server ((==) (Client c) . qClient)
+              | Just t <- lookup "test" args, Just p <- lookup "patch" args ->
+                    let tt = if t == "" then Nothing else Just $ Test t in
+                    runs shower server (\Question{..} -> Patch p `elem` snd qCandidate && qTest == tt)
+              | Just p <- lookup "patch" args ->
+                    runs shower server (elem (Patch p) . snd . qCandidate) ++
+                    ["<h2>Patch information</h2>"] ++
+                    [e | (pp,(_,e)) <- extra server, Patch p == pp]
+              | otherwise ->
+                    ["<h2>Patches</h2>"] ++
+                    table "No patches submitted" ["Patch","Status"] (map (patch shower server) patches) ++
+                    ["<h2>Clients</h2>"] ++
+                    table "No clients available" ["Name","Running"] (map (client shower server) clients)
+        ) ++
+        suffix
     where
         patches = submitted server
         clients = sort $ nub $ map (pClient . snd) $ pings server
-        shower = Shower
-            {showPatch = \p -> tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p)
-            ,showTest = \p t -> tag "a" ["href=?patch=" ++ fromPatch p ++ "&" ++ "test=" ++ maybe "" fromTest t] $
-                                maybe "Preparing" (stringyPretty ovenStringyTest) t
-            }
+
 
 data Shower = Shower
     {showPatch :: Patch -> String
     ,showTest :: Patch -> Maybe Test -> String
+    ,showTime :: Timestamp -> String
     }
 
+shower :: Oven State Patch Test -> IO Shower
+shower Oven{..} = do
+    showTime <- showRelativeTimestamp
+    return $ Shower
+        {showPatch = \p -> tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p)
+        ,showTest = \p t -> tag "a" ["href=?patch=" ++ fromPatch p ++ "&" ++ "test=" ++ maybe "" fromTest t] $
+                            maybe "Preparing" (stringyPretty ovenStringyTest) t
+        ,showTime = showTime
+        }
 
 prefix =
     ["<!HTML>"
@@ -71,11 +80,11 @@ prefix =
     ,"a.info {color: #4183c4;}" -- tie breaker
     ,".good {font-weight: bold; color: #480}"
     ,".bad {font-weight: bold; color: #800}"
+    ,".nobr {white-space: nowrap;}"
     ,"#footer {margin-top: 40px; font-size: 80%;}"
     ,"</style>"
     ,"</head>"
     ,"<body>"
-    ,"<h1>Bake Continuous Integration</h1>"
     ]
 
 suffix =
@@ -84,12 +93,13 @@ suffix =
     ,"</body>"
     ,"</html>"]
 
-nostdout :: Server -> Server
-nostdout s = s{history = [(t,q,fmap (\a -> a{aStdout=""}) a) | (t,q,a) <- history s]}
-
 runs :: Shower -> Server -> (Question -> Bool) -> [String]
 runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
-    [[show t, show q, show a] | (t,q,a) <- history, pred q]
+    [[tag "span" ["class=nobr"] $ showTime t, showQuestion q, showAnswer a] | (t,q,a) <- history, pred q]
+    where
+        showQuestion = show
+        showAnswer = show
+
 
 patch :: Shower -> Server -> (Timestamp, Patch) -> [String]
 patch Shower{..} Server{..} (u, p) =
