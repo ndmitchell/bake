@@ -121,11 +121,11 @@ runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
         _ -> [])
     where
         good = filter (pred . snd3) history
-        showQuestion Question{..} =
+        showQuestion q@Question{..} =
             "With " ++ showState (fst qCandidate) ++
             (if null $ snd qCandidate then "" else " plus ") ++
             commas (map showPatch $ snd qCandidate) ++ "<br />" ++
-            "Test " ++ showTest qTest ++ " on " ++
+            "Test " ++ showTestQuestion q ++ " on " ++
             fromClient qClient ++ " with " ++ showThreads qThreads
         showAnswer Nothing = "<i>Still running...</i>"
         showAnswer (Just Answer{..}) =
