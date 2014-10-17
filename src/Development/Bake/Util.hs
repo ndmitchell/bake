@@ -40,7 +40,7 @@ showRelativeTimestamp = do
                    ,(max 1 $ floor secs, "sec")
                    ]
             (i,s) = head $ dropWhile ((==) 0 . fst) poss
-        in show i ++ " " ++ s ++ ['s' | i > 1] ++ " ago"
+        in show i ++ " " ++ s ++ ['s' | i /= 1] ++ " ago"
 
 createDir :: String -> [String] -> IO FilePath
 createDir prefix info = do
