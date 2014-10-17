@@ -8,7 +8,7 @@ module Development.Bake(
     Oven(..), defaultOven,
     Stringy(..), readShowStringy,
     -- ** Oven modifiers
-    ovenTest, ovenGit, ovenNotifyStdout, ovenNotifyEmail,
+    ovenTest, ovenGit, ovenNotifyStdout, ovenNotifyEmail, ovenPretty,
     ovenIncremental, incrementalDone,
     -- ** TestInfo members
     TestInfo, run, threads, threadsAll, require, suitable,
@@ -26,4 +26,5 @@ import Development.Bake.Args
 import Development.Bake.Send
 import Development.Bake.Git
 import Development.Bake.Build
+import Development.Bake.Pretty
 import Development.Bake.Email

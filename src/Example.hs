@@ -22,6 +22,7 @@ main = do
     repo <- fromMaybe (error err) `fmap` lookupEnv "REPO"
     bake $
         ovenIncremental $
+        ovenPretty "=" $
         ovenGit repo "master" Nothing $
         ovenNotifyStdout $
         ovenTest testStringy (return allTests) execute

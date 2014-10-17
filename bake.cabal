@@ -64,6 +64,7 @@ library
         Development.Bake.Format
         Development.Bake.Git
         Development.Bake.Message
+        Development.Bake.Pretty
         Development.Bake.Send
         Development.Bake.Server.Brains
         Development.Bake.Server.Start

@@ -83,7 +83,7 @@ test dir = do
                 () <- cmd "git push origin" name
                 Stdout sha1 <- cmd "git rev-parse HEAD"
                 print "adding patch"
-                () <- cmd exe "addpatch" ("--name=" ++ sha1) ("--author=" ++ name)
+                () <- cmd exe "addpatch" ("--name=" ++ name ++ "=" ++ sha1) ("--author=" ++ name)
                 return ()
 
         putStrLn "% MAKING EDIT AS BOB"
