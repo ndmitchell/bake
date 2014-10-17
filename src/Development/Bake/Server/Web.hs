@@ -16,17 +16,17 @@ import Data.Version
 import Paths_bake
 
 
-web :: Oven State Patch Test -> Input -> Server -> IO Output
-web Oven{..} Input{..} server = return $ OutputHTML $ unlines $
+web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
+web Oven{..} args server = return $ OutputHTML $ unlines $
     prefix ++
     (case () of
-        _ | Just c <- lookup "client" inputArgs ->
+        _ | Just c <- lookup "client" args ->
                 ["<h2>Runs on " ++ c ++ "</h2>"] ++
                 runs shower (nostdout server) ((==) (Client c) . qClient)
-          | Just t <- lookup "test" inputArgs, Just p <- lookup "patch" inputArgs ->
+          | Just t <- lookup "test" args, Just p <- lookup "patch" args ->
                 let tt = if t == "" then Nothing else Just $ Test t in
                 runs shower server (\Question{..} -> Patch p `elem` snd qCandidate && qTest == tt)
-          | Just p <- lookup "patch" inputArgs ->
+          | Just p <- lookup "patch" args ->
                 runs shower server (elem (Patch p) . snd . qCandidate) ++
                 ["<h2>Patch information</h2>"] ++
                 [e | (pp,(_,e)) <- extra server, Patch p == pp]

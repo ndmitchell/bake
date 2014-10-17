@@ -41,8 +41,8 @@ startServer port author name timeout (validate . concrete -> oven) = do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
             res <-
-                if null inputURL || ["ui"] `isPrefixOf` inputURL then
-                    web oven i{inputURL = drop 1 inputURL} =<< readMVar var
+                if null inputURL then
+                    web oven inputArgs =<< readMVar var
                 else if ["api"] `isPrefixOf` inputURL then
                     (case messageFromInput i{inputURL = drop 1 inputURL} of
                         Left e -> return $ OutputError e
