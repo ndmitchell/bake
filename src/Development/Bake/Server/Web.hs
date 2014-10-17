@@ -57,6 +57,7 @@ prefix =
     ,"<html>"
     ,"<head>"
     ,"<title>Bake Continuous Integration</title>"
+    ,"<link rel='shortcut icon' type='image/x-icon' href='html/favicon.ico' />"
     ,"<style type='text/css'>"
     ,"body, td {font-family: sans-serif; font-size: 10pt;}"
     ,"table {border-collapse: collapse;}"
