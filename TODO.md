@@ -4,7 +4,7 @@
 
 * Should start testing the initial state straight away
 * Threading should be respected
-* Should run the ovenUpdate functions in a background thread with things half paused
+* Should run the ovenUpdate functions in a background process with things half paused
 * Should support pause/unpause
 
 ## Web UI
