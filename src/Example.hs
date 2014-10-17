@@ -38,7 +38,7 @@ execute (p,Compile) = matchOS p $ run $ do
     -- ghc --make isn't a good citizen of incremental
     -- so we remove the Main.hi file to force the rebuild
     Exit _ <- cmd "rm Main.hi"
-    () <- cmd "ghc --make Main.hs --verbose"
+    () <- cmd "ghc --make Main.hs"
     incrementalDone
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
     when (i == 10) $ print =<< readFile "Main.hs"
