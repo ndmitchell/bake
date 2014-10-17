@@ -14,6 +14,7 @@ import Development.Bake.Send
 import Control.Exception.Extra
 import Control.DeepSeq
 import Control.Monad.Extra
+import Data.Maybe
 import System.Random
 
 
@@ -26,7 +27,7 @@ data Bake
     | Pause {host :: Host, port :: Port, author :: Author}
     | Unpause {host :: Host, port :: Port, author :: Author}
     | RunTest {output :: FilePath, test :: Maybe String, state :: String, patch :: [String]}
-    | RunExtra {output :: FilePath, patch :: [String]}
+    | RunExtra {output :: FilePath, state :: String, patch :: [String]}
       deriving (Typeable,Data)
 
 
@@ -39,7 +40,7 @@ bakeMode = cmdArgsMode $ modes
     ,Pause{}
     ,Unpause{}
     ,RunTest "" Nothing "" []
-    ,RunExtra "" []
+    ,RunExtra "" "" []
     ] &= verbosity
 
 -- | The entry point to the system. Usually you will define:
@@ -73,7 +74,9 @@ bake oven@Oven{..} = do
                 Just test -> do
                     testAction $ ovenTestInfo $ stringyFrom ovenStringyTest test
         RunExtra{..} -> do
-            res <- ovenPatchExtra $ stringyFrom ovenStringyPatch $ head patch
+            res <- ovenPatchExtra
+                (stringyFrom ovenStringyState state)
+                (fmap (stringyFrom ovenStringyPatch) $ listToMaybe patch)
             writeFile output $ show res
     where
         getPort p = if p == 0 then snd ovenServer else p

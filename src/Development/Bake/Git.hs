@@ -83,7 +83,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             mirror <- gitInitMirror
             b <- doesDirectoryExist $ path </>".git"
             if b then
-                unit $ cmd (Cwd path) "git pull origin" [branch]
+                unit $ cmd (Cwd path) "git pull origin"
              else do
                 unit $ cmd (Cwd path) "git clone" [(if path == "." then "" else "../") ++ mirror] "." ["--branch",branch]
                 gitSafe path
@@ -94,9 +94,14 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             forM_ ps $ \p ->
                 unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
 
-        gitPatchExtra p = traced "gitPatchExtra" $ do
+        gitPatchExtra s Nothing = traced "gitPatchExtra Nothing" $ do
             mirror <- gitInitMirror
-            Stdout full <- cmd (Cwd mirror) "git diff" (branch ++ ".." ++ fromSHA1 p)
-            Stdout numstat <- cmd (Cwd mirror) "git diff --numstat" (branch ++ ".." ++ fromSHA1 p)
+            Stdout full <- cmd (Cwd mirror) "git log -n3" [fromSHA1 s]
+            return (concat $ take 1 $ lines full, tag_ "pre" full)
+
+        gitPatchExtra s (Just p) = traced "gitPatchExtra Just" $ do
+            mirror <- gitInitMirror
+            Stdout full <- cmd (Cwd mirror) "git diff" (fromSHA1 s ++ ".." ++ fromSHA1 p)
+            Stdout numstat <- cmd (Cwd mirror) "git diff --numstat" (fromSHA1 s ++ ".." ++ fromSHA1 p)
             let xs = [x | [_,_,x] <- map words $ lines numstat]
             return (unwordsLimit 3 xs, tag_ "pre" full)

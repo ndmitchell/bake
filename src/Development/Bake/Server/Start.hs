@@ -52,10 +52,11 @@ startServer port author name timeout (concrete -> oven) = do
                                 case v of
                                     AddPatch _ p | p `notElem` map fst (extra s) -> do
                                         forkIO $ do
-                                            dir <- createDir "bake-patch" [fromPatch p]
+                                            dir <- createDir "bake-extra" [fromState $ fst $ active s, fromPatch p]
                                             res <- try_ $ do
                                                 unit $ cmd (Cwd dir) exe "runextra"
                                                     "--output=extra.txt"
+                                                    ["--state=" ++ fromState (fst $ active s)]
                                                     ["--patch=" ++ fromPatch p]
                                                 fmap read $ readFile $ dir </> "extra.txt"
                                             res <- either (fmap dupe . showException) return res

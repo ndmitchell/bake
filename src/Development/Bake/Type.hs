@@ -47,7 +47,7 @@ data Oven state patch test = Oven
         -- ^ Produce information about a test
     ,ovenNotify :: [Author] -> String -> IO ()
         -- ^ Tell an author some information contained in the string (usually an email)
-    ,ovenPatchExtra :: patch -> IO (String, String)
+    ,ovenPatchExtra :: state -> Maybe patch -> IO (String, String)
         -- ^ Extra information about a patch, a single line (HTML span),
         --   and a longer chunk (HTML block)
     ,ovenServer :: (Host, Port)
@@ -96,7 +96,7 @@ defaultOven = Oven
     ,ovenNotify = \_ _ -> return ()
     ,ovenPrepare = \_ _ -> return []
     ,ovenTestInfo = \_ -> mempty
-    ,ovenPatchExtra = \_ -> return ("","")
+    ,ovenPatchExtra = \_ _ -> return ("","")
     ,ovenServer = ("127.0.0.1",80)
     ,ovenStringyState = readShowStringy
     ,ovenStringyPatch = readShowStringy
@@ -154,7 +154,7 @@ concrete o@Oven{..} = o
     {ovenUpdateState = fmap restate . ovenUpdateState . fmap (unstate *** map unpatch)
     ,ovenPrepare = \s ps -> fmap (map retest) $ ovenPrepare (unstate s) (map unpatch ps)
     ,ovenTestInfo = fmap retest . ovenTestInfo . untest
-    ,ovenPatchExtra = ovenPatchExtra . unpatch
+    ,ovenPatchExtra = \s p -> ovenPatchExtra (unstate s) (fmap unpatch p)
     ,ovenStringyState = state
     ,ovenStringyPatch = patch
     ,ovenStringyTest  = test
