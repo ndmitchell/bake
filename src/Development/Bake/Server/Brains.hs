@@ -30,7 +30,7 @@ brains info Server{..} Ping{..}
     | otherwise = let next = filter (suitableTest active) $ allTests active
                   in taskMay active $ listToMaybe next
     where
-        taskMay c t = maybe Sleep (\t -> Task $ Question c t 1 pClient) t
+        taskMay c t = maybe Sleep (\t -> Task $ Question c t (threadsForTest t) pClient) t
         dependsMay Nothing = []
         dependsMay (Just t) = Nothing : map Just (testRequire $ info t)
 
@@ -54,9 +54,12 @@ brains info Server{..} Ping{..}
         -- what tests are failing for this candidate
         failingTests c = map (qTest . fst) $ failure' $ answered' $ candidate' c it
 
+        -- how many threads does this test require
+        threadsForTest = maybe 1 (fromMaybe pMaxThreads . testThreads . info)
+
         -- can this candidate start running this test
         suitableTest c t
-            | pNowThreads <= 0 = False -- need enough threads
+            | threadsForTest t > pNowThreads = False -- not enough threads
         suitableTest c Nothing
             | null $ self' $ test' Nothing $ candidate' c it -- I am not already running it
             = True

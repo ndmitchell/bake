@@ -44,6 +44,7 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
                         ["--test=" ++ fromTest t | Just t <- [qTest]]
                         ("--state=" ++ fromState (fst qCandidate))
                         ["--patch=" ++ fromPatch p | p <- snd qCandidate]
+                        ["+RTS","-N" ++ show qThreads]
                 tests <- if isJust qTest || exit /= ExitSuccess then return ([],[]) else do
                     src ::  ([String],[String]) <- fmap read $ readFile $ dir </> "tests.txt"
                     let op = map (stringyFrom (ovenStringyTest oven))

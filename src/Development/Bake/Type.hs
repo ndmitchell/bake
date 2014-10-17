@@ -125,8 +125,10 @@ threads j t = t{testThreads=Just j}
 
 -- | Record that a test requires all available threads on a machine,
 --   typically used for the build step.
+--   Use 'getNumCapabilities' to find out how many threads you were allocated.
 threadsAll :: TestInfo test -> TestInfo test
 threadsAll t = t{testThreads=Nothing}
+
 
 -- | Require the following tests have been evaluated on this machine
 --   before this test is run. Typically used to require compilation
