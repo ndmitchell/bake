@@ -13,13 +13,15 @@ import Development.Bake.Server.Start
 import Development.Bake.Send
 import Control.Exception.Extra
 import Control.DeepSeq
+import System.Directory
 import Control.Monad.Extra
 import Data.Maybe
 import System.Random
+import Paths_bake
 
 
 data Bake
-    = Server {port :: Port, author :: Author, name :: String, timeout :: Double}
+    = Server {port :: Port, author :: Author, name :: String, timeout :: Double, datadir :: FilePath}
     | Client {host :: Host, port :: Port, author :: Author, name :: String, threads :: Int, ping :: Double}
     | AddPatch {host :: Host, port :: Port, author :: Author, name :: String}
     | DelPatch {host :: Host, port :: Port, author :: Author, name :: String}
@@ -32,7 +34,7 @@ data Bake
 
 
 bakeMode = cmdArgsMode $ modes
-    [Server{port = 0, author = "unknown", name = "", timeout = 5*60}
+    [Server{port = 0, author = "unknown", name = "", timeout = 5*60, datadir = ""}
     ,Client{host = "", threads = 1, ping = 60}
     ,AddPatch{}
     ,DelPatch{}
@@ -53,7 +55,9 @@ bake :: Oven state patch test -> IO ()
 bake oven@Oven{..} = do
     x <- cmdArgsRun bakeMode
     case x of
-        Server{..} -> startServer (getPort port) author name timeout oven
+        Server{..} -> do
+            datadir <- canonicalizePath =<< if datadir == "" then getDataDir else return datadir
+            startServer (getPort port) datadir author name timeout oven
         Client{..} -> do
             name <- if name /= "" then return name else pick defaultNames
             startClient (getHostPort host port) author name threads ping oven

@@ -68,7 +68,7 @@ test dir = do
     exe <- getExecutablePath
     createDirectoryIfMissing True $ dir </> "server"
     environment <- fmap (("REPO",repo):) $ getEnvironment
-    p0 <- createProcessAlive (proc exe ["server"])
+    p0 <- createProcessAlive (proc exe ["server","--datadir=../.."])
         {cwd=Just $ dir </> "server", env=Just environment}
     ps <- forM Example.platforms $ \p -> do
         sleep 0.5 -- so they don't ping at the same time

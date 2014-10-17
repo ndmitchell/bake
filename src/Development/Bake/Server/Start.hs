@@ -28,8 +28,8 @@ import System.Console.CmdArgs.Verbosity
 import System.FilePath
 
 
-startServer :: Port -> Author -> String -> Double -> Oven state patch test -> IO ()
-startServer port author name timeout (validate . concrete -> oven) = do
+startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
+startServer port datadir author name timeout (validate . concrete -> oven) = do
     exe <- getExecutablePath
     curdirLock <- newMVar ()
     ignore $ removeDirectoryRecursive "bake-server"
@@ -43,6 +43,8 @@ startServer port author name timeout (validate . concrete -> oven) = do
             res <-
                 if null inputURL then
                     web oven inputArgs =<< readMVar var
+                else if ["html"] `isPrefixOf` inputURL then
+                    return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if ["api"] `isPrefixOf` inputURL then
                     (case messageFromInput i{inputURL = drop 1 inputURL} of
                         Left e -> return $ OutputError e
