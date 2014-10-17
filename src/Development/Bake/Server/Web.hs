@@ -127,7 +127,7 @@ runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
             commas (map showPatch $ snd qCandidate) ++ "<br />" ++
             "Test " ++ showTestQuestion q ++ " on " ++
             fromClient qClient ++ " with " ++ showThreads qThreads
-        showAnswer Nothing = "<i>Still running...</i>"
+        showAnswer Nothing = "<i>Running...</i>"
         showAnswer (Just Answer{..}) =
             if aSuccess then tag "span" ["class=good"] ("Succeeded in " ++ showDuration aDuration)
                         else tag "span" ["class=bad"]  ("Failed in "    ++ showDuration aDuration)
