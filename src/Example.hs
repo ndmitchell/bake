@@ -35,8 +35,10 @@ allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1,10,0]]
 
 execute :: (Platform,Action) -> TestInfo (Platform,Action)
 execute (p,Compile) = matchOS p $ run $ do
-    () <- cmd "touch Main.hs"
-    () <- cmd "ghc --make Main.hs"
+    -- ghc --make isn't a good citizen of incremental
+    -- so we remove the Main.hi file to force the rebuild
+    Exit _ <- cmd "rm Main.hi"
+    () <- cmd "ghc --make Main.hs --verbose"
     incrementalDone
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
     when (i == 10) $ print =<< readFile "Main.hs"
