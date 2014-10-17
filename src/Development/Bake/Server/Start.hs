@@ -29,7 +29,7 @@ import System.FilePath
 
 
 startServer :: Port -> Author -> String -> Double -> Oven state patch test -> IO ()
-startServer port author name timeout (concrete -> oven) = do
+startServer port author name timeout (validate . concrete -> oven) = do
     exe <- getExecutablePath
     curdirLock <- newMVar ()
     ignore $ removeDirectoryRecursive "bake-server"

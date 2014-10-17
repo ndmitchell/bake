@@ -6,7 +6,7 @@ module Development.Bake.Type(
     Stringy(..), readShowStringy,
     Oven(..), TestInfo(..), defaultOven, ovenTest, ovenNotifyStdout,
     threads, threadsAll, require, run, suitable,
-    State(..), Patch(..), Test(..), Client(..), concrete,
+    State(..), Patch(..), Test(..), Client(..), concrete, validate,
     Author
     ) where
 
@@ -169,3 +169,18 @@ concrete o@Oven{..} = o
             (Stringy proj inj (stringyPretty . stringyFrom . proj)
             ,stringyFrom . proj
             ,inj . stringyTo)
+
+validate :: Oven state patch test -> Oven state patch test
+validate o@Oven{..} = o
+    {ovenStringyState = f ovenStringyState
+    ,ovenStringyPatch = f ovenStringyPatch
+    ,ovenStringyTest = f ovenStringyTest
+    }
+    where
+        f :: Stringy a -> Stringy a
+        f s@Stringy{..} = s
+            {stringyTo = check . stringyTo
+            ,stringyFrom = stringyFrom . check
+            }
+            where check s | s == stringyTo (stringyFrom s) = s
+                          | otherwise = error $ "Problem with stringyTo/stringyFrom on " ++ show s
