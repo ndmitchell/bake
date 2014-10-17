@@ -12,7 +12,6 @@ import Development.Bake.Util
 import Development.Bake.Format
 import Data.List.Extra
 import Data.Tuple.Extra
-import Control.Arrow
 import Data.Version
 import Paths_bake
 
