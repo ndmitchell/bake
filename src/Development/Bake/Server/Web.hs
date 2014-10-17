@@ -12,6 +12,8 @@ import Development.Bake.Util
 import Development.Bake.Format
 import Data.List.Extra
 import Data.Tuple.Extra
+import Data.Version
+import Paths_bake
 
 
 web :: Oven State Patch Test -> Input -> Server -> IO Output
@@ -76,7 +78,8 @@ prefix =
     ]
 
 suffix =
-    ["<p id=footer><a href='https://github.com/ndmitchell/bake'>Copyright Neil Mitchell 2014</a></p>"
+    ["<p id=footer><a href='https://github.com/ndmitchell/bake'>" ++
+        "Copyright Neil Mitchell 2014, version " ++ showVersion version ++ "</a></p>"
     ,"</body>"
     ,"</html>"]
 
