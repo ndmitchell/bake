@@ -24,9 +24,9 @@ sha1 x | length x /= 40 = error $ "SHA1 for Git must be 40 characters long, got 
 
 stringySHA1 :: Stringy SHA1
 stringySHA1 = Stringy
-    {stringyTo = \(SHA1 x) -> x
+    {stringyTo = fromSHA1
     ,stringyFrom = sha1
-    ,stringyPretty = \(SHA1 x) -> take 7 x
+    ,stringyPretty = take 7 . fromSHA1
     }
 
 
