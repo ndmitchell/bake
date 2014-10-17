@@ -1,11 +1,13 @@
 {-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving #-}
 
 module Development.Bake.Util(
-    Timestamp(..), getTimestamp,
+    Timestamp(..), getTimestamp, showRelativeTimestamp,
     createDir
     ) where
 
 import Data.Time.Clock
+import Data.Time.Calendar
+import System.Time.Extra
 import System.IO.Unsafe
 import Data.IORef
 import Data.Tuple.Extra
@@ -25,6 +27,20 @@ getTimestamp = do
     t <- getCurrentTime
     i <- atomicModifyIORef timestamp $ dupe . (+1)
     return $ Timestamp t i
+
+showRelativeTimestamp :: IO (Timestamp -> String)
+showRelativeTimestamp = do
+    now <- getCurrentTime
+    return $ \(Timestamp old _) ->
+        let secs = subtractTime now old
+            days = toModifiedJulianDay . utctDay
+            poss = [(days now - days old, "day")
+                   ,(floor $ secs / (60*60), "hour")
+                   ,(floor $ secs / 60, "min")
+                   ,(max 1 $ floor secs, "sec")
+                   ]
+            (i,s) = head $ dropWhile ((==) 0 . fst) poss
+        in show i ++ " " ++ s ++ ['s' | i > 1] ++ " ago"
 
 createDir :: String -> [String] -> IO FilePath
 createDir prefix info = do
