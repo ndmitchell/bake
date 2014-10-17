@@ -69,6 +69,7 @@ library
         Development.Bake.Type
         Development.Bake.Util
         Development.Bake.Web
+        Paths_bake
 
 -- don't use 'cabal test' since that loses the child stdout
 executable bake-test

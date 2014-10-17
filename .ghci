@@ -1,13 +1,13 @@
 :set -fwarn-unused-binds -fwarn-unused-imports
 :set -isrc
-:load Test
+:load Test src/Paths
 
 :def docs_ const $ return $ unlines [":!cabal haddock"]
 :def docs const $ return $ unlines [":docs_",":!start dist\\doc\\html\\bake\\Development-Bake.html"]
 
 :{
 :def test \_ -> return $ unlines
-        [":!ghc --make -o .test/bake-test -outputdir .test -isrc Test -main-is Test.main -threaded"
+        [":!ghc --make -o .test/bake-test -outputdir .test -isrc Test src/Paths -main-is Test.main -threaded"
         ,":!.test\\bake-test"
         ]
 :}
