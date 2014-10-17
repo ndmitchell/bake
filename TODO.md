@@ -11,7 +11,6 @@
 
 * Should display the state with zero patches
 * Add this server to the list of clients
-* Use Id values to display stdout with a header
 
 ## Git
 
