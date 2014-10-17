@@ -94,48 +94,6 @@ brains depends Server{..} Ping{..}
         failure' = filter (not . aSuccess . snd)
         answered' x = [(q,a) | (q,Just a) <- x]
 
-{-
-brains depends Server{..} Ping{..}
-    | null failingTests && setupStep == Nothing = (Just $ Question active Nothing 1 pClient, Nothing, False)
-    | null failingTests && setupStep == Just Nothing = (Nothing, Nothing, False)
-    | null failingTests && null testsTodo = (Nothing, Nothing, True)
-    | null failingTests = (fmap (\t -> Question active (Just t) 1 pClient) $ listToMaybe $ filter suitableTest testsTodo, Nothing, False)
-    | otherwise = case dropWhile ((== Just False) . snd) $ reverse failingOn of
-        [] -> (Nothing, Just $ head patches, False)
-        (_,Just True):rest -> (Nothing, Just $ patches !! (length rest + 1), False)
-        (ps,Nothing):_ -> error $ "brains, need to attempt with " ++ show ps
-    where
-        -- history for those who match the active candidate
-        historyActive = filter ((==) active . qCandidate . snd3) history
-
-        -- tests that have failed for the current candidate
-        failingTests = [qTest | (_,Question{..},Just Answer{aSuccess=False}) <- historyActive]
-
-        -- Nothing = never run, Just Nothing = in progress, Just (Just t) = completed
-        setupStep = listToMaybe [fmap aTests a
-            | (_,Question{qTest=Nothing,..},a) <- historyActive, qClient == pClient]
-
-        testsDone = [t | (_,Question{qTest=Just t},Just Answer{aSuccess=True}) <- historyActive]
-        testsNeed = let (a,b) = fromJust (fromJust setupStep) in a ++ b
-        testsTodo = testsDone \\ testsNeed
-        testsDoneMe = [t | (_,Question{qTest=Just t,..},Just Answer{aSuccess=True}) <- historyActive, qClient == pClient]
-
-        -- a test is suitable to run if:
-        -- 1) there are enough threads outstanding
-        -- 2) this client is capable of running the test
-        -- 3) it's dependencies have all been run by this client
-        suitableTest t =
-            pNowThreads >= 1 &&
-            t `elem` fst (fromJust $ fromJust setupStep) &&
-            all (`elem` testsDoneMe) (depends t)
-
-        Candidate state patches = active
-
-        -- for each patch in the candidate state, does the first failing test fail or not (or unknown)
-        failingOn = [ (p,) $ listToMaybe [aSuccess | (_,Question{..},Just Answer{..}) <- history, qCandidate == Candidate state p, qTest == head failingTests]
-                    | p <- tail $ inits patches]
--}
-
 
 transitiveClosure :: Eq a => (a -> [a]) -> a -> [a]
 transitiveClosure f = nub . g
