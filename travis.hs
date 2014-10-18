@@ -1,5 +1,5 @@
 
-import Neil
+import System.Process.Extra
 
 main = do
-    cmd "bake-test"
+    system_ "bake-test"
