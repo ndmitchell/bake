@@ -15,7 +15,6 @@ import Development.Bake.Server.Brains
 import Development.Shake.Command
 import Control.Concurrent
 import Control.DeepSeq
-import Control.Arrow
 import Control.Exception.Extra
 import Data.List.Extra
 import Data.Maybe

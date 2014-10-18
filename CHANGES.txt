@@ -1,5 +1,6 @@
 Changelog for Bake
 
+    Require extra-0.3
     Lots of work on lots of things
     #1, add incremental building
     #1, mirror the Git repo

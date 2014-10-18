@@ -70,13 +70,13 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             Stdout hash <- cmd (Cwd mirror) "git rev-parse" [branch]
             case words hash of
                 [] -> error "Couldn't find branch"
-                x:xs -> return $ sha1 $ strip x
+                x:xs -> return $ sha1 $ trim x
 
         gitUpdateState (Just (s, ps)) = traced "gitUpdateState Just" $ do
             gitCheckout s ps
             Stdout x <- cmd (Cwd path) "git rev-parse" [branch]
             unit $ cmd (Cwd path) "git push" [repo] [branch ++ ":" ++ branch]
-            return $ sha1 $ strip x
+            return $ sha1 $ trim x
 
         gitCheckout s ps = traced "gitCheckout" $ do
             createDirectoryIfMissing True path
@@ -90,7 +90,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             unit $ cmd (Cwd path) "git checkout" [branch]
             unit $ cmd (Cwd path) "git reset --hard" ["origin/" ++ branch]
             Stdout x <- cmd (Cwd path) "git rev-parse HEAD"
-            when (strip x /= fromSHA1 s) $ error "Branch changed while running"
+            when (trim x /= fromSHA1 s) $ error "Branch changed while running"
             forM_ ps $ \p ->
                 unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
 
