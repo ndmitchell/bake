@@ -44,8 +44,12 @@ execute (p,Compile) = matchOS p $ run $ do
     () <- cmd "ghc --make Main.hs"
     incrementalDone
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
-    when (i == 10) $ print =<< readFile "Main.hs"
-    when (i == 10) $ print =<< readFile "Main.bup"
+    when (i == 10) $ do
+        x <- getCurrentDirectory
+        print x
+        print =<< readFile (x <.> "txt")
+        print =<< readFile "Main.hs"
+        print =<< readFile "Main.bup"
     cmd ("." </> "Main") (show i)
 
 -- So we can run both clients on one platform we use an environment variable
