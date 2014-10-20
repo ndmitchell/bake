@@ -13,5 +13,4 @@
 
 ## Git
 
-* Better diff stat output, with hyperlinks and colors
 * Better summary output - which file trees and the commit message (two lines)

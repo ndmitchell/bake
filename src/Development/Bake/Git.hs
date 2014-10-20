@@ -13,6 +13,9 @@ import Development.Bake.Format
 import System.Directory.Extra
 import System.FilePath
 import Data.Maybe
+import Data.Tuple.Extra
+import Data.Char
+import Data.Hashable
 
 
 newtype SHA1 = SHA1 {fromSHA1 :: String} deriving (Show,Eq)
@@ -99,9 +102,66 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             Stdout full <- cmd (Cwd mirror) "git log -n3" [fromSHA1 s]
             return (concat $ take 1 $ lines full, tag_ "pre" full)
 
-        gitPatchExtra s (Just p) = traced "gitPatchExtra Just" $ do
+        gitPatchExtra (SHA1 s) (Just (SHA1 p)) = traced "gitPatchExtra Just" $ do
             mirror <- gitInitMirror
-            Stdout full <- cmd (Cwd mirror) "git diff" (fromSHA1 s ++ ".." ++ fromSHA1 p)
-            Stdout numstat <- cmd (Cwd mirror) "git diff --numstat" (fromSHA1 s ++ ".." ++ fromSHA1 p)
-            let xs = [x | [_,_,x] <- map words $ lines numstat]
-            return (unwordsLimit 3 xs, tag_ "pre" full)
+            Stdout diff <- cmd (Cwd mirror)
+                "git diff" [s ++ ".." ++ p]
+            Stdout stat <- cmd (Cwd mirror)
+                "git diff --stat" [s ++ ".." ++ p]
+            Stdout log <- cmd (Cwd mirror)
+                "git log --no-merges -n1 --pretty=format:%s" [p]
+            return (reduceStat stat ++ "<br />\n" ++ takeWhile (/= '\n') log
+                   ,tag_ "pre" $ prettyStat stat ++ "\n" ++ prettyDiff diff)
+
+
+---------------------------------------------------------------------
+-- DIFF UTILITIES
+
+reduceStat :: String -> String
+reduceStat = commasLimit 3 . map trim . map (takeWhile (/= '|')) . dropEnd 1 . lines
+
+
+diff :: FilePath -> String
+diff x = "diff:" ++ show (abs $ hash x)
+
+-- |
+-- > src/Paths.hs                          |   11 ++
+-- > src/Test.hs                           |  258 ++++++++++++------------
+-- > travis.hs                             |    4 +-
+-- > 28 files changed, 1612 insertions(+), 1302 deletions(-)
+prettyStat :: String -> String
+prettyStat = unlines . maybe [] (uncurry snoc . first (map f)) . unsnoc . map trimStart . lines
+    where
+        f x = tag "a" ["href=#" ++ diff a] a ++ b ++ g c
+            where (ab,c) = break (== '|') x
+                  (a,b) = spanEnd isSpace ab
+        g x@('+':_) = tag "span" ["class=green"] a ++ g b
+            where (a,b) = span (== '+') x
+        g x@('-':_) = tag "span" ["class=red"] a ++ g b
+            where (a,b) = span (== '-') x
+        g (x:xs) = x : g xs
+        g [] = []
+
+
+-- |
+-- > diff --git a/bake.cabal b/bake.cabal
+-- > index 1aa1251..785cecc 100755
+-- > --- a/bake.cabal
+-- > +++ b/bake.cabal
+-- > @@ -1,7 +1,7 @@
+-- >  cabal-version:      >= 1.10
+-- >  build-type:         Simple
+-- >  name:               bake
+-- > -version:            0.1
+-- > +version:            0.2
+prettyDiff :: String -> String
+prettyDiff = unlines . map f . lines
+    where
+        f x | "diff --git " `isPrefixOf` x =
+            let files = [y | ab:'/':y <- drop 2 $ words x, ab `elem` "ab"] in
+            tag "a" (take 1 ["name=" ++ diff y | y <- files]) "" ++
+            tag_ "b" x
+        f x | any (`isPrefixOf` x) ["index ","--- ","+++ "] = tag_ "b" x
+        f xs@('+':_) = tag "span" ["class=green"] xs
+        f xs@('-':_) = tag "span" ["class=red"] xs
+        f xs = xs
