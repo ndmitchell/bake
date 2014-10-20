@@ -61,7 +61,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                                                     ["--patch=" ++ fromPatch p]
                                                 fmap read $ readFile $ dir </> "extra.txt"
                                             res <- either (fmap dupe . showException) return res
-                                            modifyMVar_ var $ \s -> return s{extra = (p,res) : extra s}
+                                            modifyMVar_ var $ \s -> return s{extra = (p,res) : filter ((/=) p . fst) (extra s)}
                                         return (s{extra=(p,dupe "Calculating..."):extra s}, q)
                                     _ -> return (s,q)
                     )
