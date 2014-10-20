@@ -97,9 +97,11 @@ prefix =
     ,".patch, .state {font-family: Consolas, monospace; white-space:nowrap;}"
     ,".info {font-size: 75%; color: #888;}"
     ,"a.info {color: #4183c4;}" -- tie breaker
-    ,".good {font-weight: bold; color: #480}"
-    ,".bad {font-weight: bold; color: #800}"
+    ,".good {font-weight: bold; color: darkgreen;}"
+    ,".bad {font-weight: bold; color: darkred;}"
     ,".nobr {white-space: nowrap;}"
+    ,".red {color: darkred;}"
+    ,".green {color: darkgreen;}"
     ,"#footer {margin-top: 40px; font-size: 80%;}"
     ,"</style>"
     ,"</head>"
