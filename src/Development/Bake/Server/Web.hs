@@ -12,6 +12,7 @@ import Development.Bake.Util
 import Development.Bake.Format
 import Data.List.Extra
 import Data.Tuple.Extra
+import System.Time.Extra
 import Data.Version
 import Paths_bake
 
@@ -58,7 +59,6 @@ data Shower = Shower
     }
 
 showThreads i = show i ++ " thread" ++ ['s' | i /= 1]
-showDuration (ceiling -> i) = show i ++ "s"
 
 shower :: Oven State Patch Test -> IO Shower
 shower Oven{..} = do
