@@ -6,9 +6,7 @@ import Development.Shake.Command
 import System.Environment
 import System.FilePath
 import Data.List.Extra
-import System.Directory
 import Control.Arrow
-import Control.Monad
 import Data.Maybe
 
 
@@ -40,18 +38,9 @@ execute (p,Compile) = matchOS p $ run $ do
     -- ghc --make isn't a good citizen of incremental
     -- so we remove all the generated files to force the rebuild
     Exit _ <- cmd "rm *Main.o *Main.hi *Main.exe *Main"
-    copyFile "Main.hs" "Main.bup"
-    (Stdout s1, Stderr s2) <- cmd "ghc --make Main.hs"
-    writeFile "Main.comp" (s1 ++ s2)
+    () <- cmd "ghc --make Main.hs"
     incrementalDone
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
-    when (i == 10) $ do
-        x <- getCurrentDirectory
-        print x
-        print =<< readFile (x <.> "txt")
-        print =<< readFile "Main.hs"
-        print =<< readFile "Main.comp"
-        print =<< readFile "Main.bup"
     cmd ("." </> "Main") (show i)
 
 -- So we can run both clients on one platform we use an environment variable
