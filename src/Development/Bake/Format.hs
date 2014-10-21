@@ -2,6 +2,7 @@
 module Development.Bake.Format(
     tag, tag_,
     table,
+    escapeHTML,
     commas, commasLimit, unwordsLimit
     ) where
 
@@ -24,7 +25,7 @@ tag_ t = tag t []
 
 tag :: String -> [String] -> String -> String
 tag t at x = "<" ++ t ++ concatMap f at ++ ">" ++ x ++ "</" ++ t ++ ">"
-    where f x = let (a,b) = break (== '=') x in ' ':a ++ (if null b then "" else "=\"" ++ drop1 b ++ "\"")
+    where f x = let (a,b) = break (== '=') x in ' ':a ++ (if null b then "" else "=\"" ++ escapeHTML (drop1 b) ++ "\"")
 
 
 commas :: [String] -> String
@@ -37,3 +38,11 @@ commasLimit i xs = intercalate ", " a ++ (if null b then "" else "...")
 unwordsLimit :: Int -> [String] -> String
 unwordsLimit i xs = unwords a ++ (if null b then "" else "...")
     where (a,b) = splitAt i xs
+
+
+escapeHTML :: String -> String
+escapeHTML = concatMap $ \c -> case c of
+    '<' -> "&lt;"
+    '>' -> "&gt;"
+    '&' -> "&amp;"
+    x   -> [x]
