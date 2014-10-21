@@ -38,8 +38,8 @@ allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1,10,0]]
 execute :: (Platform,Action) -> TestInfo (Platform,Action)
 execute (p,Compile) = matchOS p $ run $ do
     -- ghc --make isn't a good citizen of incremental
-    -- so we remove the Main.hi file to force the rebuild
-    Exit _ <- cmd "rm Main.hi"
+    -- so we remove all the generated files to force the rebuild
+    Exit _ <- cmd "rm *Main.o *Main.hi *Main.exe *Main"
     copyFile "Main.hs" "Main.bup"
     (Stdout s1, Stderr s2) <- cmd "ghc --make Main.hs"
     writeFile "Main.comp" (s1 ++ s2)
