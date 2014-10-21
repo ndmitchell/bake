@@ -41,7 +41,8 @@ execute (p,Compile) = matchOS p $ run $ do
     -- so we remove the Main.hi file to force the rebuild
     Exit _ <- cmd "rm Main.hi"
     copyFile "Main.hs" "Main.bup"
-    () <- cmd "ghc --make Main.hs"
+    (Stdout s1, Stderr s2) <- cmd "ghc --make Main.hs"
+    writeFile "Main.comp" (s1 ++ s2)
     incrementalDone
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
     when (i == 10) $ do
@@ -49,6 +50,7 @@ execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
         print x
         print =<< readFile (x <.> "txt")
         print =<< readFile "Main.hs"
+        print =<< readFile "Main.comp"
         print =<< readFile "Main.bup"
     cmd ("." </> "Main") (show i)
 
