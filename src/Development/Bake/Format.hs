@@ -42,7 +42,9 @@ unwordsLimit i xs = unwords a ++ (if null b then "" else "...")
 
 escapeHTML :: String -> String
 escapeHTML = concatMap $ \c -> case c of
-    '<' -> "&lt;"
-    '>' -> "&gt;"
-    '&' -> "&amp;"
-    x   -> [x]
+    '<'  -> "&lt;"
+    '>'  -> "&gt;"
+    '&'  -> "&amp;"
+    '\"' -> "&quot;"
+    '\'' -> "&#39;"
+    x    -> [x]
