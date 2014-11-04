@@ -6,6 +6,7 @@ module Development.Bake.Core.Client(
 
 import Development.Bake.Core.Type
 import General.Extra
+import General.Format
 import Development.Bake.Core.Message
 import System.Exit
 import Control.Exception.Extra
@@ -16,6 +17,7 @@ import System.Time.Extra
 import System.FilePath
 import Data.IORef
 import Data.Maybe
+import Data.Tuple.Extra
 import System.Environment
 
 
@@ -26,6 +28,7 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
     queue <- newChan
     nowThreads <- newIORef maxThreads
 
+    unique <- newIORef 0
     root <- myThreadId
     exe <- getExecutablePath
     let safeguard = handle_ (throwTo root)
@@ -37,7 +40,16 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
             atomicModifyIORef nowThreads $ \now -> (now - qThreads, ())
             writeChan queue ()
             void $ forkIO $ safeguard $ do
+                i <- atomicModifyIORef unique $ dupe . succ
                 dir <- createDir "bake-test" $ fromState (fst qCandidate) : map fromPatch (snd qCandidate)
+                putBlock "Client start" $
+                    ["Client: " ++ fromClient client
+                    ,"Id: " ++ show i
+                    ,"Directory: " ++ dir
+                    ,"Test: " ++ maybe "Prepare" fromTest qTest
+                    ,"State: " ++ fromState (fst qCandidate)
+                    ,"Patches:"] ++
+                    map ((++) "    " . fromPatch) (snd qCandidate)
                 (time, (exit, Stdout sout, Stderr serr)) <- duration $
                     cmd (Cwd dir) exe "runtest"
                         "--output=tests.txt"
@@ -50,6 +62,12 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
                     let op = map (stringyFrom (ovenStringyTest oven))
                     putStrLn "FIXME: Should validate the next set forms a DAG"
                     return (op (fst src), op (snd src))
+                putBlock "Client stop" $
+                    ["Client: " ++ fromClient client
+                    ,"Id: " ++ show i
+                    ,"Result: " ++ show exit
+                    ,"Duration: " ++ showDuration time
+                    ]
                 atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
                 sendMessage hp $ Finished q $
                     Answer (sout++serr) time tests $ exit == ExitSuccess
