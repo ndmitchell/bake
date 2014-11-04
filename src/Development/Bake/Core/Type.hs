@@ -67,12 +67,7 @@ ovenTest stringy prepare info o = o{ovenStringyTest=stringy, ovenPrepare= \_ _ -
 -- | Produce notifications on 'stdout' when users should be notified about success/failure.
 ovenNotifyStdout :: Oven state patch test -> Oven state patch test
 ovenNotifyStdout o = o{ovenNotify = \a s -> f a s >> ovenNotify o a s}
-    where f a s = putStr $ unlines
-                    [replicate 70 '-'
-                    ,"To: " ++ commas a
-                    ,s
-                    ,replicate 70 '-'
-                    ]
+    where f a s = putBlock "Email" ["To: " ++ commas a, s]
 
 -- | A type representing a translation between a value and a string, which can be
 --   produced by 'readShowStringy' if the type has both 'Read' and 'Show' instances.
