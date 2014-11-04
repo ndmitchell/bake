@@ -69,9 +69,8 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             return mirror
 
         gitUpdateState Nothing = traced "gitUpdateState Nothing" $ do
-            mirror <- gitInitMirror
-            Stdout hash <- cmd (Cwd mirror) "git rev-parse" [branch]
-            case words hash of
+            Stdout hash <- cmd "git ls-remote" [repo] [branch]
+            case words $ concat $ takeEnd 1 $ lines hash of
                 [] -> error "Couldn't find branch"
                 x:xs -> return $ sha1 $ trim x
 
