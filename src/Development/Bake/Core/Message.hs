@@ -1,12 +1,12 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
-module Development.Bake.Message(
+module Development.Bake.Core.Message(
     Message(..), Ping(..), Question(..), Answer(..),
     sendMessage, messageFromInput, questionToOutput
     ) where
 
-import Development.Bake.Type
-import Development.Bake.Web
+import Development.Bake.Core.Type
+import General.Web
 import Control.Applicative
 import Control.Monad
 import Data.Aeson hiding (Success)

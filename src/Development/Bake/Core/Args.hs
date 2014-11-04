@@ -2,15 +2,15 @@
 {-# OPTIONS_GHC -fno-warn-missing-fields #-}
 
 -- | Define a continuous integration system.
-module Development.Bake.Args(
+module Development.Bake.Core.Args(
     bake
     ) where
 
 import System.Console.CmdArgs
-import Development.Bake.Type hiding (Client)
-import Development.Bake.Client
+import Development.Bake.Core.Type hiding (Client)
+import Development.Bake.Core.Client
 import Development.Bake.Server.Start
-import Development.Bake.Send
+import Development.Bake.Core.Send
 import Control.Exception.Extra
 import Control.DeepSeq
 import System.Directory

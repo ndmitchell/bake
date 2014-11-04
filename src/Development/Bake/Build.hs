@@ -2,7 +2,7 @@
 
 module Development.Bake.Build(ovenIncremental, incrementalDone) where
 
-import Development.Bake.Type
+import Development.Bake.Core.Type
 import Development.Shake.Command
 import Control.Monad.Extra
 import Data.List.Extra

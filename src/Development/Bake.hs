@@ -14,16 +14,16 @@ module Development.Bake(
     TestInfo, run, threads, threadsAll, require, suitable,
     -- * Operations
     startServer, startClient,
-    module Development.Bake.Send,
+    module Development.Bake.Core.Send,
     -- * Utility types
     Host, Port, Author
     ) where
 
-import Development.Bake.Type
+import Development.Bake.Core.Type
 import Development.Bake.Server.Start
-import Development.Bake.Client
-import Development.Bake.Args
-import Development.Bake.Send
+import Development.Bake.Core.Client
+import Development.Bake.Core.Args
+import Development.Bake.Core.Send
 import Development.Bake.Git
 import Development.Bake.Build
 import Development.Bake.Pretty

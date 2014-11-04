@@ -1,12 +1,12 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns, ScopedTypeVariables #-}
 
-module Development.Bake.Client(
+module Development.Bake.Core.Client(
     startClient
     ) where
 
-import Development.Bake.Type
-import Development.Bake.Util
-import Development.Bake.Message
+import Development.Bake.Core.Type
+import General.Extra
+import Development.Bake.Core.Message
 import System.Exit
 import Control.Exception.Extra
 import Development.Shake.Command

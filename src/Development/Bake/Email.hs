@@ -1,7 +1,7 @@
 
 module Development.Bake.Email(ovenNotifyEmail) where
 
-import Development.Bake.Type
+import Development.Bake.Core.Type
 
 
 -- | Email notifications when users should be notified about success/failure.

@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving #-}
 
-module Development.Bake.Util(
+module General.Extra(
     Timestamp(..), getTimestamp, showRelativeTimestamp,
     createDir
     ) where

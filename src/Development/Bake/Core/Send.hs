@@ -1,13 +1,13 @@
 {-# LANGUAGE RecordWildCards #-}
 
-module Development.Bake.Send(
+module Development.Bake.Core.Send(
     sendPause, sendUnpause,
     sendAddPatch, sendDelPatch, sendDelAllPatches
     ) where
 
 import Control.Monad
-import Development.Bake.Type
-import Development.Bake.Message
+import Development.Bake.Core.Type
+import Development.Bake.Core.Message
 
 sendPause :: (Host,Port) -> Author -> IO ()
 sendPause hp author = void $ sendMessage hp $ Pause author

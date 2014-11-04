@@ -4,8 +4,8 @@ module Development.Bake.Server.Brains(
     brains, Neuron(..)
     ) where
 
-import Development.Bake.Message
-import Development.Bake.Type
+import Development.Bake.Core.Message
+import Development.Bake.Core.Type
 import Development.Bake.Server.Type
 import Data.Maybe
 import Control.Monad

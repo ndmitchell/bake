@@ -1,10 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings #-}
 
-module Development.Bake.Web(
+module General.Web(
     Input(..), Output(..), send, server
     ) where
 
-import Development.Bake.Type hiding (run)
+import Development.Bake.Core.Type hiding (run)
 import Network.Wai.Handler.Warp hiding (Port)
 import Network.Wai
 import Control.DeepSeq

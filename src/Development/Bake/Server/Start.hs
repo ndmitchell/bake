@@ -5,10 +5,10 @@ module Development.Bake.Server.Start(
     startServer
     ) where
 
-import Development.Bake.Type
-import Development.Bake.Web
-import Development.Bake.Message
-import Development.Bake.Util
+import Development.Bake.Core.Type
+import General.Web
+import Development.Bake.Core.Message
+import General.Extra
 import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains

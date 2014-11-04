@@ -4,12 +4,12 @@ module Development.Bake.Git(
     SHA1, ovenGit,
     ) where
 
-import Development.Bake.Type
-import Development.Bake.Util
+import Development.Bake.Core.Type
+import General.Extra
 import Development.Shake.Command
 import Control.Monad.Extra
 import Data.List.Extra
-import Development.Bake.Format
+import General.Format
 import System.Directory.Extra
 import System.FilePath
 import Data.Maybe

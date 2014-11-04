@@ -1,5 +1,5 @@
 
-module Development.Bake.Format(
+module General.Format(
     tag, tag_,
     table,
     commas, commasLimit, unwordsLimit

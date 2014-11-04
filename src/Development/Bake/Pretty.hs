@@ -2,7 +2,7 @@
 
 module Development.Bake.Pretty(ovenPretty, Pretty(..)) where
 
-import Development.Bake.Type
+import Development.Bake.Core.Type
 import Data.List.Extra
 import Control.Arrow
 

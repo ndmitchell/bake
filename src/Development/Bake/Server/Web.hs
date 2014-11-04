@@ -6,10 +6,10 @@ module Development.Bake.Server.Web(
     ) where
 
 import Development.Bake.Server.Type
-import Development.Bake.Type
-import Development.Bake.Web
-import Development.Bake.Util
-import Development.Bake.Format
+import Development.Bake.Core.Type
+import General.Web
+import General.Extra
+import General.Format
 import Data.List.Extra
 import Data.Tuple.Extra
 import System.Time.Extra

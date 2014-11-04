@@ -5,9 +5,9 @@ module Development.Bake.Server.Type(
     Question(..), Answer(..), Ping(..),
     ) where
 
-import Development.Bake.Type
-import Development.Bake.Message
-import Development.Bake.Util
+import Development.Bake.Core.Type
+import Development.Bake.Core.Message
+import General.Extra
 
 
 defaultServer :: State -> Server

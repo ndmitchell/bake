@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving #-}
 
 -- | Define a continuous integration system.
-module Development.Bake.Type(
+module Development.Bake.Core.Type(
     Host, Port,
     Stringy(..), readShowStringy,
     Oven(..), TestInfo(..), defaultOven, ovenTest, ovenNotifyStdout,
@@ -10,7 +10,7 @@ module Development.Bake.Type(
     Author
     ) where
 
-import Development.Bake.Format
+import General.Format
 import Control.Monad.Extra
 import Data.Monoid
 import Data.Aeson

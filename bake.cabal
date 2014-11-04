@@ -57,22 +57,22 @@ library
         Development.Bake
 
     other-modules:
-        Development.Bake.Args
         Development.Bake.Build
-        Development.Bake.Client
+        Development.Bake.Core.Args
+        Development.Bake.Core.Client
+        Development.Bake.Core.Message
+        Development.Bake.Core.Send
+        Development.Bake.Core.Type
         Development.Bake.Email
-        Development.Bake.Format
         Development.Bake.Git
-        Development.Bake.Message
         Development.Bake.Pretty
-        Development.Bake.Send
         Development.Bake.Server.Brains
         Development.Bake.Server.Start
         Development.Bake.Server.Type
         Development.Bake.Server.Web
-        Development.Bake.Type
-        Development.Bake.Util
-        Development.Bake.Web
+        General.Extra
+        General.Format
+        General.Web
         Paths_bake
 
 -- don't use 'cabal test' since that loses the child stdout
