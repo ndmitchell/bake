@@ -3,11 +3,19 @@ module General.Format(
     tag, tag_,
     table,
     escapeHTML,
+    putBlock,
     commas, commasLimit, unwordsLimit
     ) where
 
 import Data.List.Extra
 
+
+putBlock :: String -> [String] -> IO ()
+putBlock title body = putStrLn $ unlines $
+    let s = "-- " ++ title ++ " --" in
+    (s ++ replicate (70 - length s) '-') :
+    body ++
+    [replicate 70 '-']
 
 table :: String -> [String] -> [[String]] -> [String]
 table zero cols [] = ["<p>" ++ zero ++ "</p>"]
