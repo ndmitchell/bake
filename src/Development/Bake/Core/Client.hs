@@ -67,6 +67,7 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
                     ,"Id: " ++ show i
                     ,"Result: " ++ show exit
                     ,"Duration: " ++ showDuration time
+                    ,"Output: " ++ sout++serr
                     ]
                 atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
                 sendMessage hp $ Finished q $
