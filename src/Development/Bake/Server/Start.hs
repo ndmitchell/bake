@@ -101,7 +101,7 @@ operate timeout oven message server = case message of
                     return $ Right (server, Just q)
                 Update -> do
                     dir <- createDir "bake-test" $ fromState (fst $ active server) : map fromPatch (snd $ active server)
-                    s <- withServerDir $ withCurrentDirectory (".." </> dir) $
+                    s <- withCurrentDirectory dir $
                         ovenUpdateState oven $ Just $ active server
                     ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` snd (active server)) p] $ unlines
                         ["Your patch just made it in"]
@@ -132,15 +132,11 @@ consistent Server{..} = do
             _ -> return ()
 
 
-withServerDir :: IO a -> IO a
-withServerDir act = withCurrentDirectory "bake-server" act
-
-
 initialState :: Oven State Patch Test -> IO State
 initialState oven = do
     putStrLn "Initialising server, computing initial state..."
     ignore $ removeDirectoryRecursive "bake-server"
     createDirectoryIfMissing True "bake-server"
-    s <- withServerDir $ ovenUpdateState oven Nothing
+    s <- withCurrentDirectory "bake-server" $ ovenUpdateState oven Nothing
     putStrLn $ "Initial state: " ++ fromState s
     return s
