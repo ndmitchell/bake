@@ -36,20 +36,20 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
     createDirectoryIfMissing True "bake-server"
     s <- withServerDir curdirLock $ ovenUpdateState oven Nothing
     putStrLn $ "Initial state of: " ++ show s
-    var <- newVar $ (defaultServer s){authors = [(Nothing,author)]}
+    var <- newCVar $ (defaultServer s){authors = [(Nothing,author)]}
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
             res <-
                 if null inputURL then
-                    web oven inputArgs =<< readVar var
+                    web oven inputArgs =<< readCVar var
                 else if ["html"] `isPrefixOf` inputURL then
                     return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if ["api"] `isPrefixOf` inputURL then
                     (case messageFromInput i{inputURL = drop 1 inputURL} of
                         Left e -> return $ OutputError e
                         Right v -> do
-                            fmap questionToOutput $ modifyVar var $ \s -> do
+                            fmap questionToOutput $ modifyCVar var $ \s -> do
                                 (s,q) <- operate curdirLock timeout oven v s
                                 case v of
                                     AddPatch _ p | p `notElem` map fst (extra s) -> do
@@ -62,7 +62,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                                                     ["--patch=" ++ fromPatch p]
                                                 fmap read $ readFile $ dir </> "extra.txt"
                                             res <- either (fmap dupe . showException) return res
-                                            modifyVar_ var $ \s -> return s{extra = (p,res) : filter ((/=) p . fst) (extra s)}
+                                            modifyCVar_ var $ \s -> return s{extra = (p,res) : filter ((/=) p . fst) (extra s)}
                                         return (s{extra=(p,dupe "Calculating..."):extra s}, q)
                                     _ -> return (s,q)
                     )
