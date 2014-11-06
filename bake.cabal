@@ -40,6 +40,7 @@ library
         shake >= 0.10,
         directory,
         bytestring,
+        containers,
         text,
         time,
         random,
@@ -70,6 +71,7 @@ library
         Development.Bake.Server.Start
         Development.Bake.Server.Type
         Development.Bake.Server.Web
+        General.DelayCache
         General.Extra
         General.Format
         General.Web
@@ -88,6 +90,7 @@ executable bake-test
         shake >= 0.10,
         directory,
         bytestring,
+        containers,
         text,
         time,
         random,
