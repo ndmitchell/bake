@@ -31,14 +31,10 @@ import qualified Data.Text as Text
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
 startServer port datadir author name timeout (validate . concrete -> oven) = do
     exe <- getExecutablePath
-    ignore $ removeDirectoryRecursive "bake-server"
-    createDirectoryIfMissing True "bake-server"
-    s <- withServerDir $ ovenUpdateState oven Nothing
-    putStrLn $ "Initial state of: " ++ show s
-
+    state0 <- initialState oven
     var <- do
         extra <- newDelayCache
-        newCVar $ Server [] [] [] (s,[]) Nothing [] [(Nothing,author)] extra
+        newCVar $ Server [] [] [] (state0,[]) Nothing [] [(Nothing,author)] extra
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
@@ -138,3 +134,12 @@ consistent Server{..} = do
 
 withServerDir :: IO a -> IO a
 withServerDir act = withCurrentDirectory "bake-server" act
+
+
+initialState :: Oven State Patch Test -> IO State
+initialState oven = do
+    ignore $ removeDirectoryRecursive "bake-server"
+    createDirectoryIfMissing True "bake-server"
+    s <- withServerDir $ ovenUpdateState oven Nothing
+    putStrLn $ "Initial state of: " ++ show s
+    return s
