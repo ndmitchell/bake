@@ -1,8 +1,9 @@
-{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, TupleSections #-}
 
 module General.Extra(
     Timestamp(..), getTimestamp, showRelativeTimestamp,
-    createDir
+    createDir,
+    newCVar, readCVar, modifyCVar, modifyCVar_,
     ) where
 
 import Data.Time.Clock
@@ -14,6 +15,8 @@ import Data.Tuple.Extra
 import System.Directory
 import Data.Hashable
 import System.FilePath
+import Control.Monad
+import Control.Concurrent.Extra
 
 
 data Timestamp = Timestamp UTCTime Int deriving (Show,Eq)
@@ -49,3 +52,25 @@ createDir prefix info = do
     createDirectoryIfMissing True name
     return name
 
+
+---------------------------------------------------------------------
+-- CVAR
+
+-- | A Var, but where readCVar returns the last cached value
+data CVar a = CVar {cvarCache :: Var a, cvarReal :: Var a}
+
+newCVar :: a -> IO (CVar a)
+newCVar x = liftM2 CVar (newVar x) (newVar x)
+
+readCVar :: CVar a -> IO a
+readCVar = readVar . cvarCache
+
+modifyCVar :: CVar a -> (a -> IO (a, b)) -> IO b
+modifyCVar CVar{..} f =
+    modifyVar cvarReal $ \a -> do
+        (a,b) <- f a
+        modifyVar_ cvarCache $ const $ return a
+        return (a,b)
+
+modifyCVar_ :: CVar a -> (a -> IO a) -> IO ()
+modifyCVar_ cvar f = modifyCVar cvar $ fmap (,()) . f
