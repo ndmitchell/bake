@@ -4,6 +4,7 @@ module General.Extra(
     Timestamp(..), getTimestamp, showRelativeTimestamp,
     createDir,
     newCVar, readCVar, modifyCVar, modifyCVar_,
+    registerMaster, forkSlave
     ) where
 
 import Data.Time.Clock
@@ -15,7 +16,7 @@ import Data.Tuple.Extra
 import System.Directory
 import Data.Hashable
 import System.FilePath
-import Control.Monad
+import Control.Monad.Extra
 import Control.Concurrent.Extra
 
 
@@ -74,3 +75,21 @@ modifyCVar CVar{..} f =
 
 modifyCVar_ :: CVar a -> (a -> IO a) -> IO ()
 modifyCVar_ cvar f = modifyCVar cvar $ fmap (,()) . f
+
+
+---------------------------------------------------------------------
+-- SLAVE/MASTER
+
+{-# NOINLINE master #-}
+master :: IORef (Maybe ThreadId)
+master = unsafePerformIO $ newIORef Nothing
+
+registerMaster :: IO ()
+registerMaster = writeIORef master . Just =<< myThreadId
+
+forkSlave :: IO () -> IO ()
+forkSlave act = void $ forkFinally act $ \v -> case v of
+    Left e -> do
+        m <- readIORef master
+        whenJust m $ flip throwTo e
+    _ -> return ()

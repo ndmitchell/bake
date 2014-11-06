@@ -53,7 +53,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                                 (s,q) <- operate curdirLock timeout oven v s
                                 case v of
                                     AddPatch _ p | p `notElem` map fst (extra s) -> do
-                                        forkIO $ do
+                                        forkSlave $ do
                                             dir <- createDir "bake-extra" [fromState $ fst $ active s, fromPatch p]
                                             res <- try_ $ do
                                                 unit $ cmd (Cwd dir) exe "runextra"

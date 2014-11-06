@@ -9,7 +9,6 @@ import General.Extra
 import General.Format
 import Development.Bake.Core.Message
 import System.Exit
-import Control.Exception.Extra
 import Development.Shake.Command
 import Control.Concurrent
 import Control.Monad.Extra
@@ -32,15 +31,14 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
     unique <- newIORef 0
     root <- myThreadId
     exe <- getExecutablePath
-    let safeguard = handle_ (throwTo root)
-    forkIO $ safeguard $ forever $ do
+    forkSlave $ forever $ do
         readChan queue
         now <- readIORef nowThreads
         q <- sendMessage hp $ Pinged $ Ping client author maxThreads now
         whenJust q $ \q@Question{..} -> do
             atomicModifyIORef nowThreads $ \now -> (now - qThreads, ())
             writeChan queue ()
-            void $ forkIO $ safeguard $ do
+            forkSlave $ do
                 i <- atomicModifyIORef unique $ dupe . succ
                 dir <- createDir "bake-test" $ fromState (fst qCandidate) : map fromPatch (snd qCandidate)
                 putBlock "Client start" $

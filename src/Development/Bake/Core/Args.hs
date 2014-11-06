@@ -12,6 +12,7 @@ import Development.Bake.Core.Client
 import Development.Bake.Server.Start
 import Development.Bake.Core.Send
 import Control.Exception.Extra
+import General.Extra
 import Control.DeepSeq
 import System.Directory
 import Control.Monad.Extra
@@ -53,6 +54,7 @@ bakeMode = cmdArgsMode $ modes
 --   deals with command line arguments, run @--help@ for details.
 bake :: Oven state patch test -> IO ()
 bake oven@Oven{..} = do
+    registerMaster
     x <- cmdArgsRun bakeMode
     case x of
         Server{..} -> do
