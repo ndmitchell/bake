@@ -14,7 +14,6 @@ import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
 import General.DelayCache
 import Development.Shake.Command
-import Control.Concurrent.Extra
 import Control.DeepSeq
 import Control.Exception.Extra
 import Data.List.Extra
@@ -32,10 +31,9 @@ import qualified Data.Text as Text
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
 startServer port datadir author name timeout (validate . concrete -> oven) = do
     exe <- getExecutablePath
-    curdirLock <- newLock
     ignore $ removeDirectoryRecursive "bake-server"
     createDirectoryIfMissing True "bake-server"
-    s <- withServerDir curdirLock $ ovenUpdateState oven Nothing
+    s <- withServerDir $ ovenUpdateState oven Nothing
     putStrLn $ "Initial state of: " ++ show s
 
     var <- do
@@ -66,15 +64,15 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                                                 fmap read $ readFile $ dir </> "extra.txt"
                                             either (fmap dupe . showException) return res
                                     _ -> return ()
-                                operate curdirLock timeout oven v s
+                                operate timeout oven v s
                     )
                 else
                     return OutputMissing
             evaluate $ force res
 
 
-operate :: Lock -> Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
-operate curdirLock timeout oven message server = case message of
+operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
+operate timeout oven message server = case message of
     AddPatch author p | (s, ps) <- active server -> do
         whenLoud $ print ("Add patch to",s,snoc ps p)
         now <- getTimestamp
@@ -107,7 +105,7 @@ operate curdirLock timeout oven message server = case message of
                     return $ Right (server, Just q)
                 Update -> do
                     dir <- createDir "bake-test" $ fromState (fst $ active server) : map fromPatch (snd $ active server)
-                    s <- withServerDir curdirLock $ withCurrentDirectory (".." </> dir) $
+                    s <- withServerDir $ withCurrentDirectory (".." </> dir) $
                         ovenUpdateState oven $ Just $ active server
                     ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` snd (active server)) p] $ unlines
                         ["Your patch just made it in"]
@@ -138,5 +136,5 @@ consistent Server{..} = do
             _ -> return ()
 
 
-withServerDir :: Lock -> IO a -> IO a
-withServerDir curdirLock act = withLock curdirLock $ withCurrentDirectory "bake-server" act
+withServerDir :: IO a -> IO a
+withServerDir act = withCurrentDirectory "bake-server" act
