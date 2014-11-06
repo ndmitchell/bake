@@ -13,7 +13,7 @@ import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
 import Development.Shake.Command
-import Control.Concurrent
+import Control.Concurrent.Extra
 import Control.DeepSeq
 import Control.Exception.Extra
 import Data.List.Extra
@@ -31,7 +31,7 @@ import qualified Data.Text as Text
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
 startServer port datadir author name timeout (validate . concrete -> oven) = do
     exe <- getExecutablePath
-    curdirLock <- newMVar ()
+    curdirLock <- newLock
     ignore $ removeDirectoryRecursive "bake-server"
     createDirectoryIfMissing True "bake-server"
     s <- withServerDir curdirLock $ ovenUpdateState oven Nothing
@@ -71,7 +71,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
             evaluate $ force res
 
 
-operate :: MVar () -> Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
+operate :: Lock -> Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
 operate curdirLock timeout oven message server = case message of
     AddPatch author p | (s, ps) <- active server -> do
         whenLoud $ print ("Add patch to",s,snoc ps p)
@@ -136,5 +136,5 @@ consistent Server{..} = do
             _ -> return ()
 
 
-withServerDir :: MVar () -> IO a -> IO a
-withServerDir curdirLock act = withMVar curdirLock $ const $ withCurrentDirectory "bake-server" act
+withServerDir :: Lock -> IO a -> IO a
+withServerDir curdirLock act = withLock curdirLock $ withCurrentDirectory "bake-server" act
