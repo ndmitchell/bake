@@ -39,8 +39,9 @@ web oven@Oven{..} args server = do
                     [] -> or0 [Patch p `elem` snd qCandidate | p <- ask "patch"]
                     s:_ -> qCandidate == (State s, map Patch $ ask "patch")) ++
             (case ask "patch" of
-                [p] -> ["<h2>Patch information</h2>"] ++
-                       [e | (pp,(_,e)) <- extra server, Patch p == pp]
+                [p] | null $ ask "test" ->
+                        ["<h2>Patch information</h2>"] ++
+                        [e | (pp,(_,e)) <- extra server, Patch p == pp]
                 _ -> [])
         ) ++
         suffix
