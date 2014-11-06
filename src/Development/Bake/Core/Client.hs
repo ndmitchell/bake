@@ -19,6 +19,7 @@ import Data.IORef
 import Data.Maybe
 import Data.Tuple.Extra
 import System.Environment
+import qualified Data.Text as Text
 
 
 -- given server, name, threads
@@ -71,7 +72,7 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
                     ]
                 atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
                 sendMessage hp $ Finished q $
-                    Answer (sout++serr) time tests $ exit == ExitSuccess
+                    Answer (Text.pack $ sout++serr) time tests $ exit == ExitSuccess
                 writeChan queue ()
 
     forever $ writeChan queue () >> sleep ping

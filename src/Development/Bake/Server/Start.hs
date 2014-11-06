@@ -25,6 +25,7 @@ import Data.Tuple.Extra
 import System.Directory.Extra
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
+import qualified Data.Text as Text
 
 
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
@@ -83,8 +84,8 @@ operate curdirLock timeout oven message server = case message of
     Finished q a -> do
         when (not $ aSuccess a) $ do
             putStrLn $ replicate 70 '#'
-            print (active server, q, a{aStdout=""})
-            putStrLn $ aStdout a
+            print (active server, q, a{aStdout=Text.empty})
+            putStrLn $ Text.unpack $ aStdout a
             putStrLn $ replicate 70 '#'
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
         consistent server
