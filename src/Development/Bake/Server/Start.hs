@@ -12,6 +12,7 @@ import General.Extra
 import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
+import General.DelayCache
 import Development.Shake.Command
 import Control.Concurrent.Extra
 import Control.DeepSeq
@@ -36,7 +37,10 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
     createDirectoryIfMissing True "bake-server"
     s <- withServerDir curdirLock $ ovenUpdateState oven Nothing
     putStrLn $ "Initial state of: " ++ show s
-    var <- newCVar $ (defaultServer s){authors = [(Nothing,author)]}
+
+    var <- do
+        extra <- newDelayCache
+        newCVar $ Server [] [] [] (s,[]) Nothing [] [(Nothing,author)] extra
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
@@ -50,10 +54,9 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                         Left e -> return $ OutputError e
                         Right v -> do
                             fmap questionToOutput $ modifyCVar var $ \s -> do
-                                (s,q) <- operate curdirLock timeout oven v s
                                 case v of
-                                    AddPatch _ p | p `notElem` map fst (extra s) -> do
-                                        forkSlave $ do
+                                    AddPatch _ p -> do
+                                        addDelayCache (extra s) p $ do
                                             dir <- createDir "bake-extra" [fromState $ fst $ active s, fromPatch p]
                                             res <- try_ $ do
                                                 unit $ cmd (Cwd dir) exe "runextra"
@@ -61,10 +64,9 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                                                     ["--state=" ++ fromState (fst $ active s)]
                                                     ["--patch=" ++ fromPatch p]
                                                 fmap read $ readFile $ dir </> "extra.txt"
-                                            res <- either (fmap dupe . showException) return res
-                                            modifyCVar_ var $ \s -> return s{extra = (p,res) : filter ((/=) p . fst) (extra s)}
-                                        return (s{extra=(p,dupe "Calculating..."):extra s}, q)
-                                    _ -> return (s,q)
+                                            either (fmap dupe . showException) return res
+                                    _ -> return ()
+                                operate curdirLock timeout oven v s
                     )
                 else
                     return OutputMissing

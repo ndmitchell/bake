@@ -10,6 +10,7 @@ import Development.Bake.Core.Type
 import General.Web
 import General.Extra
 import General.Format
+import General.DelayCache
 import Data.List.Extra
 import Data.Tuple.Extra
 import System.Time.Extra
@@ -20,7 +21,8 @@ import qualified Data.Text as Text
 
 web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
 web oven@Oven{..} args server = do
-    shower <- shower oven
+    extra <- askDelayCache $ extra server
+    shower <- shower extra oven
     return $ OutputHTML $ unlines $
         prefix ++
         (if null args then
@@ -40,9 +42,8 @@ web oven@Oven{..} args server = do
                     [] -> or0 [Patch p `elem` snd qCandidate | p <- ask "patch"]
                     s:_ -> qCandidate == (State s, map Patch $ ask "patch")) ++
             (case ask "patch" of
-                [p] | null $ ask "test" ->
-                        ["<h2>Patch information</h2>"] ++
-                        [e | (pp,(_,e)) <- extra server, Patch p == pp]
+                [p] | null $ ask "test", Just (_, e) <- extra $ Patch p ->
+                        ["<h2>Patch information</h2>", e]
                 _ -> [])
         ) ++
         suffix
@@ -53,6 +54,7 @@ web oven@Oven{..} args server = do
 
 data Shower = Shower
     {showPatch :: Patch -> String
+    ,showPatchExtra :: Patch -> String
     ,showTest :: Maybe Test -> String
     ,showTestPatch :: Patch -> Maybe Test -> String
     ,showTestQuestion :: Question -> String
@@ -62,11 +64,12 @@ data Shower = Shower
 
 showThreads i = show i ++ " thread" ++ ['s' | i /= 1]
 
-shower :: Oven State Patch Test -> IO Shower
-shower Oven{..} = do
+shower :: (Patch -> Maybe (String, String)) -> Oven State Patch Test -> IO Shower
+shower extra Oven{..} = do
     showTime <- showRelativeTimestamp
     return $ Shower
         {showPatch = \p -> tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p)
+        ,showPatchExtra = \p -> maybe "" fst $ extra p
         ,showState = \s -> tag "a" ["href=?state=" ++ fromState s, "class=state"] (stringyPretty ovenStringyState s)
         ,showTest = f Nothing Nothing []
         ,showTestPatch = \p -> f Nothing Nothing [p]
@@ -139,7 +142,7 @@ runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
 patch :: Shower -> Server -> (Timestamp, Patch) -> [String]
 patch Shower{..} Server{..} (u, p) =
     [showPatch p ++ " by " ++ commasLimit 3 [a | (pp,a) <- authors, Just p == pp] ++ "<br />" ++
-     tag "span" ["class=info"] (maybe "" fst (lookup p extra))
+     tag "span" ["class=info"] (showPatchExtra p)
     ,if p `elem` concatMap (snd . thd3) updates then tag "span" ["class=good"] "Merged"
      else if p `elem` snd active then
         "Testing (passed " ++ show (length $ nubOn (qTest . snd) $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show (todo+1)) ++ ")<br />" ++

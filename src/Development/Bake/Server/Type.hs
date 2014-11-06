@@ -1,17 +1,15 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Type(
-    Server(..), defaultServer,
+    Server(..),
     Question(..), Answer(..), Ping(..),
     ) where
 
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Extra
+import General.DelayCache
 
-
-defaultServer :: State -> Server
-defaultServer s = Server [] [] [] (s,[]) Nothing [] [] []
 
 data Server = Server
     {history :: [(Timestamp, Question, Maybe Answer)]
@@ -29,6 +27,6 @@ data Server = Server
         -- ^ List of all patches that have been submitted over time
     ,authors :: [(Maybe Patch, Author)]
         -- ^ Authors associated with each patch (Nothing is the server author)
-    ,extra :: [(Patch, (String, String))]
+    ,extra :: DelayCache Patch (String, String)
         -- ^ Extra information that was computed for each string (cached forever)
-    } deriving Show
+    }
