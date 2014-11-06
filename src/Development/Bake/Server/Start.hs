@@ -138,8 +138,9 @@ withServerDir act = withCurrentDirectory "bake-server" act
 
 initialState :: Oven State Patch Test -> IO State
 initialState oven = do
+    putStrLn "Initialising server, computing initial state..."
     ignore $ removeDirectoryRecursive "bake-server"
     createDirectoryIfMissing True "bake-server"
     s <- withServerDir $ ovenUpdateState oven Nothing
-    putStrLn $ "Initial state of: " ++ show s
+    putStrLn $ "Initial state: " ++ fromState s
     return s
