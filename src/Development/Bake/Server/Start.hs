@@ -123,6 +123,7 @@ prune :: UTCTime -> Server -> Server
 prune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
     where clients = [pClient | (Timestamp t _,Ping{..}) <- pings s, t >= cutoff]
 
+
 consistent :: Server -> IO ()
 consistent Server{..} = do
     let xs = groupSort $ map (qCandidate . snd3 &&& id) $ filter (isNothing . qTest . snd3) history
