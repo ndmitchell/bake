@@ -118,21 +118,6 @@ operate timeout oven message server = case message of
         dull s = return (s,Nothing)
 
 
--- any question that has been asked of a client who hasn't pinged since the time is thrown away
-prune :: UTCTime -> Server -> Server
-prune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
-    where clients = [pClient | (Timestamp t _,Ping{..}) <- pings s, t >= cutoff]
-
-
-consistent :: Server -> IO ()
-consistent Server{..} = do
-    let xs = groupSort $ map (qCandidate . snd3 &&& id) $ filter (isNothing . qTest . snd3) history
-    forM_ xs $ \(c,vs) -> do
-        case nub $ map (sort . uncurry (++) . aTests) $ filter aSuccess $ mapMaybe thd3 vs of
-            a:b:_ -> error $ "Tests don't match for candidate: " ++ show (c,a,b,vs)
-            _ -> return ()
-
-
 initialState :: Oven State Patch Test -> IO State
 initialState oven = do
     putStrLn "Initialising server, computing initial state..."
