@@ -84,7 +84,7 @@ operate timeout oven message server = case message of
     Finished q a -> do
         when (not $ aSuccess a) $ do
             putStrLn $ replicate 70 '#'
-            print (active server, q, a{aStdout=strPinned ""})
+            print (active server, q, a{aStdout=strPack ""})
             putStrLn $ strUnpack $ aStdout a
             putStrLn $ replicate 70 '#'
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}

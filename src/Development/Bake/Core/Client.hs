@@ -70,7 +70,7 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
                     ]
                 atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
                 sendMessage hp $ Finished q $
-                    Answer (strPinned $ sout++serr) time tests $ exit == ExitSuccess
+                    Answer (strPack $ sout++serr) time tests $ exit == ExitSuccess
                 writeChan queue ()
 
     forever $ writeChan queue () >> sleep ping
