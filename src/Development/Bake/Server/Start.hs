@@ -84,12 +84,12 @@ operate timeout oven message server = case message of
             putStrLn $ Text.unpack $ aStdout a
             putStrLn $ replicate 70 '#'
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
-        consistent server
+        serverConsistent server
         dull server 
     Pinged ping -> do
         limit <- getCurrentTime
         now <- getTimestamp
-        server <- return $ prune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $ server
+        server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $ server
             {pings = (now,ping) : filter ((/= pClient ping) . pClient . snd) (pings server)}
         flip loopM server $ \server ->
             case brains (ovenTestInfo oven) server ping of
