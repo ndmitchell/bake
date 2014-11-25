@@ -2,7 +2,6 @@
 
 ## Brains
 
-* Should start testing the initial state straight away
 * Should run the ovenUpdate functions in a background process with things half paused
 * Should support pause/unpause
 
