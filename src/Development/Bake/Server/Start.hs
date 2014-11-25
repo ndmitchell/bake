@@ -58,7 +58,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
 
 
 -- | Get information about a patch
-patchExtra :: State -> Patch -> IO (String, String)
+patchExtra :: State -> Patch -> IO (Str, Str)
 patchExtra s p = do
     exe <- getExecutablePath
     dir <- createDir "bake-extra" [fromState s, fromPatch p]
@@ -68,7 +68,7 @@ patchExtra s p = do
             ["--state=" ++ fromState s]
             ["--patch=" ++ fromPatch p]
         fmap read $ readFile $ dir </> "extra.txt"
-    either (fmap dupe . showException) return res
+    fmap (both strPack) $ either (fmap dupe . showException) return res
 
 
 operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)

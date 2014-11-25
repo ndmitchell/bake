@@ -43,7 +43,7 @@ web oven@Oven{..} args server = do
                     s:_ -> qCandidate == (State s, map Patch $ ask "patch")) ++
             (case ask "patch" of
                 [p] | null $ ask "test", Just (_, e) <- extra $ Patch p ->
-                        ["<h2>Patch information</h2>", e]
+                        ["<h2>Patch information</h2>", strUnpack e]
                 _ -> [])
         ) ++
         suffix
@@ -73,12 +73,12 @@ data Shower = Shower
 
 showThreads i = show i ++ " thread" ++ ['s' | i /= 1]
 
-shower :: (Patch -> Maybe (String, String)) -> Oven State Patch Test -> IO Shower
+shower :: (Patch -> Maybe (Str, Str)) -> Oven State Patch Test -> IO Shower
 shower extra Oven{..} = do
     showTime <- showRelativeTimestamp
     return $ Shower
         {showPatch = \p -> tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p)
-        ,showPatchExtra = \p -> maybe "" fst $ extra p
+        ,showPatchExtra = \p -> maybe "" (strUnpack . fst) $ extra p
         ,showState = \s -> tag "a" ["href=?state=" ++ fromState s, "class=state"] (stringyPretty ovenStringyState s)
         ,showTest = f Nothing Nothing []
         ,showTestPatch = \p -> f Nothing Nothing [p]

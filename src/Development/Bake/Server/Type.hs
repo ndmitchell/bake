@@ -10,6 +10,7 @@ module Development.Bake.Server.Type(
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Extra
+import General.Str
 import General.DelayCache
 import Data.Time.Clock
 import Data.Tuple.Extra
@@ -34,7 +35,7 @@ data Server = Server
         -- ^ List of all patches that have been submitted over time
     ,authors :: [(Maybe Patch, Author)]
         -- ^ Authors associated with each patch (Nothing is the server author)
-    ,extra :: DelayCache Patch (String, String)
+    ,extra :: DelayCache Patch (Str, Str)
         -- ^ Extra information that was computed for each string (cached forever)
     }
 
