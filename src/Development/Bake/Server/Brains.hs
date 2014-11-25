@@ -22,10 +22,8 @@ data Neuron
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron
-brains _ Server{active=(_, [])} _ = Sleep -- no outstanding tasks
-
 brains info Server{..} Ping{..}
-    | allTestsPass active = Update
+    | allTestsPass active = if null (snd active) then Sleep else Update
     | t:_ <- minimumRelation dependsMay $ failingTests active = erroneous t active
     | otherwise = let next = filter (suitableTest active) $ allTests active
                   in taskMay active $ listToMaybe next
