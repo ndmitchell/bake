@@ -28,7 +28,7 @@ web oven@Oven{..} args server = do
         (if null args then
             ["<h1>Bake Continuous Integration</h1>"
             ,"<h2>Patches</h2>"] ++
-            table "No patches submitted" ["Patch","Status"] (map (patch shower server) patches) ++
+            table "No patches submitted" ["Patch","Status"] (map (patch shower server) $ linearise server) ++
             ["<h2>Clients</h2>"] ++
             table "No clients available" ["Name","Running"] (map (client shower server) clients)
          else
@@ -48,8 +48,17 @@ web oven@Oven{..} args server = do
         ) ++
         suffix
     where
-        patches = submitted server
         clients = sort $ nub $ map (pClient . snd) $ pings server
+
+
+linearise :: Server -> [Either State Patch]
+linearise Server{..} = (active : map thd3 updates) `rmerge` (map snd submitted)
+    where
+        rmerge xs ys = reverse $ merge [] xs ys
+
+        merge seen ((s,deps):ss) ps | null $ deps \\ seen = Left s : merge seen ss ps
+        merge seen ss (p:ps) = Right p : merge (p:seen) ss ps
+        merge seen ss [] = map (Left . fst) ss
 
 
 data Shower = Shower
@@ -139,8 +148,32 @@ runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
                         else tag "span" ["class=bad"]  ("Failed in "    ++ showDuration aDuration)
 
 
-patch :: Shower -> Server -> (Timestamp, Patch) -> [String]
-patch Shower{..} Server{..} (u, p) =
+patch :: Shower -> Server -> Either State Patch -> [String]
+patch Shower{..} Server{..} (Left s) =
+    [showState s
+    ,if s /= fst active || null running then tag "span" ["class=good"] "Valid"
+     else "Testing (passed " ++ show (length $ nubOn (qTest . snd) $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show (todo+1)) ++ ")<br />" ++
+        tag "span" ["class=info"]
+            (if any (not . fst) done then "Retrying " ++ commasLimit 3 (nub [showTest (qTest t) | (False,t) <- done])
+             else "Running " ++ commasLimit 3 (map showTestQuestion running))
+    ]
+    where
+        todo = length $ nub
+            [ t
+            | (_,Question{..},Just Answer{..}) <- history
+            , (s, []) == qCandidate
+            , t <- uncurry (++) aTests]
+        done = nub
+            [ (aSuccess,q)
+            | (_,q@Question{..},Just Answer{..}) <- history
+            , (s, []) == qCandidate]
+        running = nub
+            [ q
+            | (_,q@Question{..},Nothing) <- history
+            , (s, []) == qCandidate]
+
+
+patch Shower{..} Server{..} (Right p) =
     [showPatch p ++ " by " ++ commasLimit 3 [a | (pp,a) <- authors, Just p == pp] ++ "<br />" ++
      tag "span" ["class=info"] (showPatchExtra p)
     ,if p `elem` concatMap (snd . thd3) updates then tag "span" ["class=good"] "Merged"
