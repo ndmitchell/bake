@@ -7,6 +7,7 @@ module Development.Bake.Server.Start(
 
 import Development.Bake.Core.Type
 import General.Web
+import General.Str
 import Development.Bake.Core.Message
 import General.Extra
 import Development.Bake.Server.Type
@@ -25,7 +26,6 @@ import Data.Tuple.Extra
 import System.Directory.Extra
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
-import qualified Data.Text as Text
 
 
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
@@ -84,8 +84,8 @@ operate timeout oven message server = case message of
     Finished q a -> do
         when (not $ aSuccess a) $ do
             putStrLn $ replicate 70 '#'
-            print (active server, q, a{aStdout=Text.empty})
-            putStrLn $ Text.unpack $ aStdout a
+            print (active server, q, a{aStdout=strPinned ""})
+            putStrLn $ strUnpack $ aStdout a
             putStrLn $ replicate 70 '#'
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
         serverConsistent server

@@ -11,12 +11,12 @@ import General.Web
 import General.Extra
 import General.Format
 import General.DelayCache
+import General.Str
 import Data.List.Extra
 import Data.Tuple.Extra
 import System.Time.Extra
 import Data.Version
 import Paths_bake
-import qualified Data.Text as Text
 
 
 web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
@@ -132,7 +132,7 @@ runs :: Shower -> Server -> (Question -> Bool) -> [String]
 runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
     [[tag "span" ["class=nobr"] $ showTime t, showQuestion q, showAnswer a] | (t,q,a) <- good] ++
     (case good of
-        [(_,_,Just Answer{..})] -> ["<pre>"] ++ lines (escapeHTML $ Text.unpack aStdout) ++ ["</pre>"]
+        [(_,_,Just Answer{..})] -> ["<pre>"] ++ lines (escapeHTML $ strUnpack aStdout) ++ ["</pre>"]
         _ -> [])
     where
         good = filter (pred . snd3) history

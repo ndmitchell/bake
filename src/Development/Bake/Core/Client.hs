@@ -7,6 +7,7 @@ module Development.Bake.Core.Client(
 import Development.Bake.Core.Type
 import General.Extra
 import General.Format
+import General.Str
 import Development.Bake.Core.Message
 import System.Exit
 import Development.Shake.Command
@@ -18,7 +19,6 @@ import Data.IORef
 import Data.Maybe
 import Data.Tuple.Extra
 import System.Environment
-import qualified Data.Text as Text
 
 
 -- given server, name, threads
@@ -70,7 +70,7 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
                     ]
                 atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
                 sendMessage hp $ Finished q $
-                    Answer (Text.pack $ sout++serr) time tests $ exit == ExitSuccess
+                    Answer (strPinned $ sout++serr) time tests $ exit == ExitSuccess
                 writeChan queue ()
 
     forever $ writeChan queue () >> sleep ping

@@ -9,8 +9,8 @@ import Development.Bake.Core.Type
 import General.Web
 import Control.Applicative
 import Control.Monad
-import Data.Text(Text)
 import Data.Aeson hiding (Success)
+import General.Str
 import qualified Data.ByteString.Lazy.Char8 as LBS
 
 
@@ -35,7 +35,7 @@ data Question = Question
     deriving (Show,Eq)
 
 data Answer = Answer
-    {aStdout :: Text
+    {aStdout :: Str
     ,aDuration :: Double
     ,aTests :: ([Test],[Test])
         -- only filled in if qTest is Nothing
