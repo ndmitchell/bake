@@ -30,7 +30,6 @@ import qualified Data.Text as Text
 
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
 startServer port datadir author name timeout (validate . concrete -> oven) = do
-    exe <- getExecutablePath
     state0 <- initialState oven
     var <- do
         extra <- newDelayCache
@@ -49,22 +48,27 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                         Right v -> do
                             fmap questionToOutput $ modifyCVar var $ \s -> do
                                 case v of
-                                    AddPatch _ p -> do
-                                        addDelayCache (extra s) p $ do
-                                            dir <- createDir "bake-extra" [fromState $ fst $ active s, fromPatch p]
-                                            res <- try_ $ do
-                                                unit $ cmd (Cwd dir) exe "runextra"
-                                                    "--output=extra.txt"
-                                                    ["--state=" ++ fromState (fst $ active s)]
-                                                    ["--patch=" ++ fromPatch p]
-                                                fmap read $ readFile $ dir </> "extra.txt"
-                                            either (fmap dupe . showException) return res
+                                    AddPatch _ p -> addDelayCache (extra s) p $ patchExtra (fst $ active s) p
                                     _ -> return ()
                                 operate timeout oven v s
                     )
                 else
                     return OutputMissing
             evaluate $ force res
+
+
+-- | Get information about a patch
+patchExtra :: State -> Patch -> IO (String, String)
+patchExtra s p = do
+    exe <- getExecutablePath
+    dir <- createDir "bake-extra" [fromState s, fromPatch p]
+    res <- try_ $ do
+        unit $ cmd (Cwd dir) exe "runextra"
+            "--output=extra.txt"
+            ["--state=" ++ fromState s]
+            ["--patch=" ++ fromPatch p]
+        fmap read $ readFile $ dir </> "extra.txt"
+    either (fmap dupe . showException) return res
 
 
 operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
