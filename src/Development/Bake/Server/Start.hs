@@ -34,7 +34,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
     state0 <- initialState oven
     var <- do
         extra <- newDelayCache
-        newCVar $ Server [] [] [] (state0,[]) [] Nothing [] (Map.fromList [(Nothing,[author])]) extra
+        newCVar $ Server [] [] Map.empty (state0,[]) [] Nothing [] (Map.fromList [(Nothing,[author])]) extra
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
@@ -98,7 +98,7 @@ operate timeout oven message server = case message of
         limit <- getCurrentTime
         now <- getTimestamp
         server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $ server
-            {pings = (now,ping) : filter ((/= pClient ping) . pClient . snd) (pings server)}
+            {pings = Map.insert (pClient ping) (now,ping) $ pings server}
         flip loopM server $ \server ->
             case brains (ovenTestInfo oven) server ping of
                 Sleep ->

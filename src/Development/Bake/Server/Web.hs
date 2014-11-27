@@ -31,7 +31,7 @@ web oven@Oven{..} args server = do
             ,"<h2>Patches</h2>"] ++
             table "No patches submitted" ["Patch","Status"] (map (patch shower server) $ linearise server) ++
             ["<h2>Clients</h2>"] ++
-            table "No clients available" ["Name","Running"] (map (client shower server) clients)
+            table "No clients available" ["Name","Running"] (map (client shower server) $ Map.keys $ pings server)
          else
             let ask x = map snd $ filter ((==) x . fst) args in
             ["<h1><a href='?'>Bake Continuous Integration</a></h1>"] ++
@@ -48,8 +48,6 @@ web oven@Oven{..} args server = do
                 _ -> [])
         ) ++
         suffix
-    where
-        clients = sort $ nub $ map (pClient . snd) $ pings server
 
 
 linearise :: Server -> [Either State Patch]

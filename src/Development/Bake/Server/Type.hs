@@ -18,6 +18,7 @@ import Data.Maybe
 import Control.Monad
 import Data.List.Extra
 import Data.Map(Map)
+import qualified Data.Map as Map
 
 
 data Server = Server
@@ -26,7 +27,7 @@ data Server = Server
         --   The aStdout has been written to disk, and the value is a filename containing the stdout.
     ,updates :: [(Timestamp, State, (State, [Patch]))]
         -- ^ Updates that have been made
-    ,pings :: [(Timestamp, Ping)]
+    ,pings :: Map Client (Timestamp, Ping)
         -- ^ Latest time of a ping sent by each client
     ,active :: (State, [Patch])
         -- ^ The candidate we are currently aiming to prove
@@ -46,7 +47,7 @@ data Server = Server
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
 serverPrune :: UTCTime -> Server -> Server
 serverPrune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
-    where clients = [pClient | (Timestamp t _,Ping{..}) <- pings s, t >= cutoff]
+    where clients = [pClient | (Timestamp t _,Ping{..}) <- Map.elems $ pings s, t >= cutoff]
 
 
 serverConsistent :: Server -> IO ()
