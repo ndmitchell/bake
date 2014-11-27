@@ -3,7 +3,7 @@ module Example(main, platforms) where
 
 import Development.Bake
 import Development.Shake.Command
-import System.Environment
+import System.Environment.Extra
 import System.FilePath
 import Data.List.Extra
 import Control.Arrow
