@@ -18,7 +18,7 @@ import System.FilePath
 import Data.IORef
 import Data.Maybe
 import Data.Tuple.Extra
-import System.Environment
+import System.Environment.Extra
 
 
 -- given server, name, threads
