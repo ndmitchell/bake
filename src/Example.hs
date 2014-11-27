@@ -8,6 +8,7 @@ import System.FilePath
 import Data.List.Extra
 import Control.Arrow
 import Data.Maybe
+import System.Time.Extra
 
 
 data Platform = Linux | Windows deriving (Show,Read)
