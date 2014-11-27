@@ -17,6 +17,7 @@ import Data.Tuple.Extra
 import System.Time.Extra
 import Data.Version
 import Paths_bake
+import qualified Data.Map as Map
 
 
 web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
@@ -174,7 +175,7 @@ patch Shower{..} Server{..} (Left s) =
 
 
 patch Shower{..} Server{..} (Right p) =
-    [showPatch p ++ " by " ++ commasLimit 3 [a | (pp,a) <- authors, Just p == pp] ++ "<br />" ++
+    [showPatch p ++ " by " ++ commasLimit 3 (Map.findWithDefault [] (Just p) authors) ++ "<br />" ++
      tag "span" ["class=info"] (showPatchExtra p)
     ,if p `elem` concatMap (snd . thd3) updates then tag "span" ["class=good"] "Merged"
      else if p `elem` snd active then

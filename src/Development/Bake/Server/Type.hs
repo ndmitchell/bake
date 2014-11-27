@@ -17,6 +17,7 @@ import Data.Tuple.Extra
 import Data.Maybe
 import Control.Monad
 import Data.List.Extra
+import Data.Map(Map)
 
 
 data Server = Server
@@ -35,7 +36,7 @@ data Server = Server
         -- ^ 'Just' if we are paused, and the number of people queued up (reset active becomes empty)
     ,submitted :: [(Timestamp, Patch)]
         -- ^ List of all patches that have been submitted over time
-    ,authors :: [(Maybe Patch, Author)]
+    ,authors :: Map (Maybe Patch) [Author]
         -- ^ Authors associated with each patch (Nothing is the server author)
     ,extra :: DelayCache Patch (Str, Str)
         -- ^ Extra information that was computed for each string (cached forever)

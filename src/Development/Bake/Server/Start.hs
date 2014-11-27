@@ -26,6 +26,7 @@ import Data.Tuple.Extra
 import System.Directory.Extra
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
+import qualified Data.Map as Map
 
 
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
@@ -33,7 +34,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
     state0 <- initialState oven
     var <- do
         extra <- newDelayCache
-        newCVar $ Server [] [] [] (state0,[]) [] Nothing [] [(Nothing,author)] extra
+        newCVar $ Server [] [] [] (state0,[]) [] Nothing [] (Map.fromList [(Nothing,[author])]) extra
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
@@ -76,7 +77,10 @@ operate timeout oven message server = case message of
     AddPatch author p | (s, ps) <- active server -> do
         whenLoud $ print ("Add patch to",s,snoc ps p)
         now <- getTimestamp
-        dull server{active = (s, snoc ps p), authors = (Just p, author) : authors server, submitted = (now,p) : submitted server}
+        dull server
+            {active = (s, snoc ps p)
+            ,authors = Map.insertWith (++) (Just p) [author] $ authors server
+            ,submitted = (now,p) : submitted server}
     DelPatch author p | (s, ps) <- active server -> dull server{active = (s, delete p ps)}
     Pause author -> dull server{paused = Just $ fromMaybe [] $ paused server}
     Unpause author | (s, ps) <- active server ->
@@ -107,15 +111,15 @@ operate timeout oven message server = case message of
                     dir <- createDir "bake-test" $ fromState (fst $ active server) : map fromPatch (snd $ active server)
                     s <- withCurrentDirectory dir $
                         ovenUpdateState oven $ Just $ active server
-                    ovenNotify oven [a | (p,a) <- authors server, maybe False (`elem` snd (active server)) p] $ unlines
+                    ovenNotify oven [a | p <- snd $ active server, a <- Map.findWithDefault [] (Just p) $ authors server] $ unlines
                         ["Your patch just made it in"]
                     return $ Left server{active=(s, []), updates=(now,s,active server):updates server}
                 Reject p t -> do
-                    ovenNotify oven [a | (pp,a) <- authors server, Just p == pp] $ unlines
+                    ovenNotify oven (Map.findWithDefault [] (Just p) (authors server)) $ unlines
                         ["Your patch " ++ show p ++ " got rejected","Failure in test " ++ show t]
                     return $ Left server{active=second (delete p) $ active server}
                 Broken t -> do
-                    ovenNotify oven [a | (p,a) <- authors server, maybe True (`elem` snd (active server)) p] $ unlines
+                    ovenNotify oven [a | p <- Nothing : map Just (snd $ active server), a <- Map.findWithDefault [] p $ authors server] $ unlines
                         ["Eek, it's all gone horribly wrong","Failure with no patches in test " ++ show t]
                     return $ Left server{active=(fst $ active server, [])}
     where
