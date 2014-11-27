@@ -33,7 +33,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
     state0 <- initialState oven
     var <- do
         extra <- newDelayCache
-        newCVar $ Server [] [] [] (state0,[]) Nothing [] [(Nothing,author)] extra
+        newCVar $ Server [] [] [] (state0,[]) [] Nothing [] [(Nothing,author)] extra
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
