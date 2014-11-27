@@ -38,7 +38,7 @@ execute (p,Compile) = matchOS p $ run $ do
     -- ghc --make isn't a good citizen of incremental
     -- so we remove all the generated files to force the rebuild
     () <- cmd "ls -a"
-    Exit _ <- cmd "rm *Main.o *Main.hi *Main.exe *Main"
+    Exit _ <- cmd Shell "rm *Main.o *Main.hi *Main.exe *Main"
     () <- cmd "ghc --make Main.hs"
     incrementalDone
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
