@@ -20,7 +20,7 @@ main = do
     let err = "You need to set an environment variable named $REPO for the Git repo"
     repo <- fromMaybe (error err) `fmap` lookupEnv "REPO"
     bake $
-        -- ovenIncremental $
+        ovenIncremental $
         ovenPretty "=" $
         ovenGit repo "master" Nothing $
         ovenNotifyStdout $
