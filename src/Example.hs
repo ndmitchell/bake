@@ -36,11 +36,9 @@ allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1,10,0]]
 
 execute :: (Platform,Action) -> TestInfo (Platform,Action)
 execute (p,Compile) = matchOS p $ run $ do
-    -- ghc --make isn't a good citizen of incremental
-    -- so we remove all the generated files to force the rebuild
-    --() <- cmd "ls -a"
-    --Exit _ <- cmd Shell "rm *Main.o *Main.hi *Main.exe *Main"
     () <- cmd "ghc --make Main.hs"
+    -- ghc --make only has 1 second timestamp resolution
+    -- so sleep for a second to make sure we work with incremental
     sleep 1
     incrementalDone
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
