@@ -1,4 +1,4 @@
-# Bake [![Hackage version](https://img.shields.io/hackage/v/bake.svg?style=flat)](http://hackage.haskell.org/package/bake) [![Build Status](http://img.shields.io/travis/ndmitchell/bake.svg?style=flat)](https://travis-ci.org/ndmitchell/bake)
+# Bake [![Hackage version](https://img.shields.io/hackage/v/bake.svg?style=flat)](https://hackage.haskell.org/package/bake) [![Build Status](https://img.shields.io/travis/ndmitchell/bake.svg?style=flat)](https://travis-ci.org/ndmitchell/bake)
 
 **Warning: This project is under heavy development and has never been used for real. You probably don't want to be the first.**
 
