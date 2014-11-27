@@ -40,6 +40,7 @@ execute (p,Compile) = matchOS p $ run $ do
     () <- cmd "ls -a"
     Exit _ <- cmd Shell "rm *Main.o *Main.hi *Main.exe *Main"
     () <- cmd "ghc --make Main.hs"
+    sleep 1
     incrementalDone
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
     cmd ("." </> "Main") (show i)
