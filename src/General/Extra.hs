@@ -20,7 +20,10 @@ import Control.Monad.Extra
 import Control.Concurrent.Extra
 
 
-data Timestamp = Timestamp UTCTime Int deriving (Show,Eq)
+data Timestamp = Timestamp UTCTime Int deriving Show
+
+instance Eq Timestamp where Timestamp _ a == Timestamp _ b = a == b
+instance Ord Timestamp where compare (Timestamp _ a) (Timestamp _ b) = compare a b
 
 {-# NOINLINE timestamp #-}
 timestamp :: IORef Int
