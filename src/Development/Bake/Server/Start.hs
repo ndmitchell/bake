@@ -49,7 +49,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                         Right v -> do
                             fmap questionToOutput $ modifyCVar var $ \s -> do
                                 case v of
-                                    AddPatch _ p -> addDelayCache (extra s) p $ patchExtra (fst $ active s) p
+                                    AddPatch _ p -> addDelayCache (extra s) (Right p) $ patchExtra (fst $ active s) p
                                     _ -> return ()
                                 operate timeout oven v s
                     )

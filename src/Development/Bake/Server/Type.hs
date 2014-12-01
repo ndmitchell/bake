@@ -39,7 +39,7 @@ data Server = Server
         -- ^ List of all patches that have been submitted over time
     ,authors :: Map (Maybe Patch) [Author]
         -- ^ Authors associated with each patch (Nothing is the server author)
-    ,extra :: DelayCache Patch (Str, Str)
+    ,extra :: DelayCache (Either State Patch) (Str, Str)
         -- ^ Extra information that was computed for each string (cached forever)
     }
 
