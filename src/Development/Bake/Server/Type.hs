@@ -33,7 +33,6 @@ data Server = Server
         -- ^ Latest time of a ping sent by each client
     ,target :: (State, [Patch])
         -- ^ The candidate we are currently aiming to prove
-        --   Nothing is currently resting, Just [] is testing the empty state
     ,blacklist :: [Test]
         -- ^ Tests that have been blacklisted by hand
     ,paused :: Maybe [(Timestamp, Patch)]
