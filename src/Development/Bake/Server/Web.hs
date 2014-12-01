@@ -60,7 +60,7 @@ linearise Server{..} = reverse $ map snd $ sortOn fst $ states ++ patches
 
 data Shower = Shower
     {showPatch :: Patch -> String
-    ,showPatchExtra :: Patch -> String
+    ,showExtra :: Either State Patch -> String
     ,showTest :: Maybe Test -> String
     ,showTestPatch :: Patch -> Maybe Test -> String
     ,showTestQuestion :: Question -> String
@@ -75,7 +75,7 @@ shower extra Oven{..} = do
     showTime <- showRelativeTimestamp
     return $ Shower
         {showPatch = \p -> tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p)
-        ,showPatchExtra = \p -> maybe "" (strUnpack . fst) $ extra $ Right p
+        ,showExtra = \e -> maybe "" (strUnpack . fst) $ extra e
         ,showState = \s -> tag "a" ["href=?state=" ++ fromState s, "class=state"] (stringyPretty ovenStringyState s)
         ,showTest = f Nothing Nothing []
         ,showTestPatch = \p -> f Nothing Nothing [p]
@@ -173,7 +173,7 @@ patch Shower{..} Server{..} (Left s) =
 
 patch Shower{..} Server{..} (Right p) =
     [showPatch p ++ " by " ++ commasLimit 3 (Map.findWithDefault [] (Just p) authors) ++ "<br />" ++
-     tag "span" ["class=info"] (showPatchExtra p)
+     tag "span" ["class=info"] (showExtra $ Right p)
     ,maybe "" (showTime . fst) $ find ((==) p . snd) submitted
     ,if p `elem` concatMap (snd . thd3) updates then tag "span" ["class=good"] "Merged"
      else if p `elem` snd active then
