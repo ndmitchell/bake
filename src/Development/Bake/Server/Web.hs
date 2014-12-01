@@ -52,13 +52,11 @@ web oven@Oven{..} args server = do
 
 
 linearise :: Server -> [Either State Patch]
-linearise Server{..} = (active : map thd3 updates) `rmerge` (map snd submitted)
+linearise Server{..} = reverse $ map snd $ sortOn fst $ states ++ patches
     where
-        rmerge xs ys = reverse $ merge [] xs ys
-
-        merge seen ((s,deps):ss) ps | null $ deps \\ seen = Left s : merge seen ss ps
-        merge seen ss (p:ps) = Right p : merge (p:seen) ss ps
-        merge seen ss [] = map (Left . fst) ss
+        states = [ (fmap fst3 $ find ((==) s . snd3) updates, Left s)
+                 | s <- nub $ fst active : map snd3 updates ++ map (fst . thd3) updates]
+        patches = map (Just *** Right) submitted
 
 
 data Shower = Shower
