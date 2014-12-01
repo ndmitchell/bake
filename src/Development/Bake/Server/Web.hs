@@ -17,6 +17,7 @@ import Data.Tuple.Extra
 import System.Time.Extra
 import Data.Version
 import Paths_bake
+import qualified Data.Map as Map
 
 
 web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
@@ -30,7 +31,7 @@ web oven@Oven{..} args server = do
             ,"<h2>Patches</h2>"] ++
             table "No patches submitted" ["Patch","Time","Status"] (map (patch shower server) $ linearise server) ++
             ["<h2>Clients</h2>"] ++
-            table "No clients available" ["Name","Running"] (map (client shower server) clients)
+            table "No clients available" ["Name","Running"] (map (client shower server) $ Map.keys $ pings server)
          else
             let ask x = map snd $ filter ((==) x . fst) args in
             ["<h1><a href='?'>Bake Continuous Integration</a></h1>"] ++
@@ -47,8 +48,6 @@ web oven@Oven{..} args server = do
                 _ -> [])
         ) ++
         suffix
-    where
-        clients = sort $ nub $ map (pClient . snd) $ pings server
 
 
 linearise :: Server -> [Either State Patch]
@@ -173,7 +172,7 @@ patch Shower{..} Server{..} (Left s) =
 
 
 patch Shower{..} Server{..} (Right p) =
-    [showPatch p ++ " by " ++ commasLimit 3 [a | (pp,a) <- authors, Just p == pp] ++ "<br />" ++
+    [showPatch p ++ " by " ++ commasLimit 3 (Map.findWithDefault [] (Just p) authors) ++ "<br />" ++
      tag "span" ["class=info"] (showPatchExtra p)
     ,maybe "" (showTime . fst) $ find ((==) p . snd) submitted
     ,if p `elem` concatMap (snd . thd3) updates then tag "span" ["class=good"] "Merged"

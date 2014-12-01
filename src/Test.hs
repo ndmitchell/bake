@@ -5,7 +5,7 @@ import Development.Shake.Command
 import System.Directory.Extra
 import System.IO.Extra
 import System.Time.Extra
-import System.Environment
+import System.Environment.Extra
 import System.FilePath
 import Control.Monad.Extra
 import Control.Exception.Extra
