@@ -28,7 +28,7 @@ web oven@Oven{..} args server = do
         (if null args then
             ["<h1>Bake Continuous Integration</h1>"
             ,"<h2>Patches</h2>"] ++
-            table "No patches submitted" ["Patch","Status"] (map (patch shower server) $ linearise server) ++
+            table "No patches submitted" ["Patch","Time","Status"] (map (patch shower server) $ linearise server) ++
             ["<h2>Clients</h2>"] ++
             table "No clients available" ["Name","Running"] (map (client shower server) clients)
          else
@@ -149,6 +149,7 @@ runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
 patch :: Shower -> Server -> Either State Patch -> [String]
 patch Shower{..} Server{..} (Left s) =
     [showState s
+    ,maybe "" (showTime . fst3) $ find ((==) s . snd3) updates
     ,if s /= fst active || null running then tag "span" ["class=good"] "Valid"
      else "Testing (passed " ++ show (length $ nubOn (qTest . snd) $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show (todo+1)) ++ ")<br />" ++
         tag "span" ["class=info"]
@@ -174,6 +175,7 @@ patch Shower{..} Server{..} (Left s) =
 patch Shower{..} Server{..} (Right p) =
     [showPatch p ++ " by " ++ commasLimit 3 [a | (pp,a) <- authors, Just p == pp] ++ "<br />" ++
      tag "span" ["class=info"] (showPatchExtra p)
+    ,maybe "" (showTime . fst) $ find ((==) p . snd) submitted
     ,if p `elem` concatMap (snd . thd3) updates then tag "span" ["class=good"] "Merged"
      else if p `elem` snd active then
         "Testing (passed " ++ show (length $ nubOn (qTest . snd) $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show (todo+1)) ++ ")<br />" ++
