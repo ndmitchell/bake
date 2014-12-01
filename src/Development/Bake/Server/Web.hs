@@ -147,7 +147,8 @@ runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
 
 patch :: Shower -> Server -> Either State Patch -> [String]
 patch Shower{..} Server{..} (Left s) =
-    ["State " ++ showState s
+    ["State " ++ showState s ++ "<br />" ++
+     tag "span" ["class=info"] (showExtra $ Left s)
     ,maybe "" (showTime . fst3) $ find ((==) s . snd3) updates
     ,if s /= fst active || null running then tag "span" ["class=good"] "Valid"
      else "Testing (passed " ++ show (length $ nubOn (qTest . snd) $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show (todo+1)) ++ ")<br />" ++
