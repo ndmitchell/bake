@@ -29,12 +29,12 @@ data Server = Server
         -- ^ Updates that have been made
     ,pings :: Map Client (Timestamp, Ping)
         -- ^ Latest time of a ping sent by each client
-    ,active :: (State, [Patch])
+    ,target :: (State, [Patch])
         -- ^ The candidate we are currently aiming to prove
     ,inconsistent :: [Test]
-        -- ^ These that have shown themselves to be inconsistent (reset on any update)
+        -- ^ These that have shown themselves to be inconsistent (accumulates only)
     ,paused :: Maybe [(Timestamp, Patch)]
-        -- ^ 'Just' if we are paused, and the number of people queued up (reset active becomes empty)
+        -- ^ 'Just' if we are paused, and the number of people queued up (reset target becomes empty)
     ,submitted :: [(Timestamp, Patch)]
         -- ^ List of all patches that have been submitted over time
     ,authors :: Map (Maybe Patch) [Author]

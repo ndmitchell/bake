@@ -50,7 +50,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                         Right v -> do
                             fmap questionToOutput $ modifyCVar var $ \s -> do
                                 case v of
-                                    AddPatch _ p -> addDelayCache (extra s) (Right p) $ patchExtra (fst $ active s) $ Just p
+                                    AddPatch _ p -> addDelayCache (extra s) (Right p) $ patchExtra (fst $ target s) $ Just p
                                     _ -> return ()
                                 operate timeout oven v s
                     )
@@ -75,21 +75,21 @@ patchExtra s p = do
 
 operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
 operate timeout oven message server = case message of
-    AddPatch author p | (s, ps) <- active server -> do
+    AddPatch author p | (s, ps) <- target server -> do
         whenLoud $ print ("Add patch to",s,snoc ps p)
         now <- getTimestamp
         dull server
-            {active = (s, snoc ps p)
+            {target = (s, snoc ps p)
             ,authors = Map.insertWith (++) (Just p) [author] $ authors server
             ,submitted = (now,p) : submitted server}
-    DelPatch author p | (s, ps) <- active server -> dull server{active = (s, delete p ps)}
+    DelPatch author p | (s, ps) <- target server -> dull server{target = (s, delete p ps)}
     Pause author -> dull server{paused = Just $ fromMaybe [] $ paused server}
-    Unpause author | (s, ps) <- active server ->
-        dull server{paused=Nothing, active = (s, ps ++ maybe [] (map snd) (paused server))}
+    Unpause author | (s, ps) <- target server ->
+        dull server{paused=Nothing, target = (s, ps ++ maybe [] (map snd) (paused server))}
     Finished q a -> do
         when (not $ aSuccess a) $ do
             putStrLn $ replicate 70 '#'
-            print (active server, q, a{aStdout=strPack ""})
+            print (target server, q, a{aStdout=strPack ""})
             putStrLn $ strUnpack $ aStdout a
             putStrLn $ replicate 70 '#'
         server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
@@ -109,21 +109,21 @@ operate timeout oven message server = case message of
                     server <- return $ server{history = (now,q,Nothing) : history server}
                     return $ Right (server, Just q)
                 Update -> do
-                    dir <- createDir "bake-test" $ fromState (fst $ active server) : map fromPatch (snd $ active server)
+                    dir <- createDir "bake-test" $ fromState (fst $ target server) : map fromPatch (snd $ target server)
                     s <- withCurrentDirectory dir $
-                        ovenUpdateState oven $ Just $ active server
-                    ovenNotify oven [a | p <- snd $ active server, a <- Map.findWithDefault [] (Just p) $ authors server] $ unlines
+                        ovenUpdateState oven $ Just $ target server
+                    ovenNotify oven [a | p <- snd $ target server, a <- Map.findWithDefault [] (Just p) $ authors server] $ unlines
                         ["Your patch just made it in"]
                     addDelayCache (extra server) (Left s) $ patchExtra s Nothing
-                    return $ Left server{active=(s, []), updates=(now,s,active server):updates server}
+                    return $ Left server{target=(s, []), updates=(now,s,target server):updates server}
                 Reject p t -> do
                     ovenNotify oven (Map.findWithDefault [] (Just p) (authors server)) $ unlines
                         ["Your patch " ++ show p ++ " got rejected","Failure in test " ++ show t]
-                    return $ Left server{active=second (delete p) $ active server}
+                    return $ Left server{target=second (delete p) $ target server}
                 Broken t -> do
-                    ovenNotify oven [a | p <- Nothing : map Just (snd $ active server), a <- Map.findWithDefault [] p $ authors server] $ unlines
+                    ovenNotify oven [a | p <- Nothing : map Just (snd $ target server), a <- Map.findWithDefault [] p $ authors server] $ unlines
                         ["Eek, it's all gone horribly wrong","Failure with no patches in test " ++ show t]
-                    return $ Left server{active=(fst $ active server, [])}
+                    return $ Left server{target=(fst $ target server, [])}
     where
         dull s = return (s,Nothing)
 

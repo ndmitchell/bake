@@ -54,7 +54,7 @@ linearise :: Server -> [Either State Patch]
 linearise Server{..} = reverse $ map snd $ sortOn fst $ states ++ patches
     where
         states = [ (fmap fst3 $ find ((==) s . snd3) updates, Left s)
-                 | s <- nub $ fst active : map snd3 updates ++ map (fst . thd3) updates]
+                 | s <- nub $ fst target : map snd3 updates ++ map (fst . thd3) updates]
         patches = map (Just *** Right) submitted
 
 
@@ -150,7 +150,7 @@ patch Shower{..} Server{..} (Left s) =
     ["State " ++ showState s ++ "<br />" ++
      tag "span" ["class=info"] (showExtra $ Left s)
     ,maybe "" (showTime . fst3) $ find ((==) s . snd3) updates
-    ,if s /= fst active || null running then tag "span" ["class=good"] "Valid"
+    ,if s /= fst target || null running then tag "span" ["class=good"] "Valid"
      else "Testing (passed " ++ show (length $ nubOn (qTest . snd) $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show (todo+1)) ++ ")<br />" ++
         tag "span" ["class=info"]
             (if any (not . fst) done then "Retrying " ++ commasLimit 3 (nub [showTest (qTest t) | (False,t) <- done])
@@ -177,7 +177,7 @@ patch Shower{..} Server{..} (Right p) =
      tag "span" ["class=info"] (showExtra $ Right p)
     ,maybe "" (showTime . fst) $ find ((==) p . snd) submitted
     ,if p `elem` concatMap (snd . thd3) updates then tag "span" ["class=good"] "Merged"
-     else if p `elem` snd active then
+     else if p `elem` snd target then
         "Testing (passed " ++ show (length $ nubOn (qTest . snd) $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show (todo+1)) ++ ")<br />" ++
         tag "span" ["class=info"]
             (if any (not . fst) done then "Retrying " ++ commasLimit 3 (nub [showTestPatch p (qTest t) | (False,t) <- done])
@@ -205,6 +205,6 @@ patch Shower{..} Server{..} (Right p) =
 client :: Shower -> Server -> Client -> [String]
 client Shower{..} Server{..} c =
     [tag "a" ["href=?client=" ++ fromClient c] $ fromClient c
-    ,if null active then "<i>None</i>"
-     else commas $ map showTestQuestion active]
-    where active = [q | (_,q@Question{..},Nothing) <- history, qClient == c]
+    ,if null target then "<i>None</i>"
+     else commas $ map showTestQuestion target]
+    where target = [q | (_,q@Question{..},Nothing) <- history, qClient == c]
