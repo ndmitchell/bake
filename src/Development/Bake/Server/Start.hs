@@ -34,6 +34,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
     state0 <- initialState oven
     var <- do
         extra <- newDelayCache
+        addDelayCache extra (Left state0) $ patchExtra state0 Nothing
         newCVar $ Server [] [] Map.empty (state0,[]) [] Nothing [] (Map.fromList [(Nothing,[author])]) extra
     server port $ \i@Input{..} -> do
         whenLoud $ print i
@@ -113,6 +114,7 @@ operate timeout oven message server = case message of
                         ovenUpdateState oven $ Just $ active server
                     ovenNotify oven [a | p <- snd $ active server, a <- Map.findWithDefault [] (Just p) $ authors server] $ unlines
                         ["Your patch just made it in"]
+                    addDelayCache (extra server) (Left s) $ patchExtra s Nothing
                     return $ Left server{active=(s, []), updates=(now,s,active server):updates server}
                 Reject p t -> do
                     ovenNotify oven (Map.findWithDefault [] (Just p) (authors server)) $ unlines
