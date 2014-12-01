@@ -21,6 +21,9 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 
 
+---------------------------------------------------------------------
+-- THE DATA TYPE
+
 data Server = Server
     {history :: [(Timestamp, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
@@ -43,6 +46,9 @@ data Server = Server
         -- ^ Extra information that was computed for each string (cached forever)
     }
 
+
+---------------------------------------------------------------------
+-- CHECKS ON THE SERVER
 
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
 serverPrune :: UTCTime -> Server -> Server
