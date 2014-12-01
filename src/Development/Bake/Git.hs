@@ -98,8 +98,10 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
 
         gitPatchExtra s Nothing = traced "gitPatchExtra Nothing" $ do
             mirror <- gitInitMirror
-            Stdout full <- cmd (Cwd mirror) "git log -n3" [fromSHA1 s]
-            return (concat $ take 1 $ lines full, tag_ "pre" full)
+            Stdout full <- cmd (Cwd mirror) "git log --no-merges -n10 --pretty=format:%s" [fromSHA1 s]
+            Stdout count <- cmd (Cwd mirror) "git rev-list --count" [fromSHA1 s]
+            let summary = takeWhile (/= '\n') full
+            return (count ++ " patches<br />\n" ++ summary, tag_ "pre" full)
 
         gitPatchExtra (SHA1 s) (Just (SHA1 p)) = traced "gitPatchExtra Just" $ do
             mirror <- gitInitMirror
