@@ -24,17 +24,17 @@ import qualified Data.Map as Map
 data Server = Server
     {history :: [(Timestamp, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
-        --   The aStdout has been written to disk, and the value is a filename containing the stdout.
     ,updates :: [(Timestamp, State, (State, [Patch]))]
         -- ^ Updates that have been made
     ,pings :: Map Client (Timestamp, Ping)
         -- ^ Latest time of a ping sent by each client
     ,target :: (State, [Patch])
         -- ^ The candidate we are currently aiming to prove
-    ,inconsistent :: [Test]
-        -- ^ These that have shown themselves to be inconsistent (accumulates only)
+        --   Nothing is currently resting, Just [] is testing the empty state
+    ,blacklist :: [Test]
+        -- ^ Tests that have been blacklisted by hand
     ,paused :: Maybe [(Timestamp, Patch)]
-        -- ^ 'Just' if we are paused, and the number of people queued up (reset target becomes empty)
+        -- ^ 'Just' if we are paused, and the number of people queued up (reset when target becomes Nothing)
     ,submitted :: [(Timestamp, Patch)]
         -- ^ List of all patches that have been submitted over time
     ,authors :: Map (Maybe Patch) [Author]
