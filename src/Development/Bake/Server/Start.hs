@@ -49,7 +49,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                         Right v -> do
                             fmap questionToOutput $ modifyCVar var $ \s -> do
                                 case v of
-                                    AddPatch _ p -> addDelayCache (extra s) (Right p) $ patchExtra (fst $ active s) p
+                                    AddPatch _ p -> addDelayCache (extra s) (Right p) $ patchExtra (fst $ active s) $ Just p
                                     _ -> return ()
                                 operate timeout oven v s
                     )
@@ -59,15 +59,15 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
 
 
 -- | Get information about a patch
-patchExtra :: State -> Patch -> IO (Str, Str)
+patchExtra :: State -> Maybe Patch -> IO (Str, Str)
 patchExtra s p = do
     exe <- getExecutablePath
-    dir <- createDir "bake-extra" [fromState s, fromPatch p]
+    dir <- createDir "bake-extra" $ fromState s : maybeToList (fmap fromPatch p)
     res <- try_ $ do
         unit $ cmd (Cwd dir) exe "runextra"
             "--output=extra.txt"
             ["--state=" ++ fromState s]
-            ["--patch=" ++ fromPatch p]
+            ["--patch=" ++ fromPatch p | Just p <- [p]]
         fmap read $ readFile $ dir </> "extra.txt"
     fmap (both strPack) $ either (fmap dupe . showException) return res
 
