@@ -104,9 +104,9 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
         gitPatchExtra (SHA1 s) (Just (SHA1 p)) = traced "gitPatchExtra Just" $ do
             mirror <- gitInitMirror
             Stdout diff <- cmd (Cwd mirror)
-                "git diff" [s ++ ".." ++ p]
+                "git diff" [s ++ "..." ++ p]
             Stdout stat <- cmd (Cwd mirror)
-                "git diff --stat" [s ++ ".." ++ p]
+                "git diff --stat" [s ++ "..." ++ p]
             Stdout log <- cmd (Cwd mirror)
                 "git log --no-merges -n1 --pretty=format:%s" [p]
             return (reduceStat stat ++ "<br />\n" ++ takeWhile (/= '\n') log
