@@ -15,7 +15,7 @@ import Data.List.Extra
 data Neuron
     = Sleep -- nothing useful to do
     | Task Question
-    | Update -- update to the target state
+    | Update (State, [Patch])-- update to the target state
     | Reject Patch (Maybe Test) -- reject this patch
     | Broken (Maybe Test) -- the target state with zero patches has ended up broken
       deriving Show
@@ -23,7 +23,7 @@ data Neuron
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron
 brains info Server{..} Ping{..}
-    | allTestsPass target = if null (snd target) then Sleep else Update
+    | allTestsPass target = if null (snd target) then Sleep else Update target
     | t:_ <- minimumRelation dependsMay $ failingTests target = erroneous t target
     | otherwise = let next = filter (suitableTest target) $ allTests target
                   in taskMay target $ listToMaybe next

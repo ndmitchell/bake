@@ -108,14 +108,14 @@ operate timeout oven message server = case message of
                     when (qClient q /= pClient ping) $ error "client doesn't match the ping"
                     server <- return $ server{history = (now,q,Nothing) : history server}
                     return $ Right (server, Just q)
-                Update -> do
-                    dir <- createDir "bake-test" $ fromState (fst $ target server) : map fromPatch (snd $ target server)
-                    s <- withCurrentDirectory dir $
-                        ovenUpdateState oven $ Just $ target server
-                    ovenNotify oven [a | p <- snd $ target server, a <- Map.findWithDefault [] (Just p) $ authors server] $ unlines
+                Update (s,ps) -> do
+                    dir <- createDir "bake-test" $ fromState s : map fromPatch ps
+                    s2 <- withCurrentDirectory dir $
+                        ovenUpdateState oven $ Just (s,ps)
+                    ovenNotify oven [a | p <- ps, a <- Map.findWithDefault [] (Just p) $ authors server] $ unlines
                         ["Your patch just made it in"]
-                    addDelayCache (extra server) (Left s) $ patchExtra s Nothing
-                    return $ Left server{target=(s, []), updates=(now,s,target server):updates server}
+                    addDelayCache (extra server) (Left s2) $ patchExtra s2 Nothing
+                    return $ Left server{target=(s2, snd (target server) \\ ps), updates=(now,s2,(s,ps)):updates server}
                 Reject p t -> do
                     ovenNotify oven (Map.findWithDefault [] (Just p) (authors server)) $ unlines
                         ["Your patch " ++ show p ++ " got rejected","Failure in test " ++ show t]
