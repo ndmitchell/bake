@@ -16,11 +16,13 @@ import Data.IORef
 import Data.Char
 import qualified Example
 
+import Development.Bake.Test.Simulate
 
 main :: IO ()
 main = do
     args <- getArgs
     if args /= [] then Example.main else do
+        replicateM 20 simulate
         dir <- getCurrentDirectory
         test $ dir ++ "/.bake-test"
 
