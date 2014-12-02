@@ -35,7 +35,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
     var <- do
         extra <- newDelayCache
         addDelayCache extra (Left state0) $ patchExtra state0 Nothing
-        newCVar $ Server [] [] Map.empty (state0,[]) [] Nothing [] (Map.fromList [(Nothing,[author])]) extra
+        newCVar $ Server [] [] Map.empty (state0,[]) Nothing [] (Map.fromList [(Nothing,[author])]) extra
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do

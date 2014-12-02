@@ -34,8 +34,6 @@ data Server = Server
         -- ^ Latest time of a ping sent by each client
     ,target :: (State, [Patch])
         -- ^ The candidate we are currently aiming to prove
-    ,blacklist :: [Test]
-        -- ^ Tests that have been blacklisted by hand
     ,paused :: Maybe [(Timestamp, Patch)]
         -- ^ 'Just' if we are paused, and the number of people queued up (reset when target becomes Nothing)
     ,submitted :: [(Timestamp, Patch)]
