@@ -71,7 +71,9 @@ algebraPatch server p
     | p `elem` concatMap (snd . thd3) (updates server) = Accepted
     | p `elem` maybe [] (map snd) (paused server) = Paused
 algebraPatch server p
-    | poss <- [ ((second init qCandidate, qTest), q)
+    -- we may have previously failed, but been requeued, so if we're active don't hunt for reject
+    | p `notElem` snd (target server)
+    , poss <- [ ((second init qCandidate, qTest), q)
               | (_,q@Question{..},Just Answer{..}) <- history server
               , not aSuccess, [p] `isSuffixOf` snd qCandidate]
     , real <- [ q
@@ -82,7 +84,7 @@ algebraPatch server p
     = Rejected $ nub real
 algebraPatch server p
     | total:_ <- map (aTests . snd) $ answered server [test' Nothing, patch' p]
-    , done <- nub $ mapMaybe (qTest . fst) $ answered server [patch' p]
+    , done <- nub $ mapMaybe (qTest . fst) $ answered server [patch' p, success']
     , todo <- total \\ done
     = Progressing done todo
 algebraPatch _ _ = Unknown
