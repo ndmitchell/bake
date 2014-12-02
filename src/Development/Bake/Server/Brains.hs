@@ -7,6 +7,7 @@ module Development.Bake.Server.Brains(
 import Development.Bake.Core.Message
 import Development.Bake.Core.Type
 import Development.Bake.Server.Type
+import Development.Bake.Server.Algebra
 import Data.Maybe
 import Control.Monad
 import Data.List.Extra
@@ -22,8 +23,9 @@ data Neuron
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron
-brains info Server{..} Ping{..}
-    | allTestsPass target = if null (snd target) then Sleep else Update target
+brains info server@Server{..} Ping{..}
+    | bless@(_:_) <- blessedTargetPrefix server = Update (fst target, bless)
+    | blessedState server target = Sleep
     | t:_ <- minimumRelation dependsMay $ failingTests target = erroneous t target
     | otherwise = let next = filter (suitableTest target) $ allTests target
                   in taskMay target $ listToMaybe next
@@ -44,10 +46,6 @@ brains info Server{..} Ping{..}
         -- all the tests we know about for this candidate, may be incomplete if Nothing has not passed (yet)
         allTests c = (Nothing:) $ map Just $ concat $ take 1 $
             map (aTests . snd) $ success_ $ test_ Nothing $ answered_ $ candidate_ c it
-
-        -- are all tests passing for this candidate
-        allTestsPass c = flip all (allTests c) $ \t ->
-            not $ null $ success_ $ test_ t $ answered_ $ candidate_ c it
 
         -- what tests are failing for this candidate
         failingTests c = map (qTest . fst) $ failure_ $ answered_ $ candidate_ c it
