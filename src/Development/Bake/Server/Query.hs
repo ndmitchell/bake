@@ -2,7 +2,7 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Query(
-    Query, true', false', (&&^), (||^),
+    Query,
     asked, answered, unanswered,
     translate',
     answered', unanswered', success', failure', test',
@@ -20,12 +20,10 @@ import Data.List.Extra
 
 type Query = Server -> Question -> Maybe Answer -> Bool
 
-(&&^), (||^) :: Query -> Query -> Query
+(&&^) :: Query -> Query -> Query
 (&&^) f g s q a = f s q a && g s q a
-(||^) f g s q a = f s q a || g s q a
 
-false', true' :: Query
-false' _ _ _ = False
+true' :: Query
 true' _ _ _ = True
 
 
