@@ -24,7 +24,7 @@ data Neuron
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron
 brains info server@Server{..} Ping{..}
-    | bless@(_:_) <- blessedTargetPrefix server = Update (fst target, bless)
+    | bless@(_:_) <- targetBlessedPrefix server = Update (fst target, bless)
     | blessedState server target = Sleep
     | t:_ <- minimumRelation dependsMay $ failingTests target = erroneous t target
     | otherwise = let next = filter (suitableTest target) $ allTests target

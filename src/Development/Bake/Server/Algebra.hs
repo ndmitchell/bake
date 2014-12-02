@@ -2,7 +2,7 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Algebra(
-    blessedTargetPrefix, blessedState,
+    targetBlessedPrefix, blessedState,
     targetFailures,
     Algebra(..), algebraZero, algebraPatch
     ) where
@@ -19,8 +19,8 @@ import Data.List.Extra
 
 -- | Given the current target, what prefix is already blessed.
 --   Usually the empty list, can immediately be rolled into the target.
-blessedTargetPrefix :: Server -> [Patch]
-blessedTargetPrefix server@Server{..} = head $ filter isBlessed $ reverse $ inits $ snd target
+targetBlessedPrefix :: Server -> [Patch]
+targetBlessedPrefix server@Server{..} = head $ filter isBlessed $ reverse $ inits $ snd target
     where
         isBlessed [] = True
         isBlessed ps = blessedState server (fst target, ps)
