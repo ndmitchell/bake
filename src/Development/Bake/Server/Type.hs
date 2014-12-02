@@ -2,7 +2,7 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Type(
-    Server(..),
+    Server(..), state0,
     Question(..), Answer(..), Ping(..),
     serverConsistent, serverPrune,
     ) where
@@ -44,6 +44,9 @@ data Server = Server
     ,extra :: DelayCache (Either State Patch) (Str, Str)
         -- ^ Extra information that was computed for each string (cached forever)
     }
+
+state0 :: Server -> State
+state0 Server{..} = last $ map (fst . thd3) updates ++ [fst target]
 
 
 ---------------------------------------------------------------------
