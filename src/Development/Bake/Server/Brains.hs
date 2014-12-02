@@ -10,8 +10,8 @@ import Development.Bake.Server.Type
 import Development.Bake.Server.Query
 import Control.Applicative
 import Data.Maybe
-import Control.Monad
 import Data.List.Extra
+import Data.Tuple.Extra
 
 
 data Neuron
@@ -27,59 +27,33 @@ brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron
 brains info server@Server{..} Ping{..}
     | bless@(_:_) <- targetBlessedPrefix server = Update (fst target, bless)
     | blessedState server target = Sleep
-
-{-
-
-    | blame@(_:_) <- targetBlame server = uncurry Reject blame
-    | (c,t):_ <- filter (uncurry suitableTest) $ todoFail ++ todoPass
+    | blame:_ <- targetBlame server = uncurry Reject blame
+    | t:_ <- failures, null (snd target) = Broken $ fst t
+    | (c,t):_ <- filter (uncurry suitableTest) $ unasked todoFail ++ unasked todoPass
         = Task $ Question c t (threadsForTest t) pClient
     | otherwise = Sleep
     where
-        -- all the tests, sorted so those which have been done least are first
-        todoPass = map fst $ sortOn (negate . length . nub . concat . snd) $ groupSort $
-            [(qTest, snd qCandidate) | (Question{..},_) <- state' (fst target) $ answered server [success']] ++
-            map (,[]) (allTests target)
-
-        todoFail = targetFailures 
-
-
-{-
-test, how much you want to do it
--}
-
-
         failures = targetFailures server
 
+        unasked xs = no ++ yes
+            where started = map (qCandidate &&& qTest) $ map fst $ asked server []
+                  (yes, no) = partition (`elem` started) xs
 
-        todoBad = 
+        -- all the tests, sorted so those which have been done least are first
+        todoPass = map ((target,) . fst) $ sortOn (negate . length . nub . concat . snd) $ groupSort $
+            [(qTest, snd qCandidate) | (Question{..},_) <- translate' server (fst target) $ answered server [success']] ++
+            map (,[]) (allTests target)
+
+        todoFail = [((fst target, init ps), t) | (t, ps@(_:_)) <- failures, t <- dependencies t]
 
 
-    | fails@(_:_) <- targetFailures server = 
--}
-
-    | t:_ <- minimumRelation dependsMay $ failingTests target = erroneous t target
-    | otherwise = let next = filter (suitableTest target) $ allTests target
-                  in taskMay target $ listToMaybe next
-    where
-        taskMay c t = maybe Sleep (\t -> Task $ Question c t (threadsForTest t) pClient) t
-        dependsMay Nothing = []
-        dependsMay (Just t) = Nothing : map Just (testRequire $ info t)
-
-        erroneous t (s, o@(unsnoc -> Just (ps,p))) =
-            case (stateTest (s, o) t, stateTest (s, ps) t) of
-                (Just True, _) -> error "logical inconsistentcy in brains, expected erroneous test"
-                (Just False, Just True) -> Reject p t
-                (Just False, Just False) -> erroneous t (s,ps)
-                (Nothing, _) -> taskMay (s, o ) $ scheduleTest (s, o ) t
-                (_, Nothing) -> taskMay (s, ps) $ scheduleTest (s, ps) t
-        erroneous t (s, []) = Broken t
+        dependencies = transitiveClosure $ \t -> case t of
+            Nothing -> []
+            Just t -> Nothing : map Just (testRequire $ info t)
 
         -- all the tests we know about for this candidate, may be incomplete if Nothing has not passed (yet)
         allTests c = (Nothing:) $ map Just $ concat $ take 1 $
             map (aTests . snd) $ success_ $ test_ Nothing $ answered_ $ candidate_ c it
-
-        -- what tests are failing for this candidate
-        failingTests c = map (qTest . fst) $ failure_ $ answered_ $ candidate_ c it
 
         -- how many threads does this test require
         threadsForTest = maybe 1 (fromMaybe pMaxThreads . testThreads . info)
@@ -99,21 +73,6 @@ test, how much you want to do it
             = True
         suitableTest _ _ = False
 
-        -- what is the state of this candidate/test, either Just v (aSuccess) or Nothing (not tried)
-        stateTest c t = fmap aSuccess $ join $ fmap snd $ listToMaybe $ test_ t $ candidate_ c it
-
-        -- given that I want to run this particular test, what test should I do next
-        -- must pass suitableTest
-        scheduleTest c Nothing =
-            if suitableTest c Nothing then Just Nothing else Nothing
-        scheduleTest c t@(Just tt)
-            | [clientTests] <- map (fst . aTestsSuitable . snd) $ self_ $ success_ $ test_ Nothing $ answered_ $ candidate_ c it
-            , tt `elem` clientTests -- the target is one of the tests this client is suitable for
-            = listToMaybe $ filter (suitableTest c) $ transitiveClosure dependsMay t
-        scheduleTest c t@(Just tt)
-            | null $ self_ $ test_ Nothing $ candidate_ c it -- have never prepared on this client
-            = Just Nothing
-        scheduleTest _ _ = Nothing
 
         -- query language
         it = [(q,a) | (_,q,a) <- history]
@@ -121,18 +80,12 @@ test, how much you want to do it
         test_ t = filter ((==) t . qTest . fst) 
         self_ = filter ((==) pClient . qClient . fst) 
         success_ = filter (aSuccess . snd)
-        failure_ = filter (not . aSuccess . snd)
         answered_ x = [(q,a) | (q,Just a) <- x]
 
 
 transitiveClosure :: Eq a => (a -> [a]) -> a -> [a]
 transitiveClosure f = nub . g
     where g x = x : concatMap g (f x)
-
-minimumRelation :: Eq a => (a -> [a]) -> [a] -> [a]
-minimumRelation f (x:xs) = [x | disjoint (transitiveClosure f x) xs] ++ minimumRelation f xs
-minimumRelation f [] = []
-
 
 
 -- | Given the current target, what prefix is already blessed.
@@ -151,3 +104,12 @@ blessedState server c
     , todo:_ <- aTests . snd <$> f Nothing
     = all (not . null . f . Just) todo
 blessedState _ _ = False
+
+
+-- | Which failures have occured for patches whose prefix is in the target.
+--   The earliest failure (by timestamp) will be first
+targetBlame :: Server -> [(Patch, Maybe Test)]
+targetBlame server@Server{..} =
+    [ (last $ snd $ qCandidate q, qTest q)
+    | (q, a) <- translate' server (fst target) $ answered server
+        [blame', candidateBy' (fst target) $ \ps -> ps `isPrefixOf` snd target && not (null ps)]]
