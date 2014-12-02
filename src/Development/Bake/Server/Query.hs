@@ -6,7 +6,7 @@ module Development.Bake.Server.Query(
     asked, answered, unanswered,
     translate',
     answered', unanswered', success', failure', test',
-    candidate', candidateBy', patch', blame', lastPatch',
+    candidate', candidateBy', patch', blame', lastPatch', client',
     targetFailures
     ) where
 
@@ -47,6 +47,8 @@ success', failure' :: Query
 success' _ _ = maybe False aSuccess
 failure' _ _ = maybe False (not . aSuccess)
 
+client' :: Client -> Query
+client' c _ q _ = qClient q == c
 
 test' :: Maybe Test -> Query
 test' t _ q _ = qTest q == t
