@@ -6,7 +6,7 @@ module Development.Bake.Server.Query(
     asked, answered, unanswered,
     translate',
     answered', unanswered', success', failure', test',
-    candidate', candidateBy', patch', blame', lastPatch', client',
+    candidate', candidateBy', candidateExact', patch', blame', lastPatch', client',
     targetFailures
     ) where
 
@@ -52,6 +52,9 @@ client' c _ q _ = qClient q == c
 
 test' :: Maybe Test -> Query
 test' t _ q _ = qTest q == t
+
+candidateExact' :: (State, [Patch]) -> Query
+candidateExact' c _ q _ = qCandidate q == c
 
 candidate' :: (State, [Patch]) -> Query
 candidate' (s,ps) = candidateBy' s (== ps)
