@@ -75,7 +75,7 @@ simulate = do
                 return s{active = q : active s, server = (server s){history = (t,q,Nothing) : history (server s)} }
             Update (ss, ps) -> do
                 let (oss, ops) = target $ server s
-                let (nss, nps) = (restate $ unstate oss ++ ps, ops \\ ps)
+                let (nss, nps) = (restate $ unstate ss ++ ps, ops \\ ps)
                 return s{accepted = ps ++ accepted s
                         ,server = (server s){target = (nss,nps), updates = (t, nss, (oss, ops)) : updates (server s)}}
             Reject p t -> do
