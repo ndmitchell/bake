@@ -53,34 +53,28 @@ brains info server@Server{..} Ping{..}
 
         -- all the tests we know about for this candidate, may be incomplete if Nothing has not passed (yet)
         allTests c = (Nothing:) $ map Just $ concat $ take 1 $
-            map (aTests . snd) $ success_ $ test_ Nothing $ answered_ $ candidate_ c it
+            map (aTests . snd) $ answered server [success', test' Nothing, candidate' c]
 
         -- how many threads does this test require
         threadsForTest = maybe 1 (fromMaybe pMaxThreads . testThreads . info)
 
         -- can this candidate start running this test
+        -- use candidateExact since we must have prepared in this directory for it to work
         suitableTest c t
             | threadsForTest t > pNowThreads = False -- not enough threads
         suitableTest c Nothing
-            | null $ self_ $ test_ Nothing $ candidate_ c it -- I am not already running it
+            | null $ asked server [self', test' Nothing, candidateExact' c] -- I am not already running it
             = True
         suitableTest c t@(Just tt)
-            | [clientTests] <- map (fst . aTestsSuitable . snd) $ self_ $ success_ $ test_ Nothing $ answered_ $ candidate_ c it
+            | clientTests:_ <- map (fst . aTestsSuitable . snd) $ answered server [self', success', test' Nothing, candidateExact' c]
             , tt `elem` clientTests -- it is one of the tests this client is suitable for
-            , null $ test_ t $ self_ $ candidate_ c it -- I am not running it or have run it
-            , clientDone <- map (qTest . fst) $ success_ $ answered_ $ self_ $ candidate_ c it
+            , null $ asked server [test' t, self', candidateExact' c] -- I am not running it or have run it
+            , clientDone <- map (qTest . fst) $ answered server [success', self', candidateExact' c]
             , all (`elem` clientDone) $ map Just $ testRequire $ info tt -- I have done all the dependencies
             = True
         suitableTest _ _ = False
 
-
-        -- query language
-        it = [(q,a) | (_,q,a) <- history]
-        candidate_ c = filter ((==) c . qCandidate . fst)
-        test_ t = filter ((==) t . qTest . fst) 
-        self_ = filter ((==) pClient . qClient . fst) 
-        success_ = filter (aSuccess . snd)
-        answered_ x = [(q,a) | (q,Just a) <- x]
+        self' = client' pClient
 
 
 transitiveClosure :: Eq a => (a -> [a]) -> a -> [a]
