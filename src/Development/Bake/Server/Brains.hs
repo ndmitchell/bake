@@ -43,14 +43,14 @@ brains info Server{..} Ping{..}
 
         -- all the tests we know about for this candidate, may be incomplete if Nothing has not passed (yet)
         allTests c = (Nothing:) $ map Just $ concat $ take 1 $
-            map (aTests . snd) $ success' $ test' Nothing $ answered' $ candidate' c it
+            map (aTests . snd) $ success_ $ test_ Nothing $ answered_ $ candidate_ c it
 
         -- are all tests passing for this candidate
         allTestsPass c = flip all (allTests c) $ \t ->
-            not $ null $ success' $ test' t $ answered' $ candidate' c it
+            not $ null $ success_ $ test_ t $ answered_ $ candidate_ c it
 
         -- what tests are failing for this candidate
-        failingTests c = map (qTest . fst) $ failure' $ answered' $ candidate' c it
+        failingTests c = map (qTest . fst) $ failure_ $ answered_ $ candidate_ c it
 
         -- how many threads does this test require
         threadsForTest = maybe 1 (fromMaybe pMaxThreads . testThreads . info)
@@ -59,41 +59,41 @@ brains info Server{..} Ping{..}
         suitableTest c t
             | threadsForTest t > pNowThreads = False -- not enough threads
         suitableTest c Nothing
-            | null $ self' $ test' Nothing $ candidate' c it -- I am not already running it
+            | null $ self_ $ test_ Nothing $ candidate_ c it -- I am not already running it
             = True
         suitableTest c t@(Just tt)
-            | [clientTests] <- map (fst . aTestsSuitable . snd) $ self' $ success' $ test' Nothing $ answered' $ candidate' c it
+            | [clientTests] <- map (fst . aTestsSuitable . snd) $ self_ $ success_ $ test_ Nothing $ answered_ $ candidate_ c it
             , tt `elem` clientTests -- it is one of the tests this client is suitable for
-            , null $ test' t $ self' $ candidate' c it -- I am not running it or have run it
-            , clientDone <- map (qTest . fst) $ success' $ answered' $ self' $ candidate' c it
+            , null $ test_ t $ self_ $ candidate_ c it -- I am not running it or have run it
+            , clientDone <- map (qTest . fst) $ success_ $ answered_ $ self_ $ candidate_ c it
             , all (`elem` clientDone) $ map Just $ testRequire $ info tt
             = True
         suitableTest _ _ = False
 
         -- what is the state of this candidate/test, either Just v (aSuccess) or Nothing (not tried)
-        stateTest c t = fmap aSuccess $ join $ fmap snd $ listToMaybe $ test' t $ candidate' c it
+        stateTest c t = fmap aSuccess $ join $ fmap snd $ listToMaybe $ test_ t $ candidate_ c it
 
         -- given that I want to run this particular test, what test should I do next
         -- must pass suitableTest
         scheduleTest c Nothing =
             if suitableTest c Nothing then Just Nothing else Nothing
         scheduleTest c t@(Just tt)
-            | [clientTests] <- map (fst . aTestsSuitable . snd) $ self' $ success' $ test' Nothing $ answered' $ candidate' c it
+            | [clientTests] <- map (fst . aTestsSuitable . snd) $ self_ $ success_ $ test_ Nothing $ answered_ $ candidate_ c it
             , tt `elem` clientTests -- the target is one of the tests this client is suitable for
             = listToMaybe $ filter (suitableTest c) $ transitiveClosure dependsMay t
         scheduleTest c t@(Just tt)
-            | null $ self' $ test' Nothing $ candidate' c it -- have never prepared on this client
+            | null $ self_ $ test_ Nothing $ candidate_ c it -- have never prepared on this client
             = Just Nothing
         scheduleTest _ _ = Nothing
 
         -- query language
         it = [(q,a) | (_,q,a) <- history]
-        candidate' c = filter ((==) c . qCandidate . fst)
-        test' t = filter ((==) t . qTest . fst) 
-        self' = filter ((==) pClient . qClient . fst) 
-        success' = filter (aSuccess . snd)
-        failure' = filter (not . aSuccess . snd)
-        answered' x = [(q,a) | (q,Just a) <- x]
+        candidate_ c = filter ((==) c . qCandidate . fst)
+        test_ t = filter ((==) t . qTest . fst) 
+        self_ = filter ((==) pClient . qClient . fst) 
+        success_ = filter (aSuccess . snd)
+        failure_ = filter (not . aSuccess . snd)
+        answered_ x = [(q,a) | (q,Just a) <- x]
 
 
 transitiveClosure :: Eq a => (a -> [a]) -> a -> [a]
