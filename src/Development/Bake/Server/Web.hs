@@ -160,7 +160,7 @@ patch Shower{..} server@Server{..} p =
 
     ,maybe "" (showTime . fst) $ find ((==) p . Just . snd) submitted
 
-    ,case algebraPatch server p of
+    ,case patchStatus server p of
         Accepted -> tag "span" ["class=good"] "Merged"
         Unknown -> "Testing (passed 0 of ?)" ++ running
         Paused -> "Paused"
@@ -187,7 +187,7 @@ client Shower{..} Server{..} c =
 ---------------------------------------------------------------------
 -- LOGIC
 
-data Algebra
+data Status
     = Unknown                    -- ^ Been given, not yet been prepared
     | Progressing [Test] [Test]  -- ^ In progress, on left have been done, on right still todo.
                                  --   Once all done, not yet accepted, merely plausible.
@@ -197,30 +197,30 @@ data Algebra
 
 
 -- | Nothing stands for using the zero patch on the initial state 
-algebraPatch :: Server -> Maybe Patch -> Algebra
+patchStatus :: Server -> Maybe Patch -> Status
 -- Simple cases
-algebraPatch server (Just p)
+patchStatus server (Just p)
     | p `elem` concatMap (snd . thd3) (updates server) = Accepted
     | p `elem` maybe [] (map snd) (paused server) = Paused
-algebraPatch server Nothing
+patchStatus server Nothing
     | not $ null $ updates server = Accepted
 
 -- Detect rejection
-algebraPatch server (Just p)
+patchStatus server (Just p)
     -- we may have previously failed, but been requeued, so if we're active don't hunt for reject
     | p `notElem` snd (target server)
     , bad <- answered server [lastPatch' p, blame']
     , not $ null bad
     = Rejected $ nub $ map fst bad
-algebraPatch server Nothing
+patchStatus server Nothing
     | fails@(_:_) <- answered server [candidate' (state0 server, []), failure']
     = Rejected $ map fst fails
 
 -- Detect progress
-algebraPatch server p
+patchStatus server p
     | let filt = maybe (candidate' (state0 server, [])) patch' p
     , total:_ <- map (aTests . snd) $ answered server [filt, test' Nothing]
     , done <- nub $ mapMaybe (qTest . fst) $ answered server [filt, success']
     , todo <- total \\ done
     = if null todo && isNothing p then Accepted else Progressing done todo
-algebraPatch _ _ = Unknown
+patchStatus _ _ = Unknown
