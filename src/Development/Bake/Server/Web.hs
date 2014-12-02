@@ -7,6 +7,7 @@ module Development.Bake.Server.Web(
 
 import Development.Bake.Server.Type
 import Development.Bake.Core.Type
+import Development.Bake.Core.Message
 import General.Web
 import General.Extra
 import General.Format
@@ -16,6 +17,7 @@ import Data.List.Extra
 import Data.Tuple.Extra
 import System.Time.Extra
 import Data.Version
+import Data.Maybe
 import Paths_bake
 import Development.Bake.Server.Algebra
 import Development.Bake.Server.Query
@@ -180,3 +182,45 @@ client Shower{..} Server{..} c =
     ,if null target then "<i>None</i>"
      else commas $ map showTestQuestion target]
     where target = [q | (_,q@Question{..},Nothing) <- history, qClient == c]
+
+
+---------------------------------------------------------------------
+-- LOGIC
+
+data Algebra
+    = Unknown                    -- ^ Been given, not yet been prepared
+    | Progressing [Test] [Test]  -- ^ In progress, on left have been done, on right still todo.
+                                 --   Once all done, not yet accepted, merely plausible.
+    | Accepted                   -- ^ Accepted, rolled into production
+    | Paused                     -- ^ In the pause queue
+    | Rejected [Question]        -- ^ Rejected, because of the following tests
+
+
+-- | Nothing stands for using the zero patch on the initial state 
+algebraPatch :: Server -> Maybe Patch -> Algebra
+-- Simple cases
+algebraPatch server (Just p)
+    | p `elem` concatMap (snd . thd3) (updates server) = Accepted
+    | p `elem` maybe [] (map snd) (paused server) = Paused
+algebraPatch server Nothing
+    | not $ null $ updates server = Accepted
+
+-- Detect rejection
+algebraPatch server (Just p)
+    -- we may have previously failed, but been requeued, so if we're active don't hunt for reject
+    | p `notElem` snd (target server)
+    , bad <- answered server [lastPatch' p, blame']
+    , not $ null bad
+    = Rejected $ nub $ map fst bad
+algebraPatch server Nothing
+    | fails@(_:_) <- answered server [candidate' (state0 server, []), failure']
+    = Rejected $ map fst fails
+
+-- Detect progress
+algebraPatch server p
+    | let filt = maybe (candidate' (state0 server, [])) patch' p
+    , total:_ <- map (aTests . snd) $ answered server [filt, test' Nothing]
+    , done <- nub $ mapMaybe (qTest . fst) $ answered server [filt, success']
+    , todo <- total \\ done
+    = if null todo && isNothing p then Accepted else Progressing done todo
+algebraPatch _ _ = Unknown
