@@ -28,6 +28,13 @@ After running `Test`s, we accumulate a set of `State` (the state of the repo), `
 
 ## Approach
 
+* We maintain a `target` being a blessed state and a sequence of patches, no prefix of which forms a blessed state (if that occurs, we update the state).
+* A failure is a state based on the target, plus a prefix of the target state, which leads to a test failure.
+* If there are no failures, we work towards blessing the target, aiming to make targets plausible as fast as we can.
+* If they are non-empty we need to find an inconsistent test, or a faulty patch, and exclude it and resume.
+
+## Approach
+
 We maintain a current `s` (assumed to be blessed), and a sequence of `ps` values. We want to prove every `Patch` to be either faulty or blessed.
 
 If any state of `s` plus a prefix of `ps` becomes blessed, we roll that in as the new `State` and reduce `ps` to be only the non-included suffix.
