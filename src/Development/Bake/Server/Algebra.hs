@@ -26,14 +26,13 @@ targetBlessedPrefix server@Server{..} = head $ filter isBlessed $ reverse $ init
         isBlessed ps = blessedState server (fst target, ps)
 
 
+-- | Given a State, is it blessed
 blessedState :: Server -> (State, [Patch]) -> Bool
 blessedState server c
     | let f t = answered server [test' t, success', candidate' c]
     , todo:_ <- aTests . snd <$> f Nothing
     = all (not . null . f . Just) todo
 blessedState _ _ = False
-
-
 
 
 -- | Which failures have occured for patches whose prefix is in the target.
