@@ -74,10 +74,9 @@ simulate = do
                 when (qThreads q + sum (map qThreads $ active s) > maxThreads) $ error "threads exceeded"
                 return s{active = q : active s, server = (server s){history = (t,q,Nothing) : history (server s)} }
             Update (ss, ps) -> do
-                let (oss, ops) = target $ server s
-                let (nss, nps) = (restate $ unstate ss ++ ps, ops \\ ps)
+                let (nss, nps) = (restate $ unstate ss ++ ps, snd (target $ server s) \\ ps)
                 return s{accepted = ps ++ accepted s
-                        ,server = (server s){target = (nss,nps), updates = (t, nss, (oss, ops)) : updates (server s)}}
+                        ,server = (server s){target = (nss,nps), updates = (t, nss, (ss, ps)) : updates (server s)}}
             Reject p t -> do
                 unless (failure t p) $ error "incorrect test failure"
                 return s{rejected = p : rejected s, server = (server s){target = second (delete p) $ target $ server s}}
