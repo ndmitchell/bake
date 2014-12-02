@@ -92,7 +92,10 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             unit $ cmd (Cwd path) "git checkout" [branch]
             unit $ cmd (Cwd path) "git reset --hard" ["origin/" ++ branch]
             Stdout x <- cmd (Cwd path) "git rev-parse HEAD"
-            when (trim x /= fromSHA1 s) $ error "Branch changed while running"
+            when (trim x /= fromSHA1 s) $ error $
+                "The branch " ++ branch ++ " changed SHA1 independently of bake.\n" ++
+                "Expected value: " ++ fromSHA1 s ++ "\n" ++
+                "But has become: " ++ trim x
             forM_ ps $ \p ->
                 unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
 
