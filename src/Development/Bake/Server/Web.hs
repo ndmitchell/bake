@@ -158,7 +158,7 @@ patch Shower{..} server@Server{..} p =
 
     ,maybe "" (showTime . fst) $ find ((==) p . Just . snd) submitted
 
-    ,case maybe algebraZero (flip algebraPatch) p server of
+    ,case algebraPatch server p of
         Accepted -> tag "span" ["class=good"] "Merged"
         Unknown -> "Preparing" ++ running
         Paused -> "Paused"

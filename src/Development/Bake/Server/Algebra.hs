@@ -4,7 +4,7 @@
 module Development.Bake.Server.Algebra(
     targetBlessedPrefix, blessedState,
     targetFailures,
-    Algebra(..), algebraZero, algebraPatch
+    Algebra(..), algebraPatch
     ) where
 
 import Development.Bake.Core.Type
@@ -53,38 +53,31 @@ data Algebra
     | Paused                     -- ^ In the pause queue
     | Rejected [Question]        -- ^ Rejected, because of the following tests
 
--- Note, when deciding rejected look for the last result to say failure
--- since blacklist may have meant earlier ones weren't relevant failures
-
--- | Algebra for the initial state.
-algebraZero :: Server -> Algebra
-algebraZero server
-    | not $ null $ updates server = Accepted
-algebraZero server
-    | fails@(_:_) <- answered server [candidate' (state0 server, []), failure']
-    = Rejected $ map fst fails
-algebraZero server
-    | total:_ <- map (aTests . snd) $ answered server [test' Nothing, candidate' (state0 server, [])]
-    , done <- nub $ mapMaybe (qTest . fst) $ answered server [candidate' (state0 server, [])]
-    , todo <- total \\ done
-    = if null todo then Accepted else Progressing done todo
-algebraZero _ = Unknown
-
 
 -- | Nothing stands for using the zero patch on the initial state 
-algebraPatch :: Server -> Patch -> Algebra
-algebraPatch server p
+algebraPatch :: Server -> Maybe Patch -> Algebra
+algebraPatch server (Just p)
     | p `elem` concatMap (snd . thd3) (updates server) = Accepted
     | p `elem` maybe [] (map snd) (paused server) = Paused
-algebraPatch server p
+algebraPatch server (Just p)
     -- we may have previously failed, but been requeued, so if we're active don't hunt for reject
     | p `notElem` snd (target server)
     , bad <- answered server [lastPatch' p, blame']
     , not $ null bad
     = Rejected $ nub $ map fst bad
-algebraPatch server p
+algebraPatch server (Just p)
     | total:_ <- map (aTests . snd) $ answered server [test' Nothing, patch' p]
     , done <- nub $ mapMaybe (qTest . fst) $ answered server [patch' p, success']
     , todo <- total \\ done
     = Progressing done todo
+algebraPatch server Nothing
+    | not $ null $ updates server = Accepted
+algebraPatch server Nothing
+    | fails@(_:_) <- answered server [candidate' (state0 server, []), failure']
+    = Rejected $ map fst fails
+algebraPatch server Nothing
+    | total:_ <- map (aTests . snd) $ answered server [test' Nothing, candidate' (state0 server, [])]
+    , done <- nub $ mapMaybe (qTest . fst) $ answered server [candidate' (state0 server, [])]
+    , todo <- total \\ done
+    = if null todo then Accepted else Progressing done todo
 algebraPatch _ _ = Unknown
