@@ -78,5 +78,5 @@ normalise = f . updates
         f [] s1 s2 = error $ "Error with normalise, invariant about state violated: " ++ show (s1, s2)
 
 translate :: Server -> State -> (State, [Patch]) -> Maybe [Patch]
-translate server s1 (s2,p2) = if ss == s2 then Just pp else Nothing
-    where (ss,_,pp) = normalise server (s1,[]) (s2,p2)
+translate server s1 (s2,p2) = stripPrefix pp1 pp2
+    where (_,pp1,pp2) = normalise server (s1,[]) (s2,p2)
