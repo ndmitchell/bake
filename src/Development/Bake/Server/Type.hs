@@ -46,7 +46,7 @@ data Server = Server
     }
 
 state0 :: Server -> State
-state0 Server{..} = last $ map (fst . thd3) updates ++ [fst target]
+state0 Server{..} = last $ fst target : map (fst . thd3) updates
 
 
 ---------------------------------------------------------------------
