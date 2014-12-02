@@ -176,11 +176,11 @@ patch Shower{..} server@Server{..} p =
 
 
 client :: Shower -> Server -> Client -> [String]
-client Shower{..} Server{..} c =
+client Shower{..} server c =
     [tag "a" ["href=?client=" ++ fromClient c] $ fromClient c
     ,if null target then "<i>None</i>"
      else commas $ map showTestQuestion target]
-    where target = [q | (_,q@Question{..},Nothing) <- history, qClient == c]
+    where target = unanswered server [client' c]
 
 
 ---------------------------------------------------------------------
