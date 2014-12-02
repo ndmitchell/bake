@@ -7,7 +7,8 @@ module Development.Bake.Server.Brains(
 import Development.Bake.Core.Message
 import Development.Bake.Core.Type
 import Development.Bake.Server.Type
-import Development.Bake.Server.Algebra
+import Development.Bake.Server.Query
+import Control.Applicative
 import Data.Maybe
 import Control.Monad
 import Data.List.Extra
@@ -26,6 +27,36 @@ brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron
 brains info server@Server{..} Ping{..}
     | bless@(_:_) <- targetBlessedPrefix server = Update (fst target, bless)
     | blessedState server target = Sleep
+
+{-
+
+    | blame@(_:_) <- targetBlame server = uncurry Reject blame
+    | (c,t):_ <- filter (uncurry suitableTest) $ todoFail ++ todoPass
+        = Task $ Question c t (threadsForTest t) pClient
+    | otherwise = Sleep
+    where
+        -- all the tests, sorted so those which have been done least are first
+        todoPass = map fst $ sortOn (negate . length . nub . concat . snd) $ groupSort $
+            [(qTest, snd qCandidate) | (Question{..},_) <- state' (fst target) $ answered server [success']] ++
+            map (,[]) (allTests target)
+
+        todoFail = targetFailures 
+
+
+{-
+test, how much you want to do it
+-}
+
+
+        failures = targetFailures server
+
+
+        todoBad = 
+
+
+    | fails@(_:_) <- targetFailures server = 
+-}
+
     | t:_ <- minimumRelation dependsMay $ failingTests target = erroneous t target
     | otherwise = let next = filter (suitableTest target) $ allTests target
                   in taskMay target $ listToMaybe next
@@ -101,3 +132,22 @@ transitiveClosure f = nub . g
 minimumRelation :: Eq a => (a -> [a]) -> [a] -> [a]
 minimumRelation f (x:xs) = [x | disjoint (transitiveClosure f x) xs] ++ minimumRelation f xs
 minimumRelation f [] = []
+
+
+
+-- | Given the current target, what prefix is already blessed.
+--   Usually the empty list, can immediately be rolled into the target.
+targetBlessedPrefix :: Server -> [Patch]
+targetBlessedPrefix server@Server{..} = head $ filter isBlessed $ reverse $ inits $ snd target
+    where
+        isBlessed [] = True
+        isBlessed ps = blessedState server (fst target, ps)
+
+
+-- | Given a State, is it blessed
+blessedState :: Server -> (State, [Patch]) -> Bool
+blessedState server c
+    | let f t = answered server [test' t, success', candidate' c]
+    , todo:_ <- aTests . snd <$> f Nothing
+    = all (not . null . f . Just) todo
+blessedState _ _ = False
