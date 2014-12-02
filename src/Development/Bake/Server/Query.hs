@@ -6,7 +6,7 @@ module Development.Bake.Server.Query(
     asked, answered,
     translate',
     unanswered', success', failure', test',
-    candidate', candidateBy', patch'
+    candidate', candidateBy', patch', blame'
     ) where
 
 import Development.Bake.Core.Type
@@ -14,6 +14,7 @@ import Development.Bake.Core.Message
 import Development.Bake.Server.Type
 import Data.Maybe
 import Data.Tuple.Extra
+import Data.List.Extra
 
 
 type Query = Server -> Question -> Maybe Answer -> Bool
@@ -58,3 +59,21 @@ patch' p server Question{qCandidate=(s,ps)} a = p `elem` ps ++ concatMap (snd . 
 
 translate' :: Server -> State ->  [(Question, a)] ->  [(Question, a)]
 translate' server s xs = [(q{qCandidate=(s,p)}, a) | (q,a) <- xs, Just p <- [translate server s $ qCandidate q]]
+
+
+-- | Returns True if a question/answer pair is responsible for attaching blame.
+--   That requires this to have passed, but a previous step to have failed
+blame' :: Query
+blame' server Question{..} (Just Answer{..})
+    | not aSuccess
+    , Just (c, _) <- unsnocPatch server qCandidate
+    = not $ null $ answered server [candidate' c, success', test' qTest]
+    where
+blame' _ _ _ = False
+
+
+unsnocPatch :: Server -> (State, [Patch]) -> Maybe ((State, [Patch]), Patch)
+unsnocPatch server (s, ps)
+    | Just (ps, p) <- unsnoc ps = Just ((s, ps), p)
+    | Just (_, _, r) <- find ((==) s . snd3) $ updates server = unsnocPatch server r
+    | otherwise = Nothing
