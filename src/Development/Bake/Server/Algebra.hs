@@ -3,7 +3,6 @@
 -- | Define a continuous integration system.
 module Development.Bake.Server.Algebra(
     targetBlessedPrefix, blessedState,
-    targetFailures
     ) where
 
 import Development.Bake.Core.Type
@@ -30,16 +29,3 @@ blessedState server c
     , todo:_ <- aTests . snd <$> f Nothing
     = all (not . null . f . Just) todo
 blessedState _ _ = False
-
-
--- | Which failures have occured for patches whose prefix is in the target.
---   The earliest failure (by timestamp) will be first
-targetFailures :: Server -> [(Maybe Test, [Patch])]
-targetFailures server@Server{..} =
-    [ (qTest q, snd $ qCandidate q)
-    | (q, a) <- translate' server (fst target) $ answered server
-        [failure', candidateBy' (fst target) (`isPrefixOf` snd target)]]
-
-
-
-

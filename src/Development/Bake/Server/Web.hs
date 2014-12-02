@@ -19,7 +19,6 @@ import System.Time.Extra
 import Data.Version
 import Data.Maybe
 import Paths_bake
-import Development.Bake.Server.Algebra
 import Development.Bake.Server.Query
 import qualified Data.Map as Map
 

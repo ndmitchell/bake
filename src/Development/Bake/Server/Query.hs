@@ -6,7 +6,8 @@ module Development.Bake.Server.Query(
     asked, answered,
     translate',
     unanswered', success', failure', test',
-    candidate', candidateBy', patch', blame', lastPatch'
+    candidate', candidateBy', patch', blame', lastPatch',
+    targetFailures
     ) where
 
 import Development.Bake.Core.Type
@@ -80,3 +81,15 @@ unsnocPatch server (s, ps)
     | Just (ps, p) <- unsnoc ps = Just ((s, ps), p)
     | Just (_, _, r) <- find ((==) s . snd3) $ updates server = unsnocPatch server r
     | otherwise = Nothing
+
+
+---------------------------------------------------------------------
+-- PRECANNED QUERIES
+
+-- | Which failures have occured for patches whose prefix is in the target.
+--   The earliest failure (by timestamp) will be first
+targetFailures :: Server -> [(Maybe Test, [Patch])]
+targetFailures server@Server{..} =
+    [ (qTest q, snd $ qCandidate q)
+    | (q, a) <- translate' server (fst target) $ answered server
+        [failure', candidateBy' (fst target) (`isPrefixOf` snd target)]]
