@@ -160,7 +160,7 @@ patch Shower{..} server@Server{..} p =
 
     ,case algebraPatch server p of
         Accepted -> tag "span" ["class=good"] "Merged"
-        Unknown -> "Preparing" ++ running
+        Unknown -> "Testing (passed 0 of ?)" ++ running
         Paused -> "Paused"
         Rejected xs -> tag "span" ["class=bad"] "Rejected" ++ "<br />" ++
             tag "span" ["class=info"] (commasLimit 3 $ map showTestQuestion xs)
