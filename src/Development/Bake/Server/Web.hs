@@ -161,7 +161,7 @@ patch Shower{..} Server{..} (Left s) =
             [ t
             | (_,Question{..},Just Answer{..}) <- history
             , (s, []) == qCandidate
-            , t <- uncurry (++) aTests]
+            , t <- uncurry (++) aTestsSuitable]
         done = nub
             [ (aSuccess,q)
             | (_,q@Question{..},Just Answer{..}) <- history
@@ -192,7 +192,7 @@ patch Shower{..} Server{..} (Right p) =
             [ t
             | (_,Question{..},Just Answer{..}) <- history
             , p `elem` snd qCandidate
-            , t <- uncurry (++) aTests]
+            , t <- uncurry (++) aTestsSuitable]
         done = nub
             [ (aSuccess,q)
             | (_,q@Question{..},Just Answer{..}) <- history

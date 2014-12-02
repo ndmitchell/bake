@@ -62,6 +62,6 @@ serverConsistent :: Server -> IO ()
 serverConsistent Server{..} = do
     let xs = groupSort $ map (qCandidate . snd3 &&& id) $ filter (isNothing . qTest . snd3) history
     forM_ xs $ \(c,vs) -> do
-        case nub $ map (sort . uncurry (++) . aTests) $ filter aSuccess $ mapMaybe thd3 vs of
+        case nub $ map (sort . aTests) $ filter aSuccess $ mapMaybe thd3 vs of
             a:b:_ -> error $ "Tests don't match for candidate: " ++ show (c,a,b,vs)
             _ -> return ()

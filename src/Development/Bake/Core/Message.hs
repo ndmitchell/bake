@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
 module Development.Bake.Core.Message(
-    Message(..), Ping(..), Question(..), Answer(..),
+    Message(..), Ping(..), Question(..), Answer(..), aTests,
     sendMessage, messageFromInput, questionToOutput
     ) where
 
@@ -37,12 +37,15 @@ data Question = Question
 data Answer = Answer
     {aStdout :: Str
     ,aDuration :: Double
-    ,aTests :: ([Test],[Test])
+    ,aTestsSuitable :: ([Test],[Test])
         -- only filled in if qTest is Nothing
         -- (those tests which are suitable, those which are unsuitable)
     ,aSuccess :: Bool
     }
     deriving (Show,Eq)
+
+aTests :: Answer -> [Test]
+aTests = uncurry (++) . aTestsSuitable
 
 data Ping = Ping
     {pClient :: Client
@@ -83,7 +86,7 @@ instance ToJSON Answer where
     toJSON Answer{..} = object
         ["stdout" .= aStdout
         ,"duration" .= aDuration
-        ,"tests" .= aTests
+        ,"tests" .= aTestsSuitable
         ,"success" .= aSuccess]
 
 instance FromJSON Answer where

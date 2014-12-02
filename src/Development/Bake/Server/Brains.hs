@@ -43,7 +43,7 @@ brains info Server{..} Ping{..}
 
         -- all the tests we know about for this candidate, may be incomplete if Nothing has not passed (yet)
         allTests c = (Nothing:) $ map Just $ concat $ take 1 $
-            map (uncurry (++) . aTests . snd) $ success' $ test' Nothing $ answered' $ candidate' c it
+            map (aTests . snd) $ success' $ test' Nothing $ answered' $ candidate' c it
 
         -- are all tests passing for this candidate
         allTestsPass c = flip all (allTests c) $ \t ->
@@ -62,7 +62,7 @@ brains info Server{..} Ping{..}
             | null $ self' $ test' Nothing $ candidate' c it -- I am not already running it
             = True
         suitableTest c t@(Just tt)
-            | [clientTests] <- map (fst . aTests . snd) $ self' $ success' $ test' Nothing $ answered' $ candidate' c it
+            | [clientTests] <- map (fst . aTestsSuitable . snd) $ self' $ success' $ test' Nothing $ answered' $ candidate' c it
             , tt `elem` clientTests -- it is one of the tests this client is suitable for
             , null $ test' t $ self' $ candidate' c it -- I am not running it or have run it
             , clientDone <- map (qTest . fst) $ success' $ answered' $ self' $ candidate' c it
@@ -78,7 +78,7 @@ brains info Server{..} Ping{..}
         scheduleTest c Nothing =
             if suitableTest c Nothing then Just Nothing else Nothing
         scheduleTest c t@(Just tt)
-            | [clientTests] <- map (fst . aTests . snd) $ self' $ success' $ test' Nothing $ answered' $ candidate' c it
+            | [clientTests] <- map (fst . aTestsSuitable . snd) $ self' $ success' $ test' Nothing $ answered' $ candidate' c it
             , tt `elem` clientTests -- the target is one of the tests this client is suitable for
             = listToMaybe $ filter (suitableTest c) $ transitiveClosure dependsMay t
         scheduleTest c t@(Just tt)
