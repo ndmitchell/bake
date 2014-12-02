@@ -41,6 +41,7 @@ simulate = do
     ps <- forM [0..i] $ \i -> do
         j <- randomRIO (0::Int,9)
         return $ Patch $ show i ++ show j
+
     let s = S (Server mempty mempty mempty (State "", []) mempty mempty mempty (error "no extra")) 200 [] [] ps [] []
     let ping s = brains info (server s) $ Ping (Client "x") "x" maxThreads (maxThreads - sum (map qThreads $ active s))
     let failure t p = maybe "0" fromTest t `isSuffixOf` fromPatch p
@@ -86,6 +87,7 @@ simulate = do
         return $ if wait s == 0 then Right s else Left s
 
     when (active /= []) $ error "Active should have been empty"
+    when (sort ps /= sort (rejected ++ accepted)) $ error "Some patches are missing"
     res <- return $ brains info server $ Ping (Client "x") "x" maxThreads maxThreads
     when (res /= Sleep) $ error $ "Brains should have returned sleep,  but returned " ++ show res
 
