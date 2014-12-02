@@ -171,8 +171,8 @@ patch Shower{..} server@Server{..} p =
     where
         s0 = state0 server
         running | null xs = ""
-                | otherwise = "<br />" ++ tag "span" ["class=info"] (commasLimit 3 $ map (showTestQuestion . fst) xs)
-            where xs = asked server [unanswered', maybe (candidate' (s0,[])) patch' p]
+                | otherwise = "<br />" ++ tag "span" ["class=info"] (commasLimit 3 $ map showTestQuestion xs)
+            where xs = unanswered server [maybe (candidate' (s0,[])) patch' p]
 
 
 client :: Shower -> Server -> Client -> [String]
