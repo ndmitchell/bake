@@ -5,6 +5,7 @@ module Development.Bake.Server.Type(
     Server(..), state0,
     Question(..), Answer(..), Ping(..),
     serverConsistent, serverPrune,
+    normalise, translate
     ) where
 
 import Development.Bake.Core.Type
@@ -65,3 +66,19 @@ serverConsistent Server{..} = do
         case nub $ map (sort . aTests) $ filter aSuccess $ mapMaybe thd3 vs of
             a:b:_ -> error $ "Tests don't match for candidate: " ++ show (c,a,b,vs)
             _ -> return ()
+
+
+---------------------------------------------------------------------
+-- STATE/PATCH ISOMORPISMS
+
+normalise :: Server -> (State, [Patch]) -> (State, [Patch]) -> (State, [Patch], [Patch])
+normalise = f . updates
+    where
+        f _ (s1,p1) (s2,p2) | s1 == s2 = (s1,p1,p2)
+        f ((_,s,(s',ps)):us) s1 s2 = f us (g s1) (g s2)
+            where g (s1,p1) = if s1 == s then (s',ps++p1) else (s1,p1)
+        f [] s1 s2 = error $ "Error with normalise, invariant about state violated: " ++ show (s1, s2)
+
+translate :: Server -> State -> (State, [Patch]) -> Maybe [Patch]
+translate server s1 (s2,p2) = if ss == s2 then Just pp else Nothing
+    where (ss,_,pp) = normalise server (s1,[]) (s2,p2)
