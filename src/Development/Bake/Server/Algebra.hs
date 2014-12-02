@@ -79,15 +79,9 @@ algebraPatch server p
 algebraPatch server p
     -- we may have previously failed, but been requeued, so if we're active don't hunt for reject
     | p `notElem` snd (target server)
-    , poss <- [ ((second init qCandidate, qTest), q)
-              | (_,q@Question{..},Just Answer{..}) <- history server
-              , not aSuccess, [p] `isSuffixOf` snd qCandidate]
-    , real <- [ q
-              | (_,Question{..},Just Answer{..}) <- history server
-              , aSuccess
-              , Just q <- [lookup (qCandidate, qTest) poss]]
-    , not $ null real
-    = Rejected $ nub real
+    , bad <- answered server [lastPatch' p, blame']
+    , not $ null bad
+    = Rejected $ nub $ map fst bad
 algebraPatch server p
     | total:_ <- map (aTests . snd) $ answered server [test' Nothing, patch' p]
     , done <- nub $ mapMaybe (qTest . fst) $ answered server [patch' p, success']
