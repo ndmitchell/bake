@@ -95,7 +95,7 @@ test, how much you want to do it
             , tt `elem` clientTests -- it is one of the tests this client is suitable for
             , null $ test_ t $ self_ $ candidate_ c it -- I am not running it or have run it
             , clientDone <- map (qTest . fst) $ success_ $ answered_ $ self_ $ candidate_ c it
-            , all (`elem` clientDone) $ map Just $ testRequire $ info tt
+            , all (`elem` clientDone) $ map Just $ testRequire $ info tt -- I have done all the dependencies
             = True
         suitableTest _ _ = False
 
