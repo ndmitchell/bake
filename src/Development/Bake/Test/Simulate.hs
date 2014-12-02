@@ -48,7 +48,7 @@ simulate = do
     let unstate = map Patch . words . fromState
     let restate = State . unwords . map fromPatch
     hSetBuffering stdout NoBuffering
-    S{..} <- flip loopM s $ \s -> do
+    s@S{..} <- flip loopM s $ \s -> do
         putChar '.'
         -- enqueue a patch
         i <- randomRIO (0::Int,if wait s > 100 then 20 else 0)
@@ -86,8 +86,8 @@ simulate = do
         return $ if wait s == 0 then Right s else Left s
 
     when (active /= []) $ error "Active should have been empty"
-    when (sort ps /= sort (rejected ++ accepted)) $ error "Some patches are missing"
-    res <- return $ brains info server $ Ping (Client "x") "x" maxThreads maxThreads
-    when (res /= Sleep) $ error $ "Brains should have returned sleep,  but returned " ++ show res
+    when (ping s /= Sleep) $ error $ "Brains should have returned sleep,  but returned " ++ show (ping s)
+    when (sort ps /= sort (rejected ++ accepted)) $ error $ show ("Some patches are missing", sort ps, sort rejected, sort accepted, target server)
+    when (snd (target server) /= []) $ error $ "Target is not blank: " ++ show (target server)
 
     putStrLn "\nSuccess"
