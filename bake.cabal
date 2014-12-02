@@ -67,7 +67,9 @@ library
         Development.Bake.Email
         Development.Bake.Git
         Development.Bake.Pretty
+        Development.Bake.Server.Algebra
         Development.Bake.Server.Brains
+        Development.Bake.Server.Query
         Development.Bake.Server.Start
         Development.Bake.Server.Type
         Development.Bake.Server.Web

@@ -17,6 +17,8 @@ import Data.Tuple.Extra
 import System.Time.Extra
 import Data.Version
 import Paths_bake
+import Development.Bake.Server.Algebra
+import Development.Bake.Server.Query
 import qualified Data.Map as Map
 
 
@@ -29,9 +31,12 @@ web oven@Oven{..} args server = do
         (if null args then
             ["<h1>Bake Continuous Integration</h1>"
             ,"<h2>Patches</h2>"] ++
-            table "No patches submitted" ["Patch","Time","Status"] (map (patch shower server) $ linearise server) ++
+            failures shower server ++
+            table "No patches submitted" ["Patch","Time","Status"]
+                (map (patch shower server) $ nub (map (Just . snd) $ submitted server) ++ [Nothing]) ++
             ["<h2>Clients</h2>"] ++
-            table "No clients available" ["Name","Running"] (map (client shower server) $ Map.keys $ pings server)
+            table "No clients available" ["Name","Running"]
+                (map (client shower server) $ Map.keys $ pings server)
          else
             let ask x = map snd $ filter ((==) x . fst) args in
             ["<h1><a href='?'>Bake Continuous Integration</a></h1>"] ++
@@ -48,14 +53,6 @@ web oven@Oven{..} args server = do
                 _ -> [])
         ) ++
         suffix
-
-
-linearise :: Server -> [Either State Patch]
-linearise Server{..} = reverse $ map snd $ sortOn fst $ states ++ patches
-    where
-        states = [ (fmap fst3 $ find ((==) s . snd3) updates, Left s)
-                 | s <- nub $ fst target : map snd3 updates ++ map (fst . thd3) updates]
-        patches = map (Just *** Right) submitted
 
 
 data Shower = Shower
@@ -125,6 +122,14 @@ suffix =
     ,"</body>"
     ,"</html>"]
 
+
+failures :: Shower -> Server -> [String]
+failures Shower{..} server
+    | null xs = []
+    | otherwise = [tag_ "p" "Tracking down failures in:", tag_ "ul" $ concatMap (tag_ "li" . showTest) xs]
+    where xs = nub $ map fst $ targetFailures server
+
+
 runs :: Shower -> Server -> (Question -> Bool) -> [String]
 runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
     [[tag "span" ["class=nobr"] $ showTime t, showQuestion q, showAnswer a] | (t,q,a) <- good] ++
@@ -145,62 +150,29 @@ runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
                         else tag "span" ["class=bad"]  ("Failed in "    ++ showDuration aDuration)
 
 
-patch :: Shower -> Server -> Either State Patch -> [String]
-patch Shower{..} Server{..} (Left s) =
-    ["State " ++ showState s ++ "<br />" ++
-     tag "span" ["class=info"] (showExtra $ Left s)
-    ,maybe "" (showTime . fst3) $ find ((==) s . snd3) updates
-    ,if s /= fst target || null running then tag "span" ["class=good"] "Valid"
-     else "Testing (passed " ++ show (length $ nubOn (qTest . snd) $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show (todo+1)) ++ ")<br />" ++
-        tag "span" ["class=info"]
-            (if any (not . fst) done then "Retrying " ++ commasLimit 3 (nub [showTest (qTest t) | (False,t) <- done])
-             else "Running " ++ commasLimit 3 (map showTestQuestion running))
+patch :: Shower -> Server -> Maybe Patch -> [String]
+patch Shower{..} server@Server{..} p =
+    [maybe ("Initial state " ++ showState s0) showPatch p ++
+     " by " ++ commasLimit 3 (Map.findWithDefault [] p authors) ++ "<br />" ++
+     tag "span" ["class=info"] (showExtra $ maybe (Left s0) Right p)
+
+    ,maybe "" (showTime . fst) $ find ((==) p . Just . snd) submitted
+
+    ,case maybe algebraZero (flip algebraPatch) p server of
+        Accepted -> tag "span" ["class=good"] "Merged"
+        Unknown -> "Preparing" ++ running
+        Paused -> "Paused"
+        Rejected xs -> tag "span" ["class=bad"] "Rejected" ++ "<br />" ++
+            tag "span" ["class=info"] (commasLimit 3 $ map showTestQuestion xs)
+        Progressing done todo ->
+            "Testing (passed " ++ show (length done + 1) ++ " of " ++ show (length (done++todo) + 1) ++ ")" ++ running
     ]
     where
-        todo = length $ nub
-            [ t
-            | (_,Question{..},Just Answer{..}) <- history
-            , (s, []) == qCandidate
-            , t <- uncurry (++) aTestsSuitable]
-        done = nub
-            [ (aSuccess,q)
-            | (_,q@Question{..},Just Answer{..}) <- history
-            , (s, []) == qCandidate]
-        running = nub
-            [ q
-            | (_,q@Question{..},Nothing) <- history
-            , (s, []) == qCandidate]
+        s0 = state0 server
+        running | null xs = ""
+                | otherwise = "<br />" ++ tag "span" ["class=info"] (commasLimit 3 $ map (showTestQuestion . fst) xs)
+            where xs = asked server [unanswered', maybe (candidate' (s0,[])) patch' p]
 
-
-patch Shower{..} Server{..} (Right p) =
-    [showPatch p ++ " by " ++ commasLimit 3 (Map.findWithDefault [] (Just p) authors) ++ "<br />" ++
-     tag "span" ["class=info"] (showExtra $ Right p)
-    ,maybe "" (showTime . fst) $ find ((==) p . snd) submitted
-    ,if p `elem` concatMap (snd . thd3) updates then tag "span" ["class=good"] "Merged"
-     else if p `elem` snd target then
-        "Testing (passed " ++ show (length $ nubOn (qTest . snd) $ filter fst done) ++ " of " ++ (if todo == 0 then "?" else show (todo+1)) ++ ")<br />" ++
-        tag "span" ["class=info"]
-            (if any (not . fst) done then "Retrying " ++ commasLimit 3 (nub [showTestPatch p (qTest t) | (False,t) <- done])
-             else if not $ null running then "Running " ++ commasLimit 3 (map showTestQuestion running)
-             else "")
-     else if p `elem` maybe [] (map snd) paused then "Paused"
-     else tag "span" ["class=bad"] "Rejected" ++ "<br />" ++
-          tag "span" ["class=info"] (commasLimit 3 [showTestQuestion q | (False,q) <- done, [p] `isSuffixOf` snd (qCandidate q)])
-    ]
-    where
-        todo = length $ nub
-            [ t
-            | (_,Question{..},Just Answer{..}) <- history
-            , p `elem` snd qCandidate
-            , t <- uncurry (++) aTestsSuitable]
-        done = nub
-            [ (aSuccess,q)
-            | (_,q@Question{..},Just Answer{..}) <- history
-            , p `elem` snd qCandidate]
-        running = nub
-            [ q
-            | (_,q@Question{..},Nothing) <- history
-            , p `elem` snd qCandidate]
 
 client :: Shower -> Server -> Client -> [String]
 client Shower{..} Server{..} c =
