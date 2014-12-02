@@ -171,8 +171,10 @@ patch Shower{..} server@Server{..} p =
     where
         s0 = state0 server
         running | null xs = ""
-                | otherwise = "<br />" ++ tag "span" ["class=info"] (commasLimit 3 $ map showTestQuestion xs)
+                | otherwise = "<br />" ++ tag "span" ["class=info"] (commasLimit 3 items)
             where xs = unanswered server [maybe (candidate' (s0,[])) patch' p]
+                  (yes,no) = partition (maybe null (isSuffixOf . return) p . snd . qCandidate) xs
+                  items = map (tag_ "b" . showTestQuestion) yes ++ map showTestQuestion no
 
 
 client :: Shower -> Server -> Client -> [String]
