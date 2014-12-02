@@ -6,7 +6,7 @@ module Development.Bake.Server.Query(
     asked, answered,
     translate',
     unanswered', success', failure', test',
-    candidate', candidateBy', patch', blame'
+    candidate', candidateBy', patch', blame', lastPatch'
     ) where
 
 import Development.Bake.Core.Type
@@ -56,6 +56,9 @@ candidateBy' s p server q a = maybe False p $ translate server s (qCandidate q)
 patch' :: Patch -> Query
 patch' p server Question{qCandidate=(s,ps)} a = p `elem` ps ++ concatMap (snd . thd3) upds
     where upds = dropWhile ((/=) s . snd3) $ updates server
+
+lastPatch' :: Patch -> Query
+lastPatch' p server q a = maybe False ((==) p . snd) $ unsnocPatch server $ qCandidate q
 
 translate' :: Server -> State ->  [(Question, a)] ->  [(Question, a)]
 translate' server s xs = [(q{qCandidate=(s,p)}, a) | (q,a) <- xs, Just p <- [translate server s $ qCandidate q]]
