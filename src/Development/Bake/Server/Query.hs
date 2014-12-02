@@ -3,9 +3,9 @@
 -- | Define a continuous integration system.
 module Development.Bake.Server.Query(
     Query, true', false', (&&^), (||^),
-    asked, answered,
+    asked, answered, unanswered,
     translate',
-    unanswered', success', failure', test',
+    answered', unanswered', success', failure', test',
     candidate', candidateBy', patch', blame', lastPatch',
     targetFailures
     ) where
@@ -36,8 +36,14 @@ asked server qs = [(q, a) | (_, q, a) <- history server, pred q a]
 answered :: Server -> [Query] -> [(Question, Answer)]
 answered server query = [(q, a) | (q, Just a) <- asked server query]
 
+unanswered :: Server -> [Query] -> [Question]
+unanswered server query = [q | (q, Nothing) <- asked server query]
+
 unanswered' :: Query
 unanswered' _ _ a = isNothing a
+
+answered' :: Query
+answered' _ _ a = isJust a
 
 success', failure' :: Query
 success' _ _ = maybe False aSuccess
