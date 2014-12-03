@@ -23,7 +23,6 @@ import Data.Maybe
 import Data.Time.Clock
 import Control.Monad.Extra
 import Data.Tuple.Extra
-import System.Directory.Extra
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
 import qualified Data.Map as Map
@@ -101,9 +100,7 @@ operate timeout oven message server = case message of
                     server <- return $ server{history = (now,q,Nothing) : history server}
                     return $ Right (server, Just q)
                 Update (s,ps) -> do
-                    dir <- createDir "bake-test" $ fromState s : map fromPatch ps
-                    s2 <- withCurrentDirectory dir $
-                        ovenUpdateState oven $ Just (s,ps)
+                    (Just s2, _) <- runUpdate s ps
                     ovenNotify oven [a | p <- ps, a <- Map.findWithDefault [] (Just p) $ authors server] $ unlines
                         ["Your patch just made it in"]
                     addDelayCache (extra server) (Left s2) $ patchExtra s2 Nothing
@@ -123,8 +120,7 @@ operate timeout oven message server = case message of
 initialState :: Oven State Patch Test -> IO State
 initialState oven = do
     putStrLn "Initialising server, computing initial state..."
-    ignore $ removeDirectoryRecursive "bake-server"
-    createDirectoryIfMissing True "bake-server"
-    s <- withCurrentDirectory "bake-server" $ ovenUpdateState oven Nothing
+    (Just s, _) <- runInit
+    return s
     putStrLn $ "Initial state: " ++ fromState s
     return s
