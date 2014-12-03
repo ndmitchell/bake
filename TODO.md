@@ -2,12 +2,10 @@
 
 ## Brains
 
-* Should run the ovenUpdate functions in a background process with things half paused
 * Should support pause/unpause
 
 ## Web UI
 
-* Should display the state with zero patches
 * Add this server to the list of clients
 
 ## Git
