@@ -24,8 +24,8 @@ import qualified Data.Map as Map
 
 
 web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
-web oven@Oven{..} args server = do
-    extra <- askDelayCache $ extra server
+web oven@Oven{..} args server@Server{..} = do
+    extra <- askDelayCache extra
     shower <- shower extra oven
     return $ OutputHTML $ unlines $
         prefix ++
@@ -34,10 +34,10 @@ web oven@Oven{..} args server = do
             ,"<h2>Patches</h2>"] ++
             failures shower server ++
             table "No patches submitted" ["Patch","Time","Status"]
-                (map (patch shower server) $ nub (map (Just . snd) $ submitted server) ++ [Nothing]) ++
+                (map (patch shower server) $ nub (map (Just . snd) submitted) ++ [Nothing]) ++
             ["<h2>Clients</h2>"] ++
             table "No clients available" ["Name","Running"]
-                (map (client shower server) $ Map.keys $ pings server)
+                (map (client shower server) $ Map.keys pings)
          else
             let ask x = map snd $ filter ((==) x . fst) args in
             ["<h1><a href='?'>Bake Continuous Integration</a></h1>"] ++
