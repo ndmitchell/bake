@@ -76,6 +76,7 @@ library
         General.DelayCache
         General.Extra
         General.Format
+        General.HTML
         General.Str
         General.Web
         Paths_bake
