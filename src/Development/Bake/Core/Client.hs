@@ -5,18 +5,15 @@ module Development.Bake.Core.Client(
     ) where
 
 import Development.Bake.Core.Type
+import Development.Bake.Core.Run
 import General.Extra
 import General.Format
 import General.Str
 import Development.Bake.Core.Message
-import System.Exit
-import Development.Shake.Command
 import Control.Concurrent
 import Control.Monad.Extra
 import System.Time.Extra
-import System.FilePath
 import Data.IORef
-import Data.Maybe
 import Data.Tuple.Extra
 import System.Environment.Extra
 
@@ -40,36 +37,24 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
             writeChan queue ()
             forkSlave $ do
                 i <- atomicModifyIORef unique $ dupe . succ
-                dir <- createDir "bake-test" $ fromState (fst qCandidate) : map fromPatch (snd qCandidate)
                 putBlock "Client start" $
                     ["Client: " ++ fromClient client
                     ,"Id: " ++ show i
-                    ,"Directory: " ++ dir
                     ,"Test: " ++ maybe "Prepare" fromTest qTest
                     ,"State: " ++ fromState (fst qCandidate)
                     ,"Patches:"] ++
                     map ((++) "    " . fromPatch) (snd qCandidate)
-                (time, (exit, Stdout sout, Stderr serr)) <- duration $
-                    cmd (Cwd dir) exe "runtest"
-                        ["--test=" ++ fromTest t | Just t <- [qTest]]
-                        ("--state=" ++ fromState (fst qCandidate))
-                        ["--patch=" ++ fromPatch p | p <- snd qCandidate]
-                        ["+RTS","-N" ++ show qThreads]
-                tests <- if isJust qTest || exit /= ExitSuccess then return ([],[]) else do
-                    src ::  ([String],[String]) <- fmap read $ readFile $ dir </> ".bake"
-                    let op = map (stringyFrom (ovenStringyTest oven))
-                    putStrLn "FIXME: Should validate the next set forms a DAG"
-                    return (op (fst src), op (snd src))
+                a@Answer{..} <- runTest (fst qCandidate) (snd qCandidate) qTest
+                putStrLn "FIXME: Should validate the tests form a DAG"
                 putBlock "Client stop" $
                     ["Client: " ++ fromClient client
                     ,"Id: " ++ show i
-                    ,"Result: " ++ show exit
-                    ,"Duration: " ++ showDuration time
-                    ,"Output: " ++ sout++serr
+                    ,"Result: " ++ (if aSuccess then "Success" else "Failure")
+                    ,"Duration: " ++ showDuration aDuration
+                    ,"Output: " ++ strUnpack aStdout
                     ]
                 atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
-                sendMessage hp $ Finished q $
-                    Answer (strPack $ sout++serr) time tests $ exit == ExitSuccess
+                sendMessage hp $ Finished q a
                 writeChan queue ()
 
     forever $ writeChan queue () >> sleep ping
