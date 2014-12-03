@@ -10,7 +10,6 @@ import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Web
 import General.Extra
-import General.Format
 import General.HTML
 import General.DelayCache
 import General.Str
@@ -19,6 +18,8 @@ import Data.Tuple.Extra
 import System.Time.Extra
 import Data.Version
 import Data.Maybe
+import Control.Monad
+import Data.Monoid
 import Paths_bake
 import Development.Bake.Server.Query
 import qualified Data.Map as Map
@@ -28,64 +29,70 @@ web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
 web oven@Oven{..} args server@Server{..} = do
     extra <- askDelayCache extra
     shower <- shower extra oven
-    return $ OutputHTML $ renderHTML $ template $ raw_ $ unlines $
-        (if null args then
-            ["<h1>Bake Continuous Integration</h1>"] ++
-            (if null fatal then [] else
-                ["<h2 class=bad>Fatal error</h2>"
-                ,"<p>The continuous integration server has been suspeneded due to fatal errors:</p>"
-                ,tagg "ul" $ concatMap (tagg "li" . escapeHTML) fatal]) ++
-            ["<h2>Patches</h2>"] ++
-            failures shower server ++
+    return $ OutputHTML $ renderHTML $ template $
+        if null args then do
+            h1_ $ str_ "Bake Continuous Integration"
+            when (fatal /= []) $ do
+                h2__ [class_ "bad"] $ str_ "Fatal error"
+                p_ $ str_ "The continuous integration server has been suspeneded due to fatal errors:"
+                ul_ $ mconcat $ map (li_ . str_) fatal
+            h2_ $ str_ "Patches"
+            failures shower server
             table "No patches submitted" ["Patch","Time","Status"]
-                (map (patch shower server) $ nub (map (Just . snd) submitted) ++ [Nothing]) ++
-            ["<h2>Clients</h2>"] ++
+                (map (patch shower server) $ nub (map (Just . snd) submitted) ++ [Nothing])
+            h2_ $ str_ "Clients"
             table "No clients available" ["Name","Running"]
                 (map (client shower server) $ Map.keys pings)
-         else
-            let ask x = map snd $ filter ((==) x . fst) args in
-            ["<h1><a href='?'>Bake Continuous Integration</a></h1>"] ++
+        else do
+            let ask x = map snd $ filter ((==) x . fst) args
+            h1_ $ a__ [href_ "?"] $ str_ "Bake Continuous Integration"
             runs shower server (\Question{..} ->
                 let or0 xs = if null xs then True else or xs in
                 or0 [qClient == Client c | c <- ask "client"] &&
                 or0 [qTest == if t == "" then Nothing else Just (Test t) | t <- ask "test"] &&
                 case ask "state" of
                     [] -> or0 [Patch p `elem` snd qCandidate | p <- ask "patch"]
-                    s:_ -> qCandidate == (State s, map Patch $ ask "patch")) ++
-            (case ask "patch" of
+                    s:_ -> qCandidate == (State s, map Patch $ ask "patch"))
+            case ask "patch" of
                 [p] | null $ ask "test", Just (_, e) <- extra $ Right $ Patch p ->
-                        ["<h2>Patch information</h2>", strUnpack e]
-                _ -> [])
-        )
+                        do h2_ $ str_ "Patch information"; raw_ $ strUnpack e
+                _ -> mempty
+
+
+table :: String -> [String] -> [[HTML]] -> HTML
+table zero cols [] = p_ $ str_ zero
+table _ cols body = table_ $ do
+    thead_ $ tr_ $ mconcat $ map (td_ . str_) cols
+    tbody_ $ mconcat $ [tr_ $ mconcat $ map td_ x | x <- body]
 
 
 data Shower = Shower
-    {showPatch :: Patch -> String
-    ,showExtra :: Either State Patch -> String
-    ,showTest :: Maybe Test -> String
-    ,showTestPatch :: Patch -> Maybe Test -> String
-    ,showTestQuestion :: Question -> String
-    ,showState :: State -> String
-    ,showTime :: Timestamp -> String
+    {showPatch :: Patch -> HTML
+    ,showExtra :: Either State Patch -> HTML
+    ,showTest :: Maybe Test -> HTML
+    ,showTestPatch :: Patch -> Maybe Test -> HTML
+    ,showTestQuestion :: Question -> HTML
+    ,showState :: State -> HTML
+    ,showTime :: Timestamp -> HTML
     }
 
 showThreads i = show i ++ " thread" ++ ['s' | i /= 1]
 
 shower :: (Either State Patch -> Maybe (Str, Str)) -> Oven State Patch Test -> IO Shower
 shower extra Oven{..} = do
-    showTime <- showRelativeTimestamp
+    showTimestamp <- showRelativeTimestamp
     return $ Shower
-        {showPatch = \p -> tag "a" ["href=?patch=" ++ fromPatch p, "class=patch"] (stringyPretty ovenStringyPatch p)
-        ,showExtra = \e -> maybe "" (strUnpack . fst) $ extra e
-        ,showState = \s -> tag "a" ["href=?state=" ++ fromState s, "class=state"] (stringyPretty ovenStringyState s)
+        {showPatch = \p -> a__ [href_ $ "?patch=" ++ fromPatch p, class_ "patch"] $ str_ $ stringyPretty ovenStringyPatch p
+        ,showExtra = \e -> raw_ $ maybe "" (strUnpack . fst) $ extra e
+        ,showState = \s -> a__ [href_ $ "?state=" ++ fromState s, class_ "state"] $ str_ $ stringyPretty ovenStringyState s
         ,showTest = f Nothing Nothing []
         ,showTestPatch = \p -> f Nothing Nothing [p]
         ,showTestQuestion = \Question{..} -> f (Just qClient) (Just $ fst qCandidate) (snd qCandidate) qTest
-        ,showTime = showTime
+        ,showTime = str_ . showTimestamp
         }
     where
         f c s ps t =
-            tag "a" ["href=?" ++ intercalate "&" parts] $
+            a__ [href_ $ "?" ++ intercalate "&" parts] $ str_ $
             maybe "Preparing" (stringyPretty ovenStringyTest) t
             where parts = ["client=" ++ fromClient c | Just c <- [c]] ++
                           ["state=" ++ fromState s | Just s <- [s]] ++
@@ -119,69 +126,74 @@ template inner = do
                 ]
         body_ $ do
             inner
-            p__ [id_ "fooer"] $
+            p__ [id_ "footer"] $
                 a__ [href_ "https://github.com/ndmitchell/bake"] $
                     str_ $ "Copyright Neil Mitchell 2014, version " ++ showVersion version
 
 
-failures :: Shower -> Server -> [String]
-failures Shower{..} server
-    | null xs = []
-    | otherwise = [tagg "p" "Tracking down failures in:", tagg "ul" $ concatMap (tagg "li" . showTest) xs]
+failures :: Shower -> Server -> HTML
+failures Shower{..} server = when (xs /= []) $ do
+    p_ $ str_ "Tracking down failures in:"
+    ul_ $ mconcat $ map (li_ . showTest) xs
     where xs = nub $ map fst $ targetFailures server
 
 
-runs :: Shower -> Server -> (Question -> Bool) -> [String]
-runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
-    [[tag "span" ["class=nobr"] $ showTime t, showQuestion q, showAnswer a] | (t,q,a) <- good] ++
-    (case good of
-        [(_,_,Just Answer{..})] -> ["<pre>"] ++ lines (escapeHTML $ strUnpack aStdout) ++ ["</pre>"]
-        _ -> [])
+runs :: Shower -> Server -> (Question -> Bool) -> HTML
+runs Shower{..} Server{..} pred = do
+    table "No runs" ["Time","Question","Answer"]
+        [[span__ [class_ "nobr"] $ showTime t, showQuestion q, showAnswer a] | (t,q,a) <- good]
+    case good of
+        [(_,_,Just Answer{..})] -> pre_ $ str_ $ strUnpack aStdout
+        _ -> mempty
     where
         good = filter (pred . snd3) history
-        showQuestion q@Question{..} =
-            "With " ++ showState (fst qCandidate) ++
-            (if null $ snd qCandidate then "" else " plus ") ++
-            commas (map showPatch $ snd qCandidate) ++ "<br />" ++
-            "Test " ++ showTestQuestion q ++ " on " ++
-            fromClient qClient ++ " with " ++ showThreads qThreads
-        showAnswer Nothing = "<i>Running...</i>"
+        showQuestion q@Question{..} = do
+            str_ "With " <> showState (fst qCandidate)
+            when (not $ null $ snd qCandidate) $
+                str_ " plus " <> commas_ (map showPatch $ snd qCandidate)
+            br_
+            str_ "Test " <> showTestQuestion q <> str_ " on "
+            str_ $ fromClient qClient ++ " with " ++ showThreads qThreads
+        showAnswer Nothing = i_ $ str_ $ "Running..."
         showAnswer (Just Answer{..}) =
-            if aSuccess then tag "span" ["class=good"] ("Succeeded in " ++ showDuration aDuration)
-                        else tag "span" ["class=bad"]  ("Failed in "    ++ showDuration aDuration)
+            if aSuccess then span__ [class_ "good"] $ str_ $ "Succeeded in " ++ showDuration aDuration
+                        else span__ [class_ "bad" ] $ str_ $ "Failed in "    ++ showDuration aDuration
 
 
-patch :: Shower -> Server -> Maybe Patch -> [String]
+patch :: Shower -> Server -> Maybe Patch -> [HTML]
 patch Shower{..} server@Server{..} p =
-    [maybe ("Initial state " ++ showState s0) showPatch p ++
-     " by " ++ commasLimit 3 (nub $ Map.findWithDefault [] p authors) ++ "<br />" ++
-     tag "span" ["class=info"] (showExtra $ maybe (Left s0) Right p)
+    [do
+        maybe (str_ "Initial state " <> showState s0) showPatch p
+        str_ $ " by " ++ commasLimit 3 (nub $ Map.findWithDefault [] p authors)
+        br_
+        span__ [class_ "info"] $ showExtra $ maybe (Left s0) Right p
 
-    ,maybe "" (showTime . fst) $ find ((==) p . Just . snd) submitted
+    ,maybe mempty (showTime . fst) $ find ((==) p . Just . snd) submitted
 
     ,case patchStatus server p of
-        Accepted -> tag "span" ["class=good"] "Success"
-        Unknown -> "Testing (passed 0 of ?)" ++ running
-        Paused -> "Paused"
-        Rejected xs -> tag "span" ["class=bad"] "Rejected" ++ "<br />" ++
-            tag "span" ["class=info"] (commasLimit 3 $ map showTestQuestion xs)
-        Progressing done todo ->
-            "Testing (passed " ++ show (length done + 1) ++ " of " ++ show (length (done++todo) + 1) ++ ")" ++ running
+        Accepted -> span__ [class_ "good"] $ str_ "Success"
+        Unknown -> str_ "Testing (passed 0 of ?)" <> running
+        Paused -> str_ "Paused"
+        Rejected xs -> span__ [class_ "bad"] (str_ "Rejected") <> br_ <>
+            span__ [class_ "info"] (commasLimit_ 3 $ map showTestQuestion xs)
+        Progressing done todo -> do
+            str_ $ "Testing (passed " ++ show (length done + 1) ++ " of " ++ show (length (done++todo) + 1) ++ ")"
+            running
     ]
     where
         s0 = state0 server
-        running | null xs = ""
-                | otherwise = "<br />" ++ tag "span" ["class=info"] (commasLimit 3 items)
+        running | null xs = mempty
+                | otherwise = br_ <> span__ [class_ "info"] (commasLimit_ 3 items)
             where xs = unanswered server [maybe (candidate' (s0,[])) patch' p]
                   (yes,no) = partition (maybe null (isSuffixOf . return) p . snd . qCandidate) xs
-                  items = map (tagg "b" . showTestQuestion) yes ++ map showTestQuestion no
+                  items = map (b_ . showTestQuestion) yes ++ map showTestQuestion no
 
 
-client :: Shower -> Server -> Client -> [String]
+client :: Shower -> Server -> Client -> [HTML]
 client Shower{..} server c =
-    [tag "a" ["href=?client=" ++ fromClient c] $ fromClient c
-    ,if null target then "<i>None</i>"
-     else commas $ map showTestQuestion target]
+    [a__ [href_ $ "?client=" ++ fromClient c] $ str_ $ fromClient c
+    ,if null target then i_ $ str_ "None"
+     else commas_ $ map showTestQuestion target]
     where target = unanswered server [client' c]
 
 
