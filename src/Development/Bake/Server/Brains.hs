@@ -41,7 +41,7 @@ brains info server@Server{..} Ping{..}
                   (yes, no) = partition (`elem` started) xs
 
         -- all the tests, sorted so those which have been done least are first
-        todoPass = map ((target,) . fst) $ sortOn (negate . length . nub . concat . snd) $ groupSort $
+        todoPass = map ((target,) . fst) $ sortOn (length . nub . concat . snd) $ groupSort $
             [(qTest, snd qCandidate) | (Question{..},_) <- translate' server (fst target) $ answered server [success']] ++
             map (,[]) (allTests target)
 
