@@ -22,7 +22,6 @@ After running `Test`s, we accumulate a set of `State` (the state of the repo), `
 
 * A `State` is **blessed** if: _forall t, history (s, t, True)_
 * A `Patch` is **blessed** if: _exists s, p in s && blessed s_
-* A `Test` is **inconsistent** if: _exists s, history (s, t, True) && history (s, t, False)_
 * A `Patch` is **plausible** if: _forall t, exists s, p in s && history (s, t, True)_
 * A `Patch` is **faulty** if: _exists t, exists s, history (s, t, True) && history (s ++ [p], t, False)_. In addition, a passing test of `t` (on a different state) must be run after the failing test.
 
