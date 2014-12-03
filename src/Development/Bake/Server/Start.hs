@@ -66,7 +66,6 @@ patchExtra s p = do
     dir <- createDir "bake-extra" $ fromState s : maybeToList (fmap fromPatch p)
     res <- try_ $ do
         unit $ cmd (Cwd dir) exe "runextra"
-            "--output=.bake"
             ["--state=" ++ fromState s]
             ["--patch=" ++ fromPatch p | Just p <- [p]]
         fmap read $ readFile $ dir </> ".bake"

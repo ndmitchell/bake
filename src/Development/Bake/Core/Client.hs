@@ -51,7 +51,6 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
                     map ((++) "    " . fromPatch) (snd qCandidate)
                 (time, (exit, Stdout sout, Stderr serr)) <- duration $
                     cmd (Cwd dir) exe "runtest"
-                        "--output=.bake"
                         ["--test=" ++ fromTest t | Just t <- [qTest]]
                         ("--state=" ++ fromState (fst qCandidate))
                         ["--patch=" ++ fromPatch p | p <- snd qCandidate]

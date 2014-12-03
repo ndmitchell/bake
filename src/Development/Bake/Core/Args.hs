@@ -30,11 +30,11 @@ data Bake
     | Pause {host :: Host, port :: Port, author :: Author}
     | Unpause {host :: Host, port :: Port, author :: Author}
       -- actions sent through from Bake itself
-    | RunInit {output :: FilePath}
-    | RunUpdate {output :: FilePath, state :: String, patch :: [String]}
-    | RunTest {output :: FilePath, test :: Maybe String, state :: String, patch :: [String]}
-    | RunExtra {output :: FilePath, state :: String, patch :: [String]}
       deriving (Typeable,Data)
+    | RunInit
+    | RunUpdate {state :: String, patch :: [String]}
+    | RunTest {test :: Maybe String, state :: String, patch :: [String]}
+    | RunExtra {state :: String, patch :: [String]}
 
 
 bakeMode = cmdArgsMode $ modes
@@ -45,7 +45,7 @@ bakeMode = cmdArgsMode $ modes
     ,DelPatches{}
     ,Pause{}
     ,Unpause{}
-    ,RunTest def def def def
+    ,RunTest def def def
     ,RunInit{}
     ,RunExtra{}
     ,RunUpdate{}
@@ -74,12 +74,12 @@ bake oven@Oven{..} = do
         Pause{..} -> sendPause (getHostPort host port) author
         Unpause{..} -> sendUnpause (getHostPort host port) author
 
-        RunInit{..} -> do
+        RunInit -> do
             s <- ovenUpdateState Nothing
-            writeFile output $ stringyTo ovenStringyState s
+            writeFile ".bake" $ stringyTo ovenStringyState s
         RunUpdate{..} -> do
             s <- ovenUpdateState $ Just (stringyFrom ovenStringyState state, map (stringyFrom ovenStringyPatch) patch)
-            writeFile output $ stringyTo ovenStringyState s
+            writeFile ".bake" $ stringyTo ovenStringyState s
         RunTest{..} -> do
             case test of
                 Nothing -> do
@@ -88,14 +88,14 @@ bake oven@Oven{..} = do
                         (map (stringyFrom ovenStringyPatch) patch)
                     (yes,no) <- partitionM (testSuitable . ovenTestInfo) res
                     let op = map (stringyTo ovenStringyTest)
-                    writeFile output $ show (op yes, op no)
+                    writeFile ".bake" $ show (op yes, op no)
                 Just test -> do
                     testAction $ ovenTestInfo $ stringyFrom ovenStringyTest test
         RunExtra{..} -> do
             res <- ovenPatchExtra
                 (stringyFrom ovenStringyState state)
                 (fmap (stringyFrom ovenStringyPatch) $ listToMaybe patch)
-            writeFile output $ show res
+            writeFile ".bake" $ show res
     where
         getPort p = if p == 0 then snd ovenServer else p
         getHostPort h p = (if h == "" then fst ovenServer else h, getPort p)
