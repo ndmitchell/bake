@@ -2,20 +2,11 @@
 module General.Format(
     tag, tag_,
     table,
-    escapeHTML,
-    putBlock,
-    commas, commasLimit, unwordsLimit
+    escapeHTML
     ) where
 
 import Data.List.Extra
 
-
-putBlock :: String -> [String] -> IO ()
-putBlock title body = putStrLn $ unlines $
-    let s = "-- " ++ title ++ " --" in
-    (s ++ replicate (70 - length s) '-') :
-    body ++
-    [replicate 70 '-']
 
 table :: String -> [String] -> [[String]] -> [String]
 table zero cols [] = ["<p>" ++ zero ++ "</p>"]
@@ -34,18 +25,6 @@ tag_ t = tag t []
 tag :: String -> [String] -> String -> String
 tag t at x = "<" ++ t ++ concatMap f at ++ ">" ++ x ++ "</" ++ t ++ ">"
     where f x = let (a,b) = break (== '=') x in ' ':a ++ (if null b then "" else "=\"" ++ escapeHTML (drop1 b) ++ "\"")
-
-
-commas :: [String] -> String
-commas = intercalate ", "
-
-commasLimit :: Int -> [String] -> String
-commasLimit i xs = intercalate ", " a ++ (if null b then "" else "...")
-    where (a,b) = splitAt i xs
-
-unwordsLimit :: Int -> [String] -> String
-unwordsLimit i xs = unwords a ++ (if null b then "" else "...")
-    where (a,b) = splitAt i xs
 
 
 escapeHTML :: String -> String

@@ -10,7 +10,7 @@ module Development.Bake.Core.Type(
     Author
     ) where
 
-import General.Format
+import General.Extra
 import Control.Monad.Extra
 import Control.DeepSeq
 import Data.Monoid

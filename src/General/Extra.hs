@@ -5,7 +5,9 @@ module General.Extra(
     createDir,
     newCVar, readCVar, modifyCVar, modifyCVar_,
     registerMaster, forkSlave,
-    transitiveClosure
+    transitiveClosure,
+    putBlock,
+    commas, commasLimit, unwordsLimit
     ) where
 
 import Data.Time.Clock
@@ -107,3 +109,24 @@ transitiveClosure :: Eq a => (a -> [a]) -> a -> [a]
 transitiveClosure f = nub . g
     where g x = x : concatMap g (f x)
 
+
+---------------------------------------------------------------------
+-- FORMATTING
+
+putBlock :: String -> [String] -> IO ()
+putBlock title body = putStrLn $ unlines $
+    let s = "-- " ++ title ++ " --" in
+    (s ++ replicate (70 - length s) '-') :
+    body ++
+    [replicate 70 '-']
+
+commas :: [String] -> String
+commas = intercalate ", "
+
+commasLimit :: Int -> [String] -> String
+commasLimit i xs = intercalate ", " a ++ (if null b then "" else "...")
+    where (a,b) = splitAt i xs
+
+unwordsLimit :: Int -> [String] -> String
+unwordsLimit i xs = unwords a ++ (if null b then "" else "...")
+    where (a,b) = splitAt i xs

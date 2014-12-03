@@ -7,7 +7,6 @@ module Development.Bake.Core.Client(
 import Development.Bake.Core.Type
 import Development.Bake.Core.Run
 import General.Extra
-import General.Format
 import General.Str
 import Development.Bake.Core.Message
 import Control.Concurrent
