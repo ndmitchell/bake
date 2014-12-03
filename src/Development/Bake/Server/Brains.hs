@@ -41,9 +41,11 @@ brains info server@Server{..} Ping{..}
                   (yes, no) = partition (`elem` started) xs
 
         -- all the tests, sorted so those which have been done least are first
-        todoPass = map ((target,) . fst) $ sortOn (length . nub . concat . snd) $ groupSort $
+        todoPass = map ((target,) . fst) $ sortOn (orderPriority &&& orderRarity) $ groupSort $
             [(qTest, snd qCandidate) | (Question{..},_) <- translate' server (fst target) $ answered server [success']] ++
             map (,[]) (allTests target)
+            where orderPriority = negate . maybe 0 (testPriority . info)  . fst
+                  orderRarity = length . nub . concat . snd
 
         todoFail = [((fst target, init ps), t) | (t, ps@(_:_)) <- failures, t <- dependencies t]
 

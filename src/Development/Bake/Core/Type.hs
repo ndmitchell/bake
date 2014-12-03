@@ -5,7 +5,7 @@ module Development.Bake.Core.Type(
     Host, Port,
     Stringy(..), readShowStringy,
     Oven(..), TestInfo(..), defaultOven, ovenTest, ovenNotifyStdout,
-    threads, threadsAll, require, run, suitable,
+    threads, threadsAll, require, run, suitable, priority,
     State(..), Patch(..), Test(..), Client(..), concrete, validate,
     Author
     ) where
@@ -105,15 +105,16 @@ data TestInfo test = TestInfo
     ,testAction :: IO ()
     ,testSuitable :: IO Bool -- can this test be run on this machine (e.g. Linux only tests)
     ,testRequire :: [test]
+    ,testPriority :: Int
     }
 
 instance Functor TestInfo where
     fmap f t = t{testRequire = map f $ testRequire t}
 
 instance Monoid (TestInfo test) where
-    mempty = TestInfo (Just 1) (return ()) (return True) []
-    mappend (TestInfo x1 x2 x3 x4) (TestInfo y1 y2 y3 y4) =
-        TestInfo (liftM2 (+) x1 y1) (x2 >> y2) (x3 &&^ y3) (x4 ++ y4)
+    mempty = TestInfo (Just 1) (return ()) (return True) [] 0
+    mappend (TestInfo x1 x2 x3 x4 x5) (TestInfo y1 y2 y3 y4 y5) =
+        TestInfo (liftM2 (+) x1 y1) (x2 >> y2) (x3 &&^ y3) (x4 ++ y4) (x5 + y5)
 
 -- | Change the number of threads a test requires, defaults to 1.
 threads :: Int -> TestInfo test -> TestInfo test
@@ -135,6 +136,11 @@ require xs t = t{testRequire=testRequire t++xs}
 -- | The action associated with a @test@.
 run :: IO () -> TestInfo test
 run act = mempty{testAction=act}
+
+-- | Set the priority of a test, those with higher priority are run first.
+--   Tests have a default priority of 0.
+priority :: Int -> TestInfo test -> TestInfo test
+priority p t = t{testPriority = p + testPriority t}
 
 -- | Is a particular client capable of running a test.
 --   Usually an OS check.
