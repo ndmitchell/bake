@@ -75,6 +75,7 @@ patchExtra s p = do
 
 operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
 operate timeout oven message server = case message of
+    _ | not $ null $ fatal server -> dull server
     AddPatch author p | (s, ps) <- target server -> do
         whenLoud $ print ("Add patch to",s,snoc ps p)
         now <- getTimestamp
