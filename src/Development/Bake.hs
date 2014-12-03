@@ -11,7 +11,7 @@ module Development.Bake(
     ovenTest, ovenGit, ovenNotifyStdout, ovenNotifyEmail, ovenPretty,
     ovenIncremental, incrementalDone,
     -- ** TestInfo members
-    TestInfo, run, threads, threadsAll, require, suitable,
+    TestInfo, run, threads, threadsAll, require, suitable, priority,
     -- * Operations
     startServer, startClient,
     module Development.Bake.Core.Send,
