@@ -42,10 +42,16 @@ data Server = Server
         -- ^ Authors associated with each patch (Nothing is the server author)
     ,extra :: DelayCache (Either State Patch) (Str, Str)
         -- ^ Extra information that was computed for each string (cached forever)
+    ,updateHistory :: [(Timestamp, Question, Maybe Answer)]
+        -- ^ Updates that are ongoing
+    ,fatal :: [String]
+        -- ^ A list of fatal error messages that have been raised by the server
     }
 
+
+-- | Warning: target and extra are undefined, either define them or don't ever use them
 server0 :: Server
-server0 = Server [] [] Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra")
+server0 = Server [] [] Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra") [] []
 
 state0 :: Server -> State
 state0 Server{..} = last $ fst target : map (fst . thd3) updates
