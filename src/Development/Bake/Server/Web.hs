@@ -30,8 +30,12 @@ web oven@Oven{..} args server@Server{..} = do
     return $ OutputHTML $ unlines $
         prefix ++
         (if null args then
-            ["<h1>Bake Continuous Integration</h1>"
-            ,"<h2>Patches</h2>"] ++
+            ["<h1>Bake Continuous Integration</h1>"] ++
+            (if null fatal then [] else
+                ["<h2 class=bad>Fatal error</h2>"
+                ,"<p>The continuous integration server has been suspeneded due to fatal errors:</p>"
+                ,tag_ "ul" $ concatMap (tag_ "li" . escapeHTML) fatal]) ++
+            ["<h2>Patches</h2>"] ++
             failures shower server ++
             table "No patches submitted" ["Patch","Time","Status"]
                 (map (patch shower server) $ nub (map (Just . snd) submitted) ++ [Nothing]) ++
