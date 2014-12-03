@@ -11,6 +11,7 @@ import Development.Bake.Core.Message
 import General.Web
 import General.Extra
 import General.Format
+import General.HTML
 import General.DelayCache
 import General.Str
 import Data.List.Extra
@@ -27,8 +28,7 @@ web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
 web oven@Oven{..} args server@Server{..} = do
     extra <- askDelayCache extra
     shower <- shower extra oven
-    return $ OutputHTML $ unlines $
-        prefix ++
+    return $ OutputHTML $ renderHTML $ template $ raw_ $ unlines $
         (if null args then
             ["<h1>Bake Continuous Integration</h1>"] ++
             (if null fatal then [] else
@@ -56,8 +56,7 @@ web oven@Oven{..} args server@Server{..} = do
                 [p] | null $ ask "test", Just (_, e) <- extra $ Right $ Patch p ->
                         ["<h2>Patch information</h2>", strUnpack e]
                 _ -> [])
-        ) ++
-        suffix
+        )
 
 
 data Shower = Shower
@@ -93,39 +92,36 @@ shower extra Oven{..} = do
                           ["patch=" ++ fromPatch p | p <- ps] ++
                           ["test=" ++ maybe "" fromTest t]
 
-prefix =
-    ["<!HTML>"
-    ,"<html>"
-    ,"<head>"
-    ,"<title>Bake Continuous Integration</title>"
-    ,"<link rel='shortcut icon' type='image/x-icon' href='html/favicon.ico' />"
-    ,"<style type='text/css'>"
-    ,"body, td {font-family: sans-serif; font-size: 10pt;}"
-    ,"table {border-collapse: collapse;}"
-    ,"table, td {border: 1px solid #ccc;}"
-    ,"td {padding: 2px; padding-right: 15px;}"
-    ,"thead {font-weight: bold;}"
-    ,"a {text-decoration: none; color: #4183c4;}"
-    ,"a:hover {text-decoration: underline;}"
-    ,".patch, .state {font-family: Consolas, monospace; white-space:nowrap;}"
-    ,".info {font-size: 75%; color: #888;}"
-    ,"a.info {color: #4183c4;}" -- tie breaker
-    ,".good {font-weight: bold; color: darkgreen;}"
-    ,".bad {font-weight: bold; color: darkred;}"
-    ,".nobr {white-space: nowrap;}"
-    ,".red {background-color: #ffdddd;}"
-    ,".green {background-color: #ddffdd;}"
-    ,"#footer {margin-top: 40px; font-size: 80%;}"
-    ,"</style>"
-    ,"</head>"
-    ,"<body>"
-    ]
-
-suffix =
-    ["<p id=footer><a href='https://github.com/ndmitchell/bake'>" ++
-        "Copyright Neil Mitchell 2014, version " ++ showVersion version ++ "</a></p>"
-    ,"</body>"
-    ,"</html>"]
+template :: HTML -> HTML
+template inner = do
+    raw_ "<!HTML>"
+    html_ $ do
+        head_ $ do
+            title_ $ str_ "Bake Continuous Integration"
+            link__ [rel_ "shortcut icon", type_ "image/x-icon", href_ "html/favicon.ico"]
+            style__ [type_ "text/css"] $ unlines
+                ["body, td {font-family: sans-serif; font-size: 10pt;}"
+                ,"table {border-collapse: collapse;}"
+                ,"table, td {border: 1px solid #ccc;}"
+                ,"td {padding: 2px; padding-right: 15px;}"
+                ,"thead {font-weight: bold;}"
+                ,"a {text-decoration: none; color: #4183c4;}"
+                ,"a:hover {text-decoration: underline;}"
+                ,".patch, .state {font-family: Consolas, monospace; white-space:nowrap;}"
+                ,".info {font-size: 75%; color: #888;}"
+                ,"a.info {color: #4183c4;}" -- tie breaker
+                ,".good {font-weight: bold; color: darkgreen;}"
+                ,".bad {font-weight: bold; color: darkred;}"
+                ,".nobr {white-space: nowrap;}"
+                ,".red {background-color: #ffdddd;}"
+                ,".green {background-color: #ddffdd;}"
+                ,"#footer {margin-top: 40px; font-size: 80%;}"
+                ]
+        body_ $ do
+            inner
+            p__ [id_ "fooer"] $
+                a__ [href_ "https://github.com/ndmitchell/bake"] $
+                    str_ $ "Copyright Neil Mitchell 2014, version " ++ showVersion version
 
 
 failures :: Shower -> Server -> [String]
