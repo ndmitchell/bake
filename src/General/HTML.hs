@@ -7,14 +7,16 @@ module General.HTML(
     (<>),
     -- * Tags
     br_, style__, link__,
-    pre_, b_, html_, head_, title_, body_,
-    a__, span__, p__,
+    pre_, b_, html_, head_, title_, body_, h1_, h2_, ul_, li_, p_, table_, thead_, tr_, td_, tbody_, i_,
+    a__, span__, p__, h2__,
     href_, class_, name_, rel_, type_, style_, id_,
-    unlines_,
+    -- * Functions
+    unlines_, commas_, commasLimit_
     ) where
 
 import Control.Applicative
 import Data.Monoid
+import Data.List
 import Control.Monad
 import Data.Char
 
@@ -117,14 +119,26 @@ style__ at body = tag__ "style" at $ raw_ body
 
 pre_ = tag_ "pre"
 b_ = tag_ "b"
+i_ = tag_ "i"
 html_ = tag_ "html"
 head_ = tag_ "head"
 title_ = tag_ "title"
 body_ = tag_ "body"
+h1_ = tag_ "h1"
+h2_ = tag_ "h2"
+ul_ = tag_ "ul"
+li_ = tag_ "li"
+p_ = tag_ "p"
+table_ = tag_ "table"
+thead_ = tag_ "thead"
+tr_ = tag_ "tr"
+td_ = tag_ "td"
+tbody_ = tag_ "tbody"
 
 a__ = tag__ "a"
 span__ = tag__ "span"
 p__ = tag__ "p"
+h2__ = tag__ "h2"
 
 href_ = attribute_ "href"
 class_ = attribute_ "class"
@@ -135,3 +149,9 @@ style_ = attribute_ "style"
 id_ = attribute_ "id"
 
 unlines_ = mconcat . map (<> str_ "\n")
+commas_ = mconcat . intersperse (str_ ", ")
+commasLimit_ = limit_ commas_
+
+limit_ :: ([HTML] -> HTML) -> Int -> [HTML] -> HTML
+limit_ rejoin i xs = rejoin a <> str_ (if null b then "" else "...")
+    where (a,b) = splitAt i xs
