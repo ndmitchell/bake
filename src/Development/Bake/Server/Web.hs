@@ -164,7 +164,7 @@ patch Shower{..} server@Server{..} p =
     ,maybe "" (showTime . fst) $ find ((==) p . Just . snd) submitted
 
     ,case patchStatus server p of
-        Accepted -> tag "span" ["class=good"] "Merged"
+        Accepted -> tag "span" ["class=good"] "Success"
         Unknown -> "Testing (passed 0 of ?)" ++ running
         Paused -> "Paused"
         Rejected xs -> tag "span" ["class=bad"] "Rejected" ++ "<br />" ++
