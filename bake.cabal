@@ -69,6 +69,7 @@ library
         Development.Bake.Pretty
         Development.Bake.Server.Brains
         Development.Bake.Server.Query
+        Development.Bake.Server.Run
         Development.Bake.Server.Start
         Development.Bake.Server.Type
         Development.Bake.Server.Web
