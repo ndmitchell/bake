@@ -9,13 +9,14 @@ import General.Extra
 import Development.Shake.Command
 import Control.Monad.Extra
 import Data.List.Extra
-import General.Format
+import General.HTML
 import System.Directory.Extra
 import System.FilePath
 import Data.Maybe
 import Data.Tuple.Extra
 import Data.Char
 import Data.Hashable
+import Data.Monoid
 
 
 newtype SHA1 = SHA1 {fromSHA1 :: String} deriving (Show,Eq)
@@ -104,7 +105,8 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             Stdout full <- cmd (Cwd mirror) "git log --no-merges -n10 --pretty=format:%s" [fromSHA1 s]
             Stdout count <- cmd (Cwd mirror) "git rev-list --count" [fromSHA1 s]
             let summary = takeWhile (/= '\n') full
-            return (count ++ " patches<br />\n" ++ summary, tagg "pre" full)
+            return (renderHTML $ do str_ $ count ++ " patches"; br_; str_ summary
+                   ,renderHTML $ pre_ $ str_ full)
 
         gitPatchExtra (SHA1 s) (Just (SHA1 p)) = traced "gitPatchExtra Just" $ do
             mirror <- gitInitMirror
@@ -114,8 +116,8 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
                 "git diff --stat" [s ++ "..." ++ p]
             Stdout log <- cmd (Cwd mirror)
                 "git log --no-merges -n1 --pretty=format:%s" [p]
-            return (reduceStat stat ++ "<br />\n" ++ takeWhile (/= '\n') log
-                   ,tagg "pre" $ prettyStat stat ++ "\n" ++ prettyDiff diff)
+            return (renderHTML $ do str_ $ reduceStat stat; br_; str_ $ takeWhile (/= '\n') log
+                   ,renderHTML $ pre_ $ do prettyStat stat; str_ "\n"; prettyDiff diff)
 
 
 ---------------------------------------------------------------------
@@ -133,18 +135,18 @@ diff x = "diff:" ++ show (abs $ hash x)
 -- > src/Test.hs                           |  258 ++++++++++++------------
 -- > travis.hs                             |    4 +-
 -- > 28 files changed, 1612 insertions(+), 1302 deletions(-)
-prettyStat :: String -> String
-prettyStat = unlines . maybe [] (uncurry snoc . first (map f)) . unsnoc . map trimStart . lines
+prettyStat :: String -> HTML
+prettyStat = unlines_ . maybe [] (uncurry snoc . (map f *** str_)) . unsnoc . map trimStart . lines
     where
-        f x = tag "a" ["href=#" ++ diff a] a ++ b ++ g c
+        f x = a__ [href_ $ "#" ++ diff a] (str_ a) <> str_ b <> g c
             where (ab,c) = break (== '|') x
                   (a,b) = spanEnd isSpace ab
-        g x@('+':_) = tag "span" ["class=green"] a ++ g b
+        g x@('+':_) = span__ [class_ "green"] (str_ a) <> g b
             where (a,b) = span (== '+') x
-        g x@('-':_) = tag "span" ["class=red"] a ++ g b
+        g x@('-':_) = span__ [class_ "red"] (str_ a) <> g b
             where (a,b) = span (== '-') x
-        g (x:xs) = x : g xs
-        g [] = []
+        g (x:xs) = str_ [x] <> g xs
+        g [] = mempty
 
 
 -- |
@@ -158,14 +160,14 @@ prettyStat = unlines . maybe [] (uncurry snoc . first (map f)) . unsnoc . map tr
 -- >  name:               bake
 -- > -version:            0.1
 -- > +version:            0.2
-prettyDiff :: String -> String
-prettyDiff = unlines . map f . lines
+prettyDiff :: String -> HTML
+prettyDiff = unlines_ . map f . lines
     where
         f x | "diff --git " `isPrefixOf` x =
             let files = [y | ab:'/':y <- drop 2 $ words x, ab `elem` "ab"] in
-            tag "a" (take 1 ["name=" ++ diff y | y <- files]) "" ++
-            tagg "b" x
-        f x | any (`isPrefixOf` x) ["index ","--- ","+++ "] = tagg "b" x
-        f xs@('+':_) = tag "span" ["class=green"] xs
-        f xs@('-':_) = tag "span" ["class=red"] xs
-        f xs = xs
+            a__ (take 1 [name_ $ diff y | y <- files]) mempty <>
+            b_ (str_ x)
+        f x | any (`isPrefixOf` x) ["index ","--- ","+++ "] = b_ $ str_ x
+        f xs@('+':_) = span__ [class_ "green"] $ str_ xs
+        f xs@('-':_) = span__ [class_ "red"] $ str_ xs
+        f xs = str_ xs
