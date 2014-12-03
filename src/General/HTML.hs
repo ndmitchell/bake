@@ -6,8 +6,10 @@ module General.HTML(
     tag_, tag__,
     (<>),
     -- * Tags
-    pre_, br_, a__, span__, b_,
-    href_, class_, name_,
+    br_, style__, link__,
+    pre_, b_, html_, head_, title_, body_,
+    a__, span__, p__,
+    href_, class_, name_, rel_, type_, style_, id_,
     unlines_,
     ) where
 
@@ -93,7 +95,7 @@ tag__ :: String -> [Attribute] -> HTML -> HTML
 tag__ name at inner | valid name = do
     -- if you collapse an "a", it goes wrong
     -- if you don't collapse a "br", it goes wrong
-    let zero = nullHTML inner && name == "br"
+    let zero = nullHTML inner && name `elem` ["br","link"]
     raw_ $
         "<" ++
         unwords (name : map fromAttribute at) ++
@@ -109,14 +111,27 @@ tag_ name = tag__ name []
 ---------------------------------------------------------------------
 -- TAGS
 
-pre_ = tag_ "pre"
 br_ = tag_ "br" mempty
+link__ at = tag__ "link" at mempty
+style__ at body = tag__ "style" at $ raw_ body
+
+pre_ = tag_ "pre"
+b_ = tag_ "b"
+html_ = tag_ "html"
+head_ = tag_ "head"
+title_ = tag_ "title"
+body_ = tag_ "body"
+
 a__ = tag__ "a"
 span__ = tag__ "span"
-b_ = tag_ "b"
+p__ = tag__ "p"
 
 href_ = attribute_ "href"
 class_ = attribute_ "class"
 name_ = attribute_ "name"
+rel_ = attribute_ "rel"
+type_ = attribute_ "type"
+style_ = attribute_ "style"
+id_ = attribute_ "id"
 
 unlines_ = mconcat . map (<> str_ "\n")
