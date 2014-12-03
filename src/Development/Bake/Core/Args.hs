@@ -30,11 +30,11 @@ data Bake
     | Pause {host :: Host, port :: Port, author :: Author}
     | Unpause {host :: Host, port :: Port, author :: Author}
       -- actions sent through from Bake itself
-      deriving (Typeable,Data)
     | RunInit
     | RunUpdate {state :: String, patch :: [String]}
     | RunTest {test :: Maybe String, state :: String, patch :: [String]}
     | RunExtra {state :: String, patch :: [String]}
+      deriving (Typeable,Data)
 
 
 bakeMode = cmdArgsMode $ modes
