@@ -104,7 +104,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             Stdout full <- cmd (Cwd mirror) "git log --no-merges -n10 --pretty=format:%s" [fromSHA1 s]
             Stdout count <- cmd (Cwd mirror) "git rev-list --count" [fromSHA1 s]
             let summary = takeWhile (/= '\n') full
-            return (count ++ " patches<br />\n" ++ summary, tag_ "pre" full)
+            return (count ++ " patches<br />\n" ++ summary, tagg "pre" full)
 
         gitPatchExtra (SHA1 s) (Just (SHA1 p)) = traced "gitPatchExtra Just" $ do
             mirror <- gitInitMirror
@@ -115,7 +115,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             Stdout log <- cmd (Cwd mirror)
                 "git log --no-merges -n1 --pretty=format:%s" [p]
             return (reduceStat stat ++ "<br />\n" ++ takeWhile (/= '\n') log
-                   ,tag_ "pre" $ prettyStat stat ++ "\n" ++ prettyDiff diff)
+                   ,tagg "pre" $ prettyStat stat ++ "\n" ++ prettyDiff diff)
 
 
 ---------------------------------------------------------------------
@@ -164,8 +164,8 @@ prettyDiff = unlines . map f . lines
         f x | "diff --git " `isPrefixOf` x =
             let files = [y | ab:'/':y <- drop 2 $ words x, ab `elem` "ab"] in
             tag "a" (take 1 ["name=" ++ diff y | y <- files]) "" ++
-            tag_ "b" x
-        f x | any (`isPrefixOf` x) ["index ","--- ","+++ "] = tag_ "b" x
+            tagg "b" x
+        f x | any (`isPrefixOf` x) ["index ","--- ","+++ "] = tagg "b" x
         f xs@('+':_) = tag "span" ["class=green"] xs
         f xs@('-':_) = tag "span" ["class=red"] xs
         f xs = xs

@@ -34,7 +34,7 @@ web oven@Oven{..} args server@Server{..} = do
             (if null fatal then [] else
                 ["<h2 class=bad>Fatal error</h2>"
                 ,"<p>The continuous integration server has been suspeneded due to fatal errors:</p>"
-                ,tag_ "ul" $ concatMap (tag_ "li" . escapeHTML) fatal]) ++
+                ,tagg "ul" $ concatMap (tagg "li" . escapeHTML) fatal]) ++
             ["<h2>Patches</h2>"] ++
             failures shower server ++
             table "No patches submitted" ["Patch","Time","Status"]
@@ -131,7 +131,7 @@ suffix =
 failures :: Shower -> Server -> [String]
 failures Shower{..} server
     | null xs = []
-    | otherwise = [tag_ "p" "Tracking down failures in:", tag_ "ul" $ concatMap (tag_ "li" . showTest) xs]
+    | otherwise = [tagg "p" "Tracking down failures in:", tagg "ul" $ concatMap (tagg "li" . showTest) xs]
     where xs = nub $ map fst $ targetFailures server
 
 
@@ -178,7 +178,7 @@ patch Shower{..} server@Server{..} p =
                 | otherwise = "<br />" ++ tag "span" ["class=info"] (commasLimit 3 items)
             where xs = unanswered server [maybe (candidate' (s0,[])) patch' p]
                   (yes,no) = partition (maybe null (isSuffixOf . return) p . snd . qCandidate) xs
-                  items = map (tag_ "b" . showTestQuestion) yes ++ map showTestQuestion no
+                  items = map (tagg "b" . showTestQuestion) yes ++ map showTestQuestion no
 
 
 client :: Shower -> Server -> Client -> [String]

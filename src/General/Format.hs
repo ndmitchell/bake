@@ -1,6 +1,6 @@
 
 module General.Format(
-    tag, tag_,
+    tag, tagg,
     table,
     escapeHTML
     ) where
@@ -12,15 +12,15 @@ table :: String -> [String] -> [[String]] -> [String]
 table zero cols [] = ["<p>" ++ zero ++ "</p>"]
 table _ cols body =
     ["<table>"
-    ,tag_ "thead" $ tag_ "tr" $ concatMap (tag_ "td") cols
+    ,tagg "thead" $ tagg "tr" $ concatMap (tagg "td") cols
     ,"<tbody>"] ++
-    [tag_ "tr" $ concatMap (tag_ "td") x | x <- body] ++
+    [tagg "tr" $ concatMap (tagg "td") x | x <- body] ++
     ["</tbody>"
     ,"</table>"]
 
 
-tag_ :: String -> String -> String
-tag_ t = tag t []
+tagg :: String -> String -> String
+tagg t = tag t []
 
 tag :: String -> [String] -> String -> String
 tag t at x = "<" ++ t ++ concatMap f at ++ ">" ++ x ++ "</" ++ t ++ ">"
