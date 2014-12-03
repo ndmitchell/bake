@@ -1,14 +1,16 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | A notion of a string that might take up less space.
 module General.Str(
     Str, strPack, strUnpack
     ) where
 
+import Control.DeepSeq
 import Data.Aeson
 import qualified Data.Text as Text
 
 
-data Str = Str Text.Text deriving (Show,Eq)
+newtype Str = Str Text.Text deriving (Show,Eq,NFData)
 
 instance ToJSON Str where
     toJSON (Str x) = toJSON x
