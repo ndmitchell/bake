@@ -66,10 +66,10 @@ patchExtra s p = do
     dir <- createDir "bake-extra" $ fromState s : maybeToList (fmap fromPatch p)
     res <- try_ $ do
         unit $ cmd (Cwd dir) exe "runextra"
-            "--output=extra.txt"
+            "--output=.bake"
             ["--state=" ++ fromState s]
             ["--patch=" ++ fromPatch p | Just p <- [p]]
-        fmap read $ readFile $ dir </> "extra.txt"
+        fmap read $ readFile $ dir </> ".bake"
     fmap (both strPack) $ either (fmap dupe . showException) return res
 
 

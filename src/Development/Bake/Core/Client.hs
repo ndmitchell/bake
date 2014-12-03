@@ -51,13 +51,13 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
                     map ((++) "    " . fromPatch) (snd qCandidate)
                 (time, (exit, Stdout sout, Stderr serr)) <- duration $
                     cmd (Cwd dir) exe "runtest"
-                        "--output=tests.txt"
+                        "--output=.bake"
                         ["--test=" ++ fromTest t | Just t <- [qTest]]
                         ("--state=" ++ fromState (fst qCandidate))
                         ["--patch=" ++ fromPatch p | p <- snd qCandidate]
                         ["+RTS","-N" ++ show qThreads]
                 tests <- if isJust qTest || exit /= ExitSuccess then return ([],[]) else do
-                    src ::  ([String],[String]) <- fmap read $ readFile $ dir </> "tests.txt"
+                    src ::  ([String],[String]) <- fmap read $ readFile $ dir </> ".bake"
                     let op = map (stringyFrom (ovenStringyTest oven))
                     putStrLn "FIXME: Should validate the next set forms a DAG"
                     return (op (fst src), op (snd src))
