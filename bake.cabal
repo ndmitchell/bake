@@ -75,7 +75,6 @@ library
         Development.Bake.Server.Web
         General.DelayCache
         General.Extra
-        General.Format
         General.HTML
         General.Str
         General.Web
