@@ -158,7 +158,7 @@ runs Shower{..} Server{..} pred = table "No runs" ["Time","Question","Answer"]
 patch :: Shower -> Server -> Maybe Patch -> [String]
 patch Shower{..} server@Server{..} p =
     [maybe ("Initial state " ++ showState s0) showPatch p ++
-     " by " ++ commasLimit 3 (Map.findWithDefault [] p authors) ++ "<br />" ++
+     " by " ++ commasLimit 3 (nub $ Map.findWithDefault [] p authors) ++ "<br />" ++
      tag "span" ["class=info"] (showExtra $ maybe (Left s0) Right p)
 
     ,maybe "" (showTime . fst) $ find ((==) p . Just . snd) submitted
