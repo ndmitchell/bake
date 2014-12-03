@@ -84,7 +84,7 @@ escapeHTML = concatMap $ \c -> case c of
 
 data Attribute = Attribute {fromAttribute :: String}
 
-valid (x:xs) | isAlpha x && all isAlpha xs = True
+valid (x:xs) | isAlpha x && all isAlphaNum xs = True
 valid x = error $ "Not a valid HTML name, " ++ show x
 
 attribute_ :: String -> String -> Attribute
