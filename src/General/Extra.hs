@@ -124,9 +124,11 @@ commas :: [String] -> String
 commas = intercalate ", "
 
 commasLimit :: Int -> [String] -> String
-commasLimit i xs = intercalate ", " a ++ (if null b then "" else "...")
-    where (a,b) = splitAt i xs
+commasLimit = limit commas
 
 unwordsLimit :: Int -> [String] -> String
-unwordsLimit i xs = unwords a ++ (if null b then "" else "...")
+unwordsLimit = limit unwords
+
+limit :: ([String] -> String) -> Int -> [String] -> String
+limit rejoin i xs = rejoin a ++ (if null b then "" else "...")
     where (a,b) = splitAt i xs
