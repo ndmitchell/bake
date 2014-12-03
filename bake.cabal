@@ -52,7 +52,8 @@ library
         aeson,
         extra >= 0.3,
         wai >= 3.0.1,
-        warp >= 3.0
+        warp >= 3.0,
+        lucid >= 2.0
 
     exposed-modules:
         Development.Bake
@@ -107,5 +108,6 @@ executable bake-test
         extra >= 0.2,
         wai >= 3.0.1,
         warp >= 3.0,
+        lucid >= 2.0,
         process,
         filepath
