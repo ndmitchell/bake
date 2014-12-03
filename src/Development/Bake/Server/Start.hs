@@ -70,7 +70,7 @@ operate timeout oven message server = case message of
         whenLoud $ print ("Add patch to",s,snoc ps p)
         now <- getTimestamp
         dull server
-            {target = (s, snoc ps p)
+            {target = (s, filter (/= p) ps `snoc` p)
             ,authors = Map.insertWith (++) (Just p) [author] $ authors server
             ,submitted = (now,p) : submitted server}
     DelPatch author p | (s, ps) <- target server -> dull server{target = (s, delete p ps)}
