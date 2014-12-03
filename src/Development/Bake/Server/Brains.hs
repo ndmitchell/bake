@@ -12,6 +12,7 @@ import Control.Applicative
 import Data.Maybe
 import Data.List.Extra
 import Data.Tuple.Extra
+import General.Extra
 
 
 data Neuron
@@ -75,11 +76,6 @@ brains info server@Server{..} Ping{..}
         suitableTest _ _ = False
 
         self' = client' pClient
-
-
-transitiveClosure :: Eq a => (a -> [a]) -> a -> [a]
-transitiveClosure f = nub . g
-    where g x = x : concatMap g (f x)
 
 
 -- | Given the current target, what prefix is already blessed.

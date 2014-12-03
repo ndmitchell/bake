@@ -4,7 +4,8 @@ module General.Extra(
     Timestamp(..), getTimestamp, showRelativeTimestamp,
     createDir,
     newCVar, readCVar, modifyCVar, modifyCVar_,
-    registerMaster, forkSlave
+    registerMaster, forkSlave,
+    transitiveClosure
     ) where
 
 import Data.Time.Clock
@@ -13,6 +14,7 @@ import System.Time.Extra
 import System.IO.Unsafe
 import Data.IORef
 import Data.Tuple.Extra
+import Data.List
 import System.Directory
 import Data.Hashable
 import System.FilePath
@@ -96,3 +98,12 @@ forkSlave act = void $ forkFinally act $ \v -> case v of
         m <- readIORef master
         whenJust m $ flip throwTo e
     _ -> return ()
+
+
+---------------------------------------------------------------------
+-- UTILITIES
+
+transitiveClosure :: Eq a => (a -> [a]) -> a -> [a]
+transitiveClosure f = nub . g
+    where g x = x : concatMap g (f x)
+
