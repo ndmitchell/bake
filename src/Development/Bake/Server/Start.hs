@@ -9,18 +9,18 @@ import Development.Bake.Core.Type
 import General.Web
 import General.Str
 import Development.Bake.Core.Message
+import Development.Bake.Core.Run
 import General.Extra
 import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
 import General.DelayCache
-import Development.Shake.Command
+import Control.Applicative
 import Control.DeepSeq
 import Control.Exception.Extra
 import Data.List.Extra
 import Data.Maybe
 import Data.Time.Clock
-import System.Environment.Extra
 import Control.Monad.Extra
 import Data.Tuple.Extra
 import System.Directory.Extra
@@ -61,15 +61,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
 
 -- | Get information about a patch
 patchExtra :: State -> Maybe Patch -> IO (Str, Str)
-patchExtra s p = do
-    exe <- getExecutablePath
-    dir <- createDir "bake-extra" $ fromState s : maybeToList (fmap fromPatch p)
-    res <- try_ $ do
-        unit $ cmd (Cwd dir) exe "runextra"
-            ["--state=" ++ fromState s]
-            ["--patch=" ++ fromPatch p | Just p <- [p]]
-        fmap read $ readFile $ dir </> ".bake"
-    fmap (both strPack) $ either (fmap dupe . showException) return res
+patchExtra s p = fst <$> runExtra s p
 
 
 operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
