@@ -29,7 +29,7 @@ brains info server@Server{..} Ping{..}
     | bless@(_:_) <- targetBlessedPrefix server = Update (fst target, bless)
     | blessedState server target = Sleep
     | blame:_ <- targetBlame server = uncurry Reject blame
-    | t:_ <- failures, null (snd target) = Broken $ fst t
+    | t:_ <- filter (null . snd) failures = Broken $ fst t
     | (c,t):_ <- filter (uncurry suitableTest) $ unasked todoFail ++ unasked todoPass
         = Task $ Question c t (threadsForTest t) pClient
     | otherwise = Sleep
