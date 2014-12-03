@@ -36,10 +36,8 @@ runTest s ps t = do
     (ex, ans) <- runAll "test" (state s : map patch ps) (map test $ maybeToList t) (both (map Test) . read)
     return $ maybe ans (\ex -> ans{aTestsSuitable=ex}) ex
 
-runExtra :: State -> Maybe Patch -> IO ((Str, Str), Answer)
-runExtra s ps = do
-    (ex,ans) <- runAll "extra" (state s : map patch (maybeToList ps)) [] (both strPack . read)
-    return (fromMaybe (dupe $ aStdout ans) ex, ans)
+runExtra :: State -> Maybe Patch -> IO (Maybe (Str, Str), Answer)
+runExtra s ps = runAll "extra" (state s : map patch (maybeToList ps)) [] (both strPack . read)
 
 
 runAll :: NFData a => String -> [String] -> [String] -> (String -> a) -> IO (Maybe a, Answer)

@@ -8,6 +8,7 @@ module Development.Bake.Server.Start(
 import Development.Bake.Core.Type
 import General.Web
 import General.Str
+import General.HTML
 import Development.Bake.Core.Message
 import Development.Bake.Core.Run
 import General.Extra
@@ -15,7 +16,6 @@ import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
 import General.DelayCache
-import Control.Applicative
 import Control.DeepSeq
 import Control.Exception.Extra
 import Data.List.Extra
@@ -60,7 +60,11 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
 
 -- | Get information about a patch
 patchExtra :: State -> Maybe Patch -> IO (Str, Str)
-patchExtra s p = fst <$> runExtra s p
+patchExtra s p = do
+    (ex,ans) <- runExtra s p
+    let failSummary = renderHTML $ i_ $ str_ "Error when computing patch information"
+    let failDetail = renderHTML $ pre_ $ str_ $ strUnpack $ aStdout ans
+    return $ fromMaybe (strPack failSummary, strPack failDetail) ex
 
 
 operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
