@@ -124,7 +124,7 @@ operate timeout oven message server = case message of
                 Broken t -> do
                     ovenNotify oven [a | p <- Nothing : map Just (snd $ target server), a <- Map.findWithDefault [] p $ authors server] $ unlines
                         ["Eek, it's all gone horribly wrong","Failure with no patches in test " ++ show t]
-                    return $ Left server{target=(fst $ target server, [])}
+                    return $ Right (server{fatal = ("Failure with no patches in test: " ++ maybe "Preparation" fromTest t) : fatal server}, Nothing)
     where
         dull s = return (s,Nothing)
 
