@@ -42,7 +42,7 @@ simulate = do
         j <- randomRIO (0::Int,9)
         return $ Patch $ show i ++ show j
 
-    let s = S (Server mempty mempty mempty (State "", []) mempty mempty mempty (error "no extra")) 200 [] [] ps [] []
+    let s = S server0{target = (State "", [])} 200 [] [] ps [] []
     let ping s = brains info (server s) $ Ping (Client "x") "x" maxThreads (maxThreads - sum (map qThreads $ active s))
     let failure t p = maybe "0" fromTest t `isSuffixOf` fromPatch p
     let unstate = map Patch . words . fromState
