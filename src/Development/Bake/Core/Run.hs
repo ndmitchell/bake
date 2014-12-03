@@ -9,6 +9,7 @@ import Development.Bake.Core.Message
 import Development.Shake.Command
 import Control.Exception.Extra
 import General.Str
+import General.Extra
 import System.Time.Extra
 import Control.DeepSeq
 import Data.Tuple.Extra
@@ -16,7 +17,6 @@ import System.Directory
 import System.IO.Extra
 import System.Environment.Extra
 import System.FilePath
-import Data.Hashable
 import Data.Maybe
 import System.Exit
 
@@ -45,16 +45,11 @@ runExtra s ps = do
 runAll :: NFData a => String -> [String] -> [String] -> (String -> a) -> IO (Maybe a, Answer)
 runAll name args1 args2 parse = do
     exe <- getExecutablePath
-    dir <-
-        if null args1 then do
-            let dir = "bake-" ++ name
-            removeDirectoryRecursive dir
-            return dir
-        else do
-            let dir = "bake-" ++ name ++ show (abs $ hash args1)
-            writeFile (dir <.> "txt") $ unlines args1
-            return dir
-    createDirectoryIfMissing True dir
+    dir <- if not $ null args1 then createDir ("bake-" ++ name) (map (drop 1 . dropWhile (/= '=')) args1) else do
+        let dir = "bake-" ++ name
+        ignore $ removeDirectoryRecursive dir
+        createDirectoryIfMissing True dir
+        return dir
 
     (time, res) <- duration $ try_ $ do
         exe <- getExecutablePath
