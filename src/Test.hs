@@ -22,7 +22,7 @@ main :: IO ()
 main = do
     args <- getArgs
     if args /= [] then Example.main else do
-        replicateM 20 simulate
+        replicateM_ 20 simulate
         dir <- getCurrentDirectory
         test $ dir ++ "/.bake-test"
 
