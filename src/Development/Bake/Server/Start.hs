@@ -38,7 +38,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         when (isNothing res) $
             ovenNotify oven [author] "Failed to initialise, pretty serious"
         let state0 = fromMaybe sFailure res
-        putStrLn $ "Initial state: " ++ fromState state0
+        putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
         when (isJust res) $ addDelayCache extra (Left state0) $ patchExtra state0 Nothing
         newCVar $ server0
             {target=(state0,[]), authors=Map.fromList [(Nothing,[author])]
@@ -139,4 +139,4 @@ operate timeout oven message server = case message of
         dull s = return (s,Nothing)
 
 
-sFailure = State "!FAILURE!"
+sFailure = State ""
