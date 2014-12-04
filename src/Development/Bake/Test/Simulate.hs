@@ -21,6 +21,7 @@ import System.IO.Extra
 
 simulate :: IO ()
 simulate = withBuffering stdout NoBuffering $ do
+    quickPlausible
     replicateM_ 20 randomSimple
 
 ---------------------------------------------------------------------
@@ -144,3 +145,27 @@ randomSimple = do
 
             _ -> return (patches, cont, Request client)
     putStrLn "Success at randomSimple"
+
+
+quickPlausible :: IO ()
+quickPlausible = do
+    let info t = mempty{testPriority = if t == Test "3" then 1 else if t == Test "1" then -1 else 0}
+    let client = Client "c"
+    let tests = (map Test ["1","2","3","4","5"], [])
+    -- start, process 2 tests, add a patch, then process the rest
+    -- expect to see 1, X, 1, rest, X
+
+    forM_ [False,True] $ \initialPatch -> do
+        done <- simulation info [(client,1)] [] $ \active seen -> return $ case () of
+            _ | length seen == 0, initialPatch -> (seen ++ [Test ""], True, Submit (Patch "0") True (const False))
+              | length seen == 3 -> (seen ++ [Test ""], True, Submit (Patch "1") True (const False))
+              | q:_ <- active -> (maybeToList (qTest q) ++ seen, True, Reply q True tests)
+              | otherwise -> (seen ++ [Test "" | null seen], False, Request client)
+
+        case dropWhile null $ map fromTest $ reverse done of
+            "3":x:"3":ys
+                | [x,"1"] `isSuffixOf` ys
+                , sort ys == ["1","2","4","5"]
+                -> return ()
+            xs -> error $ "quickPlausible wrong test sequence: " ++ show xs
+        putStrLn $ "Success at quickPlausible " ++ show initialPatch
