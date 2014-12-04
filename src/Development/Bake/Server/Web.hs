@@ -127,7 +127,8 @@ data Shower = Shower
 shower :: (Either State Patch -> Maybe (Str, Str)) -> Oven State Patch Test -> IO Shower
 shower extra Oven{..} = do
     showTimestamp <- showRelativeTimestamp
-    let shwState s = a__ [href_ $ "?state=" ++ fromState s] $ str_ $ stringyPretty ovenStringyState s
+    let shwState (State "") = span__ [class_ "bad" ] $ str_ $ "invalid state"
+        shwState s = a__ [href_ $ "?state=" ++ fromState s] $ str_ $ stringyPretty ovenStringyState s
     let shwPatch p = a__ [href_ $ "?patch=" ++ fromPatch p] $ str_ $ stringyPretty ovenStringyPatch p
     return $ Shower
         {showPatch = shwPatch
