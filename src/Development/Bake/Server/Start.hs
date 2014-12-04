@@ -31,7 +31,7 @@ import qualified Data.Map as Map
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
 startServer port datadir author name timeout (validate . concrete -> oven) = do
     var <- do
-        t <- getTimestamp
+        now <- getTimestamp
         putStrLn "Initialising server, computing initial state..."
         (Just state0, answer) <- runInit
         putStrLn $ "Initial state: " ++ fromState state0
@@ -39,7 +39,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         addDelayCache extra (Left state0) $ patchExtra state0 Nothing
         newCVar $ server0
             {target=(state0,[]), authors=Map.fromList [(Nothing,[author])]
-            ,logs=[(t,Nothing,answer)]
+            ,logs=[(now,Nothing,answer)]
             ,extra=extra
             }
 
