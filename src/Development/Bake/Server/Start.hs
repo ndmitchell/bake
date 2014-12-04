@@ -32,7 +32,9 @@ startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patc
 startServer port datadir author name timeout (validate . concrete -> oven) = do
     var <- do
         t <- getTimestamp
-        (state0, answer) <- initialState oven
+        putStrLn "Initialising server, computing initial state..."
+        (Just state0, answer) <- runInit
+        putStrLn $ "Initial state: " ++ fromState state0
         extra <- newDelayCache
         addDelayCache extra (Left state0) $ patchExtra state0 Nothing
         newCVar $ server0
@@ -125,11 +127,3 @@ operate timeout oven message server = case message of
                     return $ Right (server{fatal = ("Failure with no patches in test: " ++ maybe "Preparation" fromTest t) : fatal server}, Nothing)
     where
         dull s = return (s,Nothing)
-
-
-initialState :: Oven State Patch Test -> IO (State, Answer)
-initialState oven = do
-    putStrLn "Initialising server, computing initial state..."
-    (Just s, ans) <- runInit
-    putStrLn $ "Initial state: " ++ fromState s
-    return (s, ans)
