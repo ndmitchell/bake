@@ -6,7 +6,7 @@ module General.HTML(
     tag_, tag__,
     (<>),
     -- * Tags
-    br_, style__, link__,
+    br_, style__, link__, hr_,
     pre_, b_, html_, head_, title_, body_, h1_, h2_, ul_, li_, p_, table_, thead_, tr_, td_, tbody_, i_,
     a__, span__, p__, h2__,
     href_, class_, name_, rel_, type_, style_, id_,
@@ -114,6 +114,7 @@ tag_ name = tag__ name []
 -- TAGS
 
 br_ = tag_ "br" mempty
+hr_ = tag_ "hr" mempty
 link__ at = tag__ "link" at mempty
 style__ at body = tag__ "style" at $ raw_ body
 
