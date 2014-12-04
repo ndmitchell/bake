@@ -28,7 +28,7 @@ import qualified Data.Map as Map
 data Server = Server
     {history :: [(Timestamp, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
-    ,updates :: [(Timestamp, State, (State, [Patch]))]
+    ,updates :: [(Timestamp, State, Maybe (State, [Patch]))]
         -- ^ Updates that have been made
     ,pings :: Map Client (Timestamp, Ping)
         -- ^ Latest time of a ping sent by each client
@@ -54,7 +54,7 @@ server0 :: Server
 server0 = Server [] [] Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra") [] []
 
 state0 :: Server -> State
-state0 Server{..} = last $ fst target : map (fst . thd3) updates
+state0 Server{..} = snd3 $ last updates
 
 
 ---------------------------------------------------------------------
@@ -82,9 +82,9 @@ normalise :: Server -> (State, [Patch]) -> (State, [Patch]) -> (State, [Patch], 
 normalise = f . updates
     where
         f _ (s1,p1) (s2,p2) | s1 == s2 = (s1,p1,p2)
-        f ((_,s,(s',ps)):us) s1 s2 = f us (g s1) (g s2)
+        f ((_,s,Just (s',ps)):us) s1 s2 = f us (g s1) (g s2)
             where g (s1,p1) = if s1 == s then (s',ps++p1) else (s1,p1)
-        f [] s1 s2 = error $ "Error with normalise, invariant about state violated: " ++ show (s1, s2)
+        f _ s1 s2 = error $ "Error with normalise, invariant about state violated: " ++ show (s1, s2)
 
 translate :: Server -> State -> (State, [Patch]) -> Maybe [Patch]
 translate server s1 (s2,p2) = stripPrefix pp1 pp2

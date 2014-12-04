@@ -40,6 +40,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         newCVar $ server0
             {target=(state0,[]), authors=Map.fromList [(Nothing,[author])]
             ,logs=[(now,Nothing,answer)]
+            ,updates=[(now,state0,Nothing)]
             ,extra=extra
             }
 
@@ -116,7 +117,7 @@ operate timeout oven message server = case message of
                     ovenNotify oven [a | p <- ps, a <- Map.findWithDefault [] (Just p) $ authors server] $ unlines
                         ["Your patch just made it in"]
                     addDelayCache (extra server) (Left s2) $ patchExtra s2 Nothing
-                    return $ Left server{target=(s2, snd (target server) \\ ps), updates=(now,s2,(s,ps)):updates server}
+                    return $ Left server{target=(s2, snd (target server) \\ ps), updates=(now,s2,Just (s,ps)):updates server}
                 Reject p t -> do
                     ovenNotify oven (Map.findWithDefault [] (Just p) (authors server)) $ unlines
                         ["Your patch " ++ show p ++ " got rejected","Failure in test " ++ show t]

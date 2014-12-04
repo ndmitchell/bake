@@ -64,7 +64,7 @@ candidateBy' s p server q a = maybe False p $ translate server s (qCandidate q)
 
 
 patch' :: Patch -> Query
-patch' p server Question{qCandidate=(s,ps)} a = p `elem` ps ++ concatMap (snd . thd3) upds
+patch' p server Question{qCandidate=(s,ps)} a = p `elem` ps ++ concatMap (maybe [] snd . thd3) upds
     where upds = dropWhile ((/=) s . snd3) $ updates server
 
 lastPatch' :: Patch -> Query
@@ -88,7 +88,7 @@ blame' _ _ _ = False
 unsnocPatch :: Server -> (State, [Patch]) -> Maybe ((State, [Patch]), Patch)
 unsnocPatch server (s, ps)
     | Just (ps, p) <- unsnoc ps = Just ((s, ps), p)
-    | Just (_, _, r) <- find ((==) s . snd3) $ updates server = unsnocPatch server r
+    | Just (_, _, Just r) <- find ((==) s . snd3) $ updates server = unsnocPatch server r
     | otherwise = Nothing
 
 
