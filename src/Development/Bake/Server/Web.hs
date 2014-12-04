@@ -88,7 +88,7 @@ shower extra Oven{..} = do
         ,showTest = f Nothing Nothing []
         ,showTestPatch = \p -> f Nothing Nothing [p]
         ,showTestQuestion = \Question{..} -> f (Just qClient) (Just $ fst qCandidate) (snd qCandidate) qTest
-        ,showTime = str_ . showTimestamp
+        ,showTime = span__ [class_ "nobr"] . str_ . showTimestamp
         }
     where
         f c s ps t =
@@ -141,7 +141,7 @@ failures Shower{..} server = when (xs /= []) $ do
 runs :: Shower -> Server -> (Question -> Bool) -> HTML
 runs Shower{..} Server{..} pred = do
     table "No runs" ["Time","Question","Answer"]
-        [[span__ [class_ "nobr"] $ showTime t, showQuestion q, showAnswer a] | (t,q,a) <- good]
+        [[showTime t, showQuestion q, showAnswer a] | (t,q,a) <- good]
     case good of
         [(_,_,Just Answer{..})] -> pre_ $ str_ $ strUnpack aStdout
         _ -> mempty
