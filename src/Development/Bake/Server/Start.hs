@@ -30,11 +30,17 @@ import qualified Data.Map as Map
 
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
 startServer port datadir author name timeout (validate . concrete -> oven) = do
-    state0 <- initialState oven
     var <- do
+        t <- getTimestamp
+        (state0, answer) <- initialState oven
         extra <- newDelayCache
         addDelayCache extra (Left state0) $ patchExtra state0 Nothing
-        newCVar $ server0{target=(state0,[]), authors=Map.fromList [(Nothing,[author])], extra=extra}
+        newCVar $ server0
+            {target=(state0,[]), authors=Map.fromList [(Nothing,[author])]
+            ,logs=[(t,Nothing,Just answer)]
+            ,extra=extra
+            }
+
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
@@ -121,10 +127,9 @@ operate timeout oven message server = case message of
         dull s = return (s,Nothing)
 
 
-initialState :: Oven State Patch Test -> IO State
+initialState :: Oven State Patch Test -> IO (State, Answer)
 initialState oven = do
     putStrLn "Initialising server, computing initial state..."
-    (Just s, _) <- runInit
-    return s
+    (Just s, ans) <- runInit
     putStrLn $ "Initial state: " ++ fromState s
-    return s
+    return (s, ans)
