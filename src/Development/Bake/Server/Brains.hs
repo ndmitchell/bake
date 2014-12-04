@@ -42,7 +42,7 @@ brains info server@Server{..} Ping{..}
 
         -- all the tests, sorted so those which have been done least are first
         todoPass = map ((target,) . fst) $ sortOn (orderPriority &&& orderRarity) $ groupSort $
-            [(qTest, snd qCandidate) | (Question{..},_) <- translate' server (fst target) $ answered server [success']] ++
+            [(qTest, Nothing : map Just (snd qCandidate)) | (Question{..},_) <- translate' server (fst target) $ answered server [success']] ++
             map (,[]) (allTests target)
             where orderPriority = negate . maybe 0 (testPriority . info)  . fst
                   orderRarity = length . nub . concat . snd
