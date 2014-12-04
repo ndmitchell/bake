@@ -20,7 +20,8 @@ import System.IO.Extra
 
 
 simulate :: IO ()
-simulate = withBuffering stdout NoBuffering randomSimple
+simulate = withBuffering stdout NoBuffering $ do
+    replicateM_ 20 randomSimple
 
 ---------------------------------------------------------------------
 -- GENERIC SIMULATION ENGINE
