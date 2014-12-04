@@ -116,11 +116,17 @@ operate timeout oven message server = case message of
                     server <- return $ server{history = (now,q,Nothing) : history server}
                     return $ Right (server, Just q)
                 Update (s,ps) -> do
-                    (Just s2, answer) <- runUpdate s ps
-                    ovenNotify oven [a | p <- ps, a <- Map.findWithDefault [] (Just p) $ authors server] $ unlines
-                        ["Your patch just made it in"]
-                    addDelayCache (extra server) (Left s2) $ patchExtra s2 Nothing
-                    return $ Left server{target=(s2, snd (target server) \\ ps), updates=((now,answer),s2,Just (s,ps)):updates server}
+                    (s2, answer) <- runUpdate s ps
+                    case s2 of
+                        Nothing -> do
+                            ovenNotify oven [a | p <- Nothing : map Just (snd $ target server), a <- Map.findWithDefault [] p $ authors server]
+                                "Failed to update, pretty serious"
+                            return $ Right (server{fatal="Failed to update":fatal server, updates=((now,answer),sFailure,Just (s,ps)):updates server}, Nothing)
+                        Just s2 -> do
+                            ovenNotify oven [a | p <- ps, a <- Map.findWithDefault [] (Just p) $ authors server]
+                                "Your patch just made it in"
+                            addDelayCache (extra server) (Left s2) $ patchExtra s2 Nothing
+                            return $ Left server{target=(s2, snd (target server) \\ ps), updates=((now,answer),s2,Just (s,ps)):updates server}
                 Reject p t -> do
                     ovenNotify oven (Map.findWithDefault [] (Just p) (authors server)) $ unlines
                         ["Your patch " ++ show p ++ " got rejected","Failure in test " ++ show t]
