@@ -283,7 +283,7 @@ patchStatus server (Just p)
     | p `elem` concatMap (maybe [] snd . thd3) (updates server) = Accepted
     | p `elem` maybe [] (map snd) (paused server) = Paused
 patchStatus server Nothing
-    | not $ null $ updates server = Accepted
+    | length (updates server) > 1 = Accepted
 
 -- Detect rejection
 patchStatus server (Just p)
