@@ -55,7 +55,7 @@ simulation
     -> [(Client, Int)]                          -- ^ Clients, plus their maximum thread count
     -> s                                        -- ^ initial seed
     -> ([Question] -> s -> IO (s, Bool, Step))  -- ^ step function
-    -> IO ()
+    -> IO s
 simulation testInfo clients u step = do
     let s = S u server0{target = (State "", [])} 200 [] [] []
 
@@ -102,6 +102,7 @@ simulation testInfo clients u step = do
 
         s <- return $ if cont then s else s{wait = wait s - 1}
         return $ if wait s == 0 then Right s else Left s
+    putStrLn ""
 
     unless (null active) $ error "Active should have been empty"
     unless (null patches) $ error "Patches should have been empty"
@@ -109,7 +110,7 @@ simulation testInfo clients u step = do
         when (ping s c /= Sleep) $ error $ "Brains should have returned sleep,  but returned " ++ show (ping s c)
     when (snd (target server) /= []) $ error $ "Target is not blank: " ++ show (target server)
 
-    putStrLn "\nSuccess"
+    return user
 
 
 ---------------------------------------------------------------------
@@ -142,3 +143,4 @@ randomSimple = do
                 return (patches, cont, Reply q good tests)
 
             _ -> return (patches, cont, Request client)
+    putStrLn "Success at randomSimple"
