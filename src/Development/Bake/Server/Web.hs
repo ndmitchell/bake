@@ -38,7 +38,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
             ul_ $ mconcat $ map (li_ . str_) fatal
             hr_
 
-        h1_ $ (if noargs then id else a__ [href_ "?"]) $ str_ "Bake Continuous Integration"
+        h1_ $ (if noargs then id else a__ [href_ "."]) $ str_ "Bake Continuous Integration"
 
         when noargs $ do
             failures shower server
