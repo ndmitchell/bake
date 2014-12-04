@@ -32,11 +32,13 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
     return $ OutputHTML $ renderHTML $ template $ do
         let noargs = argsEmpty a
 
-        h1_ $ (if noargs then id else a__ [href_ "?"]) $ str_ "Bake Continuous Integration"
         when (fatal /= []) $ do
             h2__ [class_ "bad"] $ str_ "Fatal error"
             p_ $ str_ "The continuous integration server has been suspeneded due to fatal errors:"
             ul_ $ mconcat $ map (li_ . str_) fatal
+            hr_
+
+        h1_ $ (if noargs then id else a__ [href_ "?"]) $ str_ "Bake Continuous Integration"
 
         when noargs $ do
             failures shower server
@@ -174,6 +176,7 @@ template inner = do
                 ,".red {background-color: #ffdddd;}"
                 ,".green {background-color: #ddffdd;}"
                 ,"#footer {margin-top: 40px; font-size: 80%;}"
+                ,"hr {margin-bottom: 30px;}"
                 ]
         body_ $ do
             inner
