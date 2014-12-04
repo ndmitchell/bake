@@ -28,8 +28,8 @@ import qualified Data.Map as Map
 data Server = Server
     {history :: [(Timestamp, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
-    ,updates :: [(Timestamp, State, Maybe (State, [Patch]))]
-        -- ^ Updates that have been made
+    ,updates :: [((Timestamp,Answer), State, Maybe (State, [Patch]))]
+        -- ^ Updates that have been made. If the Answer failed, you must have an entry in fatal
     ,pings :: Map Client (Timestamp, Ping)
         -- ^ Latest time of a ping sent by each client
     ,target :: (State, [Patch])
