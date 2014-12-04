@@ -186,5 +186,6 @@ validate o@Oven{..} = o
             {stringyTo = check . stringyTo
             ,stringyFrom = stringyFrom . check
             }
-            where check s | s == stringyTo (stringyFrom s) = s
+            where check s | null s = error "Problem with stringyTo/stringyFrom, generated blank string"
+                          | s == stringyTo (stringyFrom s) = s
                           | otherwise = error $ "Problem with stringyTo/stringyFrom on " ++ show s
