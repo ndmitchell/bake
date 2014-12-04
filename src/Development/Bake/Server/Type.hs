@@ -42,8 +42,8 @@ data Server = Server
         -- ^ Authors associated with each patch (Nothing is the server author)
     ,extra :: DelayCache (Either State Patch) (Str, Str)
         -- ^ Extra information that was computed for each string (cached forever)
-    ,updateHistory :: [(Timestamp, Question, Maybe Answer)]
-        -- ^ Updates that are ongoing
+    ,logs :: [(Timestamp, Maybe (State, [Patch]), Maybe Answer)]
+        -- ^ History of init and updates
     ,fatal :: [String]
         -- ^ A list of fatal error messages that have been raised by the server
     }
