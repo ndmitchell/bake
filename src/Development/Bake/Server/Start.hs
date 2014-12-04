@@ -39,7 +39,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         addDelayCache extra (Left state0) $ patchExtra state0 Nothing
         newCVar $ server0
             {target=(state0,[]), authors=Map.fromList [(Nothing,[author])]
-            ,logs=[(t,Nothing,Just answer)]
+            ,logs=[(t,Nothing,answer)]
             ,extra=extra
             }
 
