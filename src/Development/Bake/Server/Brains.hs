@@ -47,7 +47,7 @@ brains info server@Server{..} Ping{..}
             where orderPriority = negate . maybe 0 (testPriority . info)  . fst
                   orderRarity = length . nub . concat . snd
 
-        todoFail = [((fst target, init ps), t) | (t, ps@(_:_)) <- failures, t <- dependencies t]
+        todoFail = [((fst target, init ps), t) | (t, ps@(_:_)) <- failures, t <- dependencies [t]]
 
 
         dependencies = transitiveClosure $ \t -> case t of

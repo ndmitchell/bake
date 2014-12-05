@@ -22,6 +22,7 @@ import Data.Hashable
 import System.FilePath
 import Control.Monad.Extra
 import Control.Concurrent.Extra
+import qualified Data.Set as Set
 
 
 data Timestamp = Timestamp UTCTime Int deriving Show
@@ -105,9 +106,14 @@ forkSlave act = void $ forkFinally act $ \v -> case v of
 ---------------------------------------------------------------------
 -- UTILITIES
 
-transitiveClosure :: Eq a => (a -> [a]) -> a -> [a]
-transitiveClosure f = nub . g
-    where g x = x : concatMap g (f x)
+-- | Given a relation and a starting value, find the transitive closure.
+--   The resulting list will be a set.
+transitiveClosure :: Ord a => (a -> [a]) -> [a] -> [a]
+transitiveClosure follow xs = f Set.empty xs
+    where
+        f seen [] = []
+        f seen (t:odo) | t `Set.member` seen = f seen odo
+                       | otherwise = t : f (Set.insert t seen) (follow t ++ odo)
 
 
 ---------------------------------------------------------------------
