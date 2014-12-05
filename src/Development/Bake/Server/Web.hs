@@ -28,7 +28,7 @@ import qualified Data.Map as Map
 web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
 web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
     extra <- askDelayCache extra
-    shower <- shower extra oven
+    shower <- shower extra oven argsAdmin
     return $ OutputHTML $ renderHTML $ template $ do
         let noargs = argsEmpty a
 
@@ -38,7 +38,9 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
             ul_ $ mconcat $ map (li_ . str_) fatal
             hr_
 
-        h1_ $ (if noargs then id else a__ [href_ "."]) $ str_ "Bake Continuous Integration"
+        h1_ $
+            (if noargs then id else a__ [href_ $ if argsAdmin then "?admin=" else "."]) $
+            str_ "Bake Continuous Integration"
 
         when noargs $ do
             failures shower server
@@ -80,11 +82,12 @@ data Args = Args
     ,argsClient :: Maybe Client
     ,argsTest :: Maybe (Maybe Test)
     ,argsServer :: Maybe (Maybe Int)
+    ,argsAdmin :: Bool
     }
     deriving (Show,Eq)
 
 argsEmpty :: Args -> Bool
-argsEmpty x = x == args []
+argsEmpty x = x{argsAdmin=False} == args []
 
 args :: [(String, String)] -> Args
 args xs = Args
@@ -93,6 +96,7 @@ args xs = Args
     (listToMaybe $ map Client $ ask "client")
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ Test x) $ ask "test")
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ read x) $ ask "server")
+    (not $ null $ ask "admin")
     where ask x = map snd $ filter ((==) x . fst) xs
 
 argsFilter :: Args -> Question -> Bool
@@ -125,8 +129,8 @@ data Shower = Shower
     ,showThreads :: Int -> HTML
     }
 
-shower :: (Either State Patch -> Maybe (Str, Str)) -> Oven State Patch Test -> IO Shower
-shower extra Oven{..} = do
+shower :: (Either State Patch -> Maybe (Str, Str)) -> Oven State Patch Test -> Bool -> IO Shower
+shower extra Oven{..} argsAdmin = do
     showTimestamp <- showRelativeTimestamp
     let shwState (State "") = span__ [class_ "bad" ] $ str_ $ "invalid state"
         shwState s = shwLink ("state=" ++ fromState s) $ str_ $ stringyPretty ovenStringyState s
@@ -146,7 +150,7 @@ shower extra Oven{..} = do
         ,showThreads = \i -> str_ $ show i ++ " thread" ++ ['s' | i /= 1]
         }
     where
-        shwLink url = a__ [href_ $ "?" ++ url]
+        shwLink url = a__ [href_ $ (if argsAdmin then "?admin=&" else "?") ++ url]
 
         f c s ps t =
             shwLink (intercalate "&" parts) $ str_ $
