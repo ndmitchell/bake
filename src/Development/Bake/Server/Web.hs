@@ -43,6 +43,8 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
             str_ "Bake Continuous Integration"
 
         when noargs $ do
+            when (isJust paused) $
+                p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
             failures shower server
             table "No patches submitted" ["Time","Job","Status"]
                 (map (rowPatch shower server argsAdmin) $ nub (map (Just . snd) submitted) ++ [Nothing])
