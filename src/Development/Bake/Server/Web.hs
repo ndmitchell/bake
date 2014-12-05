@@ -45,7 +45,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
         when noargs $ do
             failures shower server
             table "No patches submitted" ["Time","Job","Status"]
-                (map (rowPatch shower server) $ nub (map (Just . snd) submitted) ++ [Nothing])
+                (map (rowPatch shower server argsAdmin) $ nub (map (Just . snd) submitted) ++ [Nothing])
             h2_ $ str_ "Clients"
             table "No clients available" ["Name","Running"]
                 (map (rowClient shower server) $ Nothing : map Just (Map.keys pings))
@@ -246,8 +246,8 @@ rowUpdate Shower{..} Server{..} (i,((t,a), to, from)) = [showTime t, body, showA
             str_ "To " <> showState to
 
 
-rowPatch :: Shower -> Server -> Maybe Patch -> [HTML]
-rowPatch Shower{..} server@Server{..} p =
+rowPatch :: Shower -> Server -> Bool -> Maybe Patch -> [HTML]
+rowPatch Shower{..} server@Server{..} argsAdmin p =
     [case p of
         Nothing -> showTime $ fst $ fst3 $ last updates
         Just p -> maybe mempty (showTime . fst) $ find ((==) p . snd) submitted
@@ -258,7 +258,7 @@ rowPatch Shower{..} server@Server{..} p =
         br_
         span__ [class_ "info"] $ showExtra $ maybe (Left s0) Right p
 
-    ,case patchStatus server p of
+    ,(<> special) $ case patchStatus server p of
         Accepted -> span__ [class_ "good"] $ str_ "Success"
         Unknown -> str_ "Testing (passed 0 of ?)" <> running
         Paused -> str_ "Paused"
@@ -276,6 +276,15 @@ rowPatch Shower{..} server@Server{..} p =
             where xs = unanswered server [maybe (candidate' (s0,[])) patch' p]
                   (yes,no) = partition (maybe null (isSuffixOf . return) p . snd . qCandidate) xs
                   items = map (b_ . showQuestion) yes ++ map showQuestion no
+
+        special | argsAdmin, Just p <- p =
+            if p `elem` snd target || p `elem` fromMaybe [] paused then
+                do br_; admin (DelPatch "admin" p) $ str_ "Delete"
+            else if p `notElem` concatMap (maybe [] snd . thd3) updates then
+                do br_; admin (AddPatch "admin" p) $ str_ "Retry"
+            else
+                mempty
+                | otherwise = mempty
 
 
 rowClient :: Shower -> Server -> Maybe Client -> [HTML]
