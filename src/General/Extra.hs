@@ -5,7 +5,7 @@ module General.Extra(
     createDir,
     newCVar, readCVar, modifyCVar, modifyCVar_,
     registerMaster, forkSlave,
-    transitiveClosure,
+    transitiveClosure, findCycle,
     putBlock,
     commas, commasLimit, unwordsLimit
     ) where
@@ -16,7 +16,7 @@ import System.Time.Extra
 import System.IO.Unsafe
 import Data.IORef
 import Data.Tuple.Extra
-import Data.List
+import Data.List.Extra
 import System.Directory
 import Data.Hashable
 import System.FilePath
@@ -114,6 +114,15 @@ transitiveClosure follow xs = f Set.empty xs
         f seen [] = []
         f seen (t:odo) | t `Set.member` seen = f seen odo
                        | otherwise = t : f (Set.insert t seen) (follow t ++ odo)
+
+
+-- | Given a relation and a starting list, find a cycle if there is one.
+--   The resulting list will be a set, and will contain a cycle (but not necessarily be minimal).
+findCycle :: Ord a => (a -> [a]) -> [a] -> Maybe [a]
+findCycle follow = firstJust $ \x ->
+    let children = transitiveClosure follow (follow x)
+    -- if there is a cycle, make the element we know is cyclic first, so its easier to debug
+    in if x `elem` children then Just (x : delete x children) else Nothing
 
 
 ---------------------------------------------------------------------
