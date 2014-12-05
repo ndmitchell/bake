@@ -15,6 +15,7 @@ import General.Extra
 import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
+import Control.Applicative
 import General.DelayCache
 import Control.DeepSeq
 import Control.Exception.Extra
@@ -82,14 +83,22 @@ patchExtra s p = do
 operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
 operate timeout oven message server = case message of
     _ | not $ null $ fatal server -> dull server
-    AddPatch author p | (s, ps) <- target server -> do
+    AddPatch author p -> do
+        let add ps = filter (/= p) ps `snoc` p
         now <- getTimestamp
         dull server
-            {target = (s, filter (/= p) ps `snoc` p)
+            {target = second (if isJust (paused server) then id else add) $ target server
+            ,paused = (if p `elem` snd (target server) then id else add) <$> paused server
             ,authors = Map.insertWith (++) (Just p) [author] $ authors server
             ,submitted = (now,p) : submitted server}
-    DelPatch author p | (s, ps) <- target server -> dull server{target = (s, delete p ps)}
-    Pause author -> dull server{paused = Just $ fromMaybe [] $ paused server}
+    DelPatch author p -> do
+        dull $ unpause server
+            {target = second (delete p) $ target server
+            ,paused = delete p <$> paused server
+            }
+    Pause author ->
+        -- cannot pause if there is no work outstanding, unpause may immediately undo
+        dull $ unpause $ server{paused = Just $ fromMaybe [] $ paused server}
     Unpause author ->
         dull server{paused=Nothing, target = second (++ fromMaybe [] (paused server)) $ target server}
     Finished q a -> do
@@ -107,7 +116,7 @@ operate timeout oven message server = case message of
         server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $ server
             {pings = Map.insert (pClient ping) (now,ping) $ pings server}
         flip loopM server $ \server ->
-            case brains (ovenTestInfo oven) server ping of
+            case brains (ovenTestInfo oven) (unpause server) ping of
                 Sleep ->
                     return $ Right (server, Nothing)
                 Task q -> do
@@ -136,6 +145,11 @@ operate timeout oven message server = case message of
                     return $ Right (server{fatal = ("Failure with no patches in test: " ++ maybe "Preparation" fromTest t) : fatal server}, Nothing)
     where
         dull s = return (s,Nothing)
+        unpause server
+            | null $ snd $ target server = server
+                {paused = Nothing
+                ,target = second (++ fromMaybe [] (paused server)) $ target server}
+            | otherwise = server
 
 
 sFailure = State ""
