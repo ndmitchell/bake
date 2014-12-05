@@ -96,6 +96,8 @@ operate timeout oven message server = case message of
             {target = second (delete p) $ target server
             ,paused = delete p <$> paused server
             }
+    DelAllPatches author ->
+        dull $ server{paused = Nothing, target = (fst $ target server, [])}
     Pause author ->
         -- cannot pause if there is no work outstanding, unpause may immediately undo
         dull $ unpause $ server{paused = Just $ fromMaybe [] $ paused server}
