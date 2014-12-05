@@ -75,12 +75,14 @@ translate' server s xs = [(q{qCandidate=(s,p)}, a) | (q,a) <- xs, Just p <- [tra
 
 
 -- | Returns True if a question/answer pair is responsible for attaching blame.
---   That requires this to have passed, but a previous step to have failed
+--   That requires this to have passed, but a previous step to have failed.
+--   It is important to make the (potentially incorrect) assumption that all states are passed
+--   since otherwise you might have no one to blame for a failure.
 blame' :: Query
 blame' server Question{..} (Just Answer{..})
     | not aSuccess
     , Just (c, _) <- unsnocPatch server qCandidate
-    = not $ null $ answered server [candidate' c, success', test' qTest]
+    = null (snd c) || not (null $ answered server [candidate' c, success', test' qTest])
 blame' _ _ _ = False
 
 
@@ -100,4 +102,4 @@ targetFailures :: Server -> [(Maybe Test, [Patch])]
 targetFailures server@Server{..} = reverse
     [ (qTest q, snd $ qCandidate q)
     | (q, a) <- translate' server (fst target) $ answered server
-        [failure', candidateBy' (fst target) (`isPrefixOf` snd target)]]
+        [failure', candidateBy' (fst target) $ \ps -> ps `isPrefixOf` snd target && not (null ps)]]
