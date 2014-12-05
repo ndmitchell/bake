@@ -265,8 +265,10 @@ rowPatch Shower{..} server@Server{..} argsAdmin p =
         Accepted -> span__ [class_ "good"] $ str_ "Success"
         Unknown -> str_ "Testing (passed 0 of ?)" <> running
         Paused -> str_ "Paused"
-        Rejected xs -> span__ [class_ "bad"] (str_ "Rejected") <> when (xs /= []) br_ <>
-            span__ [class_ "info"] (commasLimit_ 3 $ map showQuestion xs)
+        Rejected xs -> do
+            span__ [class_ "bad"] $ str_ $ if isJust p then "Rejected" else "Failed"
+            when (xs /= []) br_
+            span__ [class_ "info"] $ commasLimit_ 3 $ map showQuestion xs
         Progressing done todo -> do
             str_ $ "Testing (passed " ++ show (length done + 1) ++ " of " ++ show (length (done++todo) + 1) ++ ")"
             running
