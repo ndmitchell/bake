@@ -114,6 +114,7 @@ messageFromInput (Input [msg] args body)
     | msg == "del" = DelPatch <$> str "author" <*> (Patch <$> str "patch")
     | msg == "delall" = DelAllPatches <$> str "author"
     | msg == "pause" = Pause <$> str "author"
+    | msg == "unpause" = Unpause <$> str "author"
     | msg == "ping" = Pinged <$> (Ping <$> (Client <$> str "client") <*>
         str "author" <*> int "maxthreads" <*> int "nowthreads")
     | msg == "finish" = eitherDecode $ LBS.pack body
