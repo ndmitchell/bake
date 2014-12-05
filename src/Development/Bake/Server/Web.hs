@@ -297,7 +297,7 @@ rowClient Shower{..} Server{..} Nothing =
     [showLink "server=" $ i_ $ str_ "Server"
     ,showLink ("server=" ++ show (length updates - 1))
         (str_ $ if length updates == 1 then "Initialised" else "Updated") <>
-     str_ " " <> showTime (fst $ fst3 $ head updates)]
+     str_ " finished " <> showTime (fst $ fst3 $ head updates)]
 
 
 ---------------------------------------------------------------------
