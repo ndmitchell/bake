@@ -20,7 +20,6 @@ data Neuron
     | Task Question
     | Update (State, [Patch])-- update to the target state
     | Reject Patch (Maybe Test) -- reject this patch
-    | Broken (Maybe Test) -- the target state with zero patches has ended up broken
       deriving (Show,Eq)
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything

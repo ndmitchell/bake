@@ -97,7 +97,6 @@ simulation testInfo clients u step = do
                 Reject p t -> do
                     unless (snd (fromJust $ lookup p $ patches s) t) $ error "incorrect test failure"
                     return $ dropPatches [p] $ s{server = (server s){target = second (delete p) $ target $ server s}}
-                Broken _ -> error "ended up at broken"
 
         forM_ clients $ \(c,mx) ->
             when (count s c > mx) $ error "threads exceeded"
