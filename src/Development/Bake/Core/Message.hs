@@ -2,7 +2,7 @@
 
 module Development.Bake.Core.Message(
     Message(..), Ping(..), Question(..), Answer(..), aTests,
-    sendMessage, messageFromInput, questionToOutput
+    sendMessage, messageToInput, messageFromInput, questionToOutput
     ) where
 
 import Development.Bake.Core.Type
