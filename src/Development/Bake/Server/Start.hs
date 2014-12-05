@@ -117,8 +117,8 @@ operate timeout oven message server = case message of
         now <- getTimestamp
         server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $ server
             {pings = Map.insert (pClient ping) (now,ping) $ pings server}
-        flip loopM server $ \server ->
-            case brains (ovenTestInfo oven) (unpause server) ping of
+        flip loopM server $ \(unpause -> server) ->
+            case brains (ovenTestInfo oven) server ping of
                 Sleep ->
                     return $ Right (server, Nothing)
                 Task q -> do
