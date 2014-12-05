@@ -91,8 +91,8 @@ operate timeout oven message server = case message of
             ,submitted = (now,p) : submitted server}
     DelPatch author p | (s, ps) <- target server -> dull server{target = (s, delete p ps)}
     Pause author -> dull server{paused = Just $ fromMaybe [] $ paused server}
-    Unpause author | (s, ps) <- target server ->
-        dull server{paused=Nothing, target = (s, ps ++ fromMaybe [] (paused server))}
+    Unpause author ->
+        dull server{paused=Nothing, target = second (++ fromMaybe [] (paused server)) $ target server}
     Finished q a -> do
         when (not $ aSuccess a) $ do
             putStrLn $ replicate 70 '#'
