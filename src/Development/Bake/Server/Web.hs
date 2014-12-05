@@ -290,8 +290,8 @@ patchStatus server (Just p)
     -- we may have previously failed, but been requeued, so if we're active don't hunt for reject
     | p `notElem` snd (target server)
     , bad <- answered server [lastPatch' p, blame']
-    , not $ null bad
     = Rejected $ nub $ map fst bad
+    -- note we may be rejected with null bad, could be due to admin action
 patchStatus server Nothing
     | fails@(_:_) <- answered server [candidate' (state0 server, []), failure']
     = Rejected $ map fst fails
