@@ -95,6 +95,9 @@ bake oven@Oven{..} = do
                     let follow t = map str $ testRequire $ ovenTestInfo $ stringyFrom ovenStringyTest t
                     whenJust (findCycle follow $ map str res) $ \xs ->
                         error $ unlines $ "Tests form a cycle:" : xs
+                    let missing = transitiveClosure follow (map str res) \\ map str res
+                    when (missing /= []) $
+                        error $ unlines $ "Test is a dependency that cannot be reached:" : missing
 
                     xs <- partitionM (testSuitable . ovenTestInfo) res
                     writeFile ".bake" $ show $ both (map str) xs
