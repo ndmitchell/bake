@@ -113,7 +113,8 @@ table _ cols body = table_ $ do
 
 
 data Shower = Shower
-    {showPatch :: Patch -> HTML
+    {showLink :: String -> HTML -> HTML
+    ,showPatch :: Patch -> HTML
     ,showExtra :: Either State Patch -> HTML
     ,showTest :: Maybe Test -> HTML
     ,showQuestion :: Question -> HTML
@@ -131,7 +132,8 @@ shower extra Oven{..} = do
         shwState s = a__ [href_ $ "?state=" ++ fromState s] $ str_ $ stringyPretty ovenStringyState s
     let shwPatch p = a__ [href_ $ "?patch=" ++ fromPatch p] $ str_ $ stringyPretty ovenStringyPatch p
     return $ Shower
-        {showPatch = shwPatch
+        {showLink = shwLink
+        ,showPatch = shwPatch
         ,showState = shwState
         ,showCandidate = \(s,ps) -> do
             shwState s
@@ -144,6 +146,8 @@ shower extra Oven{..} = do
         ,showThreads = \i -> str_ $ show i ++ " thread" ++ ['s' | i /= 1]
         }
     where
+        shwLink url = a__ [href_ $ "?" ++ url]
+
         f c s ps t =
             a__ [href_ $ "?" ++ intercalate "&" parts] $ str_ $
             maybe "Preparing" (stringyPretty ovenStringyTest) t
