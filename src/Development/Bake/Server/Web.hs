@@ -56,8 +56,8 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
                     li_ $ if null (snd target) && isNothing paused
                         then str_ "Cannot delete all patches, no patches queued"
                         else admin (DelAllPatches "admin") $ str_ "Delete all patches"
-                    li_ $ if null (snd target)
-                        then str_ "Cannot pause, no active targets"
+                    li_ $ if null (snd target) && isJust paused
+                        then str_ "Cannot pause, no active targets or already paused"
                         else admin (Pause "admin") $ str_ "Pause"
                     li_ $ if isNothing paused
                         then str_ "Cannot unpause, not paused"
