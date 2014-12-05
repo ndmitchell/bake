@@ -34,7 +34,7 @@ data Server = Server
         -- ^ Latest time of a ping sent by each client
     ,target :: (State, [Patch])
         -- ^ The candidate we are currently aiming to prove
-    ,paused :: Maybe [(Timestamp, Patch)]
+    ,paused :: Maybe [Patch]
         -- ^ 'Just' if we are paused, and the number of people queued up (reset when target becomes Nothing)
     ,submitted :: [(Timestamp, Patch)]
         -- ^ List of all patches that have been submitted over time

@@ -281,7 +281,7 @@ patchStatus :: Server -> Maybe Patch -> Status
 -- Simple cases
 patchStatus server (Just p)
     | p `elem` concatMap (maybe [] snd . thd3) (updates server) = Accepted
-    | p `elem` maybe [] (map snd) (paused server) = Paused
+    | p `elem` fromMaybe [] (paused server) = Paused
 patchStatus server Nothing
     | length (updates server) > 1 = Accepted
 
