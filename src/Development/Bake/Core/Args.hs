@@ -17,6 +17,7 @@ import Control.DeepSeq
 import System.Directory
 import Control.Monad.Extra
 import Data.Maybe
+import Data.Tuple.Extra
 import System.Random
 import Paths_bake
 
@@ -83,16 +84,18 @@ bake oven@Oven{..} = do
         RunTest{..} -> do
             case test of
                 Nothing -> do
+                    let str = stringyTo ovenStringyTest
                     res <- ovenPrepare
                         (stringyFrom ovenStringyState state)
                         (map (stringyFrom ovenStringyPatch) patch)
-                    let follow t = map (stringyTo ovenStringyTest) $ testRequire $
-                                   ovenTestInfo $ stringyFrom ovenStringyTest t
-                    whenJust (findCycle follow $ map (stringyTo ovenStringyTest) res) $ \xs ->
+
+                    -- check the patches all make sense
+                    let follow t = map str $ testRequire $ ovenTestInfo $ stringyFrom ovenStringyTest t
+                    whenJust (findCycle follow $ map str res) $ \xs ->
                         error $ unlines $ "Tests form a cycle:" : xs
-                    (yes,no) <- partitionM (testSuitable . ovenTestInfo) res
-                    let op = map (stringyTo ovenStringyTest)
-                    writeFile ".bake" $ show (op yes, op no)
+
+                    xs <- partitionM (testSuitable . ovenTestInfo) res
+                    writeFile ".bake" $ show $ both (map str) xs
                 Just test -> do
                     testAction $ ovenTestInfo $ stringyFrom ovenStringyTest test
         RunExtra{..} -> do
