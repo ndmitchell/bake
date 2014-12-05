@@ -129,8 +129,8 @@ shower :: (Either State Patch -> Maybe (Str, Str)) -> Oven State Patch Test -> I
 shower extra Oven{..} = do
     showTimestamp <- showRelativeTimestamp
     let shwState (State "") = span__ [class_ "bad" ] $ str_ $ "invalid state"
-        shwState s = a__ [href_ $ "?state=" ++ fromState s] $ str_ $ stringyPretty ovenStringyState s
-    let shwPatch p = a__ [href_ $ "?patch=" ++ fromPatch p] $ str_ $ stringyPretty ovenStringyPatch p
+        shwState s = shwLink ("state=" ++ fromState s) $ str_ $ stringyPretty ovenStringyState s
+    let shwPatch p = shwLink ("patch=" ++ fromPatch p) $ str_ $ stringyPretty ovenStringyPatch p
     return $ Shower
         {showLink = shwLink
         ,showPatch = shwPatch
@@ -139,7 +139,7 @@ shower extra Oven{..} = do
             shwState s
             when (not $ null ps) $ str_ " plus " <> commas_ (map shwPatch ps)
         ,showExtra = \e -> raw_ $ maybe "" (strUnpack . fst) $ extra e
-        ,showClient = \c -> a__ [href_ $ "?client=" ++ fromClient c] $ str_ $ fromClient c
+        ,showClient = \c -> shwLink ("client=" ++ fromClient c) $ str_ $ fromClient c
         ,showTest = f Nothing Nothing []
         ,showQuestion = \Question{..} -> f (Just qClient) (Just $ fst qCandidate) (snd qCandidate) qTest
         ,showTime = span__ [class_ "nobr"] . str_ . showTimestamp
@@ -149,7 +149,7 @@ shower extra Oven{..} = do
         shwLink url = a__ [href_ $ "?" ++ url]
 
         f c s ps t =
-            a__ [href_ $ "?" ++ intercalate "&" parts] $ str_ $
+            shwLink (intercalate "&" parts) $ str_ $
             maybe "Preparing" (stringyPretty ovenStringyTest) t
             where parts = ["client=" ++ fromClient c | Just c <- [c]] ++
                           ["state=" ++ fromState s | Just s <- [s]] ++
@@ -218,7 +218,7 @@ rowUpdate :: Shower -> Server -> (Int,((Timestamp,Answer), State, Maybe (State, 
 rowUpdate Shower{..} Server{..} (i,((t,a), to, from)) = [showTime t, body, showAnswer $ Just a]
     where
         body = do
-            a__ [href_ $ "?server=" ++ show i] $ str_ $ if isNothing from then "Initialised" else "Updated"
+            showLink ("server=" ++ show i) $ str_ $ if isNothing from then "Initialised" else "Updated"
             br_
             whenJust from $ \c -> str_ "From " <> showCandidate c <> br_
             str_ "To " <> showState to
@@ -258,13 +258,13 @@ rowPatch Shower{..} server@Server{..} p =
 
 rowClient :: Shower -> Server -> Maybe Client -> [HTML]
 rowClient Shower{..} server (Just c) =
-    [a__ [href_ $ "?client=" ++ fromClient c] $ str_ $ fromClient c
+    [showLink ("client=" ++ fromClient c) $ str_ $ fromClient c
     ,if null target then i_ $ str_ "None"
      else commas_ $ map showQuestion target]
     where target = unanswered server [client' c]
 rowClient Shower{..} Server{..} Nothing =
-    [a__ [href_ $ "?server="] $ i_ $ str_ "Server"
-    ,a__ [href_ $ "?server=" ++ show (length updates - 1)]
+    [showLink "server=" $ i_ $ str_ "Server"
+    ,showLink ("server=" ++ show (length updates - 1))
         (str_ $ if length updates == 1 then "Initialised" else "Updated") <>
      str_ " " <> showTime (fst $ fst3 $ head updates)]
 
