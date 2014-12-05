@@ -50,6 +50,19 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
             table "No clients available" ["Name","Running"]
                 (map (rowClient shower server) $ Nothing : map Just (Map.keys pings))
 
+            when argsAdmin $ do
+                h2_ $ str_ "Admin"
+                ul_ $ do
+                    li_ $ if null (snd target) && isNothing paused
+                        then str_ "Cannot delete all patches, no patches queued"
+                        else admin (DelAllPatches "admin") $ str_ "Delete all patches"
+                    li_ $ if null (snd target)
+                        then str_ "Cannot pause, no active targets"
+                        else admin (Pause "admin") $ str_ "Pause"
+                    li_ $ if isNothing paused
+                        then str_ "Cannot unpause, not paused"
+                        else admin (Unpause "admin") $ str_ "Unpause"
+
         whenJust argsServer $ \s -> do
             table "No server operations" ["Time","Job","Status"] $
                 map (rowUpdate shower server) $
@@ -108,6 +121,10 @@ argsFilter Args{..} Question{..} =
         Nothing | null argsPatch -> True
         _ -> not $ disjoint argsPatch (snd qCandidate)
 
+
+admin :: Message -> HTML -> HTML
+admin (messageToInput -> Input parts args _) body = a__ [href_ url, class_ "admin"] body
+    where url = intercalate "/" parts ++ "?" ++ intercalate "&" [a ++ "=" ++ b | (a,b) <- args]
 
 table :: String -> [String] -> [[HTML]] -> HTML
 table zero cols [] = p_ $ str_ zero
@@ -186,6 +203,7 @@ template inner = do
                 ,".green {background-color: #ddffdd;}"
                 ,"#footer {margin-top: 40px; font-size: 80%;}"
                 ,"hr {margin-bottom: 30px;}"
+                ,".admin {color: darkorange; font-weight: bold;}"
                 ]
         body_ $ do
             inner
