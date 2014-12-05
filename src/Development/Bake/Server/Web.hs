@@ -81,7 +81,7 @@ data Args = Args
     ,argsTest :: Maybe (Maybe Test)
     ,argsServer :: Maybe (Maybe Int)
     }
-    deriving Eq
+    deriving (Show,Eq)
 
 argsEmpty :: Args -> Bool
 argsEmpty x = x == args []
