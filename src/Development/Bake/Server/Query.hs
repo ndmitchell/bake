@@ -81,7 +81,6 @@ blame' server Question{..} (Just Answer{..})
     | not aSuccess
     , Just (c, _) <- unsnocPatch server qCandidate
     = not $ null $ answered server [candidate' c, success', test' qTest]
-    where
 blame' _ _ _ = False
 
 
