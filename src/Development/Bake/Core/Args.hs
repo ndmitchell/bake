@@ -16,7 +16,9 @@ import General.Extra
 import Control.DeepSeq
 import System.Directory
 import Control.Monad.Extra
+import Control.Applicative
 import Data.Maybe
+import Data.List.Extra
 import Data.Tuple.Extra
 import System.Random
 import Paths_bake
@@ -85,7 +87,7 @@ bake oven@Oven{..} = do
             case test of
                 Nothing -> do
                     let str = stringyTo ovenStringyTest
-                    res <- ovenPrepare
+                    res <- nubOn str <$> ovenPrepare
                         (stringyFrom ovenStringyState state)
                         (map (stringyFrom ovenStringyPatch) patch)
 
