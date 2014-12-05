@@ -244,6 +244,7 @@ rowPatch Shower{..} server@Server{..} p =
     ]
     where
         s0 = state0 server
+
         running | null xs = mempty
                 | otherwise = br_ <> span__ [class_ "info"] (commasLimit_ 3 items)
             where xs = unanswered server [maybe (candidate' (s0,[])) patch' p]
