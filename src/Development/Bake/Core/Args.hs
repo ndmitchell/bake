@@ -86,6 +86,10 @@ bake oven@Oven{..} = do
                     res <- ovenPrepare
                         (stringyFrom ovenStringyState state)
                         (map (stringyFrom ovenStringyPatch) patch)
+                    let follow t = map (stringyTo ovenStringyTest) $ testRequire $
+                                   ovenTestInfo $ stringyFrom ovenStringyTest t
+                    whenJust (findCycle follow $ map (stringyTo ovenStringyTest) res) $ \xs ->
+                        error $ unlines $ "Tests form a cycle:" : xs
                     (yes,no) <- partitionM (testSuitable . ovenTestInfo) res
                     let op = map (stringyTo ovenStringyTest)
                     writeFile ".bake" $ show (op yes, op no)

@@ -44,7 +44,6 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
                     ,"Patches:"] ++
                     map ((++) "    " . fromPatch) (snd qCandidate)
                 a@Answer{..} <- runTest (fst qCandidate) (snd qCandidate) qTest
-                putStrLn "FIXME: Should validate the tests form a DAG"
                 putBlock "Client stop" $
                     ["Client: " ++ fromClient client
                     ,"Id: " ++ show i
