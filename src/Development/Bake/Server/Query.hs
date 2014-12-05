@@ -97,7 +97,7 @@ unsnocPatch server (s, ps)
 -- | Which failures have occured for patches whose prefix is in the target.
 --   The earliest failure (by timestamp) will be first
 targetFailures :: Server -> [(Maybe Test, [Patch])]
-targetFailures server@Server{..} =
+targetFailures server@Server{..} = reverse
     [ (qTest q, snd $ qCandidate q)
     | (q, a) <- translate' server (fst target) $ answered server
         [failure', candidateBy' (fst target) (`isPrefixOf` snd target)]]

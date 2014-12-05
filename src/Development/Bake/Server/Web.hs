@@ -276,7 +276,8 @@ rowPatch Shower{..} server@Server{..} argsAdmin p =
 
         running | null xs = mempty
                 | otherwise = br_ <> span__ [class_ "info"] (commasLimit_ 3 items)
-            where xs = unanswered server [maybe (candidate' (s0,[])) patch' p]
+            where -- put the oldest running process first
+                  xs = reverse $ unanswered server [maybe (candidate' (s0,[])) patch' p]
                   (yes,no) = partition (maybe null (isSuffixOf . return) p . snd . qCandidate) xs
                   items = map (b_ . showQuestion) yes ++ map showQuestion no
 
@@ -294,7 +295,7 @@ rowClient :: Shower -> Server -> Maybe Client -> [HTML]
 rowClient Shower{..} server (Just c) =
     [showLink ("client=" ++ fromClient c) $ str_ $ fromClient c
     ,if null xs then i_ $ str_ "None" else mconcat $ intersperse br_ xs]
-    where xs = [showQuestion q <> str_ " started " <> showTime t | (t,q,Nothing) <- history server, qClient q == c]
+    where xs = reverse [showQuestion q <> str_ " started " <> showTime t | (t,q,Nothing) <- history server, qClient q == c]
 rowClient Shower{..} Server{..} Nothing =
     [showLink "server=" $ i_ $ str_ "Server"
     ,showLink ("server=" ++ show (length updates - 1))
@@ -327,11 +328,11 @@ patchStatus server Nothing
 patchStatus server (Just p)
     -- we may have previously failed, but been requeued, so if we're active don't hunt for reject
     | p `notElem` snd (target server)
-    , bad <- answered server [lastPatch' p, blame']
+    , bad <- reverse $ answered server [lastPatch' p, blame']
     = Rejected $ nub $ map fst bad
     -- note we may be rejected with null bad, could be due to admin action
 patchStatus server Nothing
-    | fails@(_:_) <- answered server [candidate' (state0 server, []), failure']
+    | fails@(_:_) <- reverse $ answered server [candidate' (state0 server, []), failure']
     = Rejected $ map fst fails
 
 -- Detect progress
