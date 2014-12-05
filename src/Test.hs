@@ -72,10 +72,10 @@ test dir = do
     environment <- fmap (("REPO",repo):) $ getEnvironment
     p0 <- createProcessAlive (proc exe ["server","--datadir=../.."])
         {cwd=Just $ dir </> "server", env=Just environment}
-    ps <- forM Example.platforms $ \p -> do
+    ps <- forM (zip [1..] Example.platforms) $ \(i,p) -> do
         sleep 0.5 -- so they don't ping at the same time
         createDirectoryIfMissing True $ dir </> "client-" ++ show p
-        createProcessAlive (proc exe ["client","--ping=1","--name=" ++ show p])
+        createProcessAlive (proc exe $ ["client","--ping=1","--name=" ++ show p,"--threads=" ++ show i])
             {cwd=Just $ dir </> "client-" ++ show p,env=Just $ ("PLATFORM",show p) : environment}
     flip finally (do writeIORef aborting True; mapM_ terminateProcess $ p0 : ps) $ do
         let edit name act = withCurrentDirectory (dir </> "repo-" ++ name) $ do
