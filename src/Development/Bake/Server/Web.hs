@@ -291,9 +291,8 @@ rowPatch Shower{..} server@Server{..} argsAdmin p =
 rowClient :: Shower -> Server -> Maybe Client -> [HTML]
 rowClient Shower{..} server (Just c) =
     [showLink ("client=" ++ fromClient c) $ str_ $ fromClient c
-    ,if null target then i_ $ str_ "None"
-     else commas_ $ map showQuestion target]
-    where target = unanswered server [client' c]
+    ,if null xs then i_ $ str_ "None" else mconcat $ intersperse br_ xs]
+    where xs = [showQuestion q <> str_ " started " <> showTime t | (t,q,Nothing) <- history server, qClient q == c]
 rowClient Shower{..} Server{..} Nothing =
     [showLink "server=" $ i_ $ str_ "Server"
     ,showLink ("server=" ++ show (length updates - 1))
