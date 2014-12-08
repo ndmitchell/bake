@@ -6,6 +6,7 @@ module Development.Bake.Server.Web(
     ) where
 
 import Development.Bake.Server.Type
+import Development.Bake.Server.Stats
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Web
@@ -29,6 +30,7 @@ web :: Oven State Patch Test -> [(String, String)] -> Server -> IO String
 web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
     extra <- askDelayCache extra
     shower <- shower extra oven argsAdmin
+    stats <- if argsStats then stats server else return mempty
     return $ renderHTML $ template $ do
         let noargs = argsEmpty a
 
@@ -42,7 +44,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
             (if noargs then id else a__ [href_ $ if argsAdmin then "?admin=" else "."]) $
             str_ "Bake Continuous Integration"
 
-        when noargs $ do
+        if noargs then do
             when (isJust paused) $
                 p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
             failures shower server
@@ -66,7 +68,11 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
                         then str_ "Cannot unpause, not paused"
                         else admin (Unpause "admin") $ str_ "Unpause"
 
-        whenJust argsServer $ \s -> do
+         else if argsStats then do
+            stats
+
+         else if isJust argsServer then do
+            let s = fromJust argsServer
             table "No server operations" ["Time","Job","Status"] $
                 map (rowUpdate shower server) $
                     filter (maybe (const True) (==) s . fst) $
@@ -75,7 +81,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
                 h2_ $ str_ "Output"
                 pre_ $ str_ $ strUnpack $ aStdout $ snd $ fst3 $ reverse updates !! s
 
-        when (isNothing argsServer && not noargs) $ do
+         else do
             let xs = filter (argsFilter a . snd3) history
             table "No runs" ["Time","Job","Status"] $
                 map (rowHistory shower server) xs
@@ -99,6 +105,7 @@ data Args = Args
     ,argsTest :: Maybe (Maybe Test)
     ,argsServer :: Maybe (Maybe Int)
     ,argsAdmin :: Bool
+    ,argsStats :: Bool
     }
     deriving (Show,Eq)
 
@@ -113,6 +120,7 @@ args xs = Args
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ Test x) $ ask "test")
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ read x) $ ask "server")
     (not $ null $ ask "admin")
+    (not $ null $ ask "stats")
     where ask x = map snd $ filter ((==) x . fst) xs
 
 argsFilter :: Args -> Question -> Bool
