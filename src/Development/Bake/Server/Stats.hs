@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns #-}
+{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns, CPP #-}
 
 module Development.Bake.Server.Stats(
     stats,
@@ -47,7 +47,11 @@ recordIO msg x = do
 stats :: Server -> IO HTML
 stats Server{..} = do
     recorded <- readIORef recorded
+#if __GLASGOW_HASKELL__ < 706
+    stats <- return Nothing
+#else
     stats <- ifM getGCStatsEnabled (Just <$> getGCStats) (return Nothing)
+#endif
     rel <- relativeTimestamp
     return $ do
         p_ $ str_ $ "Requests = " ++ show (length history) ++ ", updates = " ++ show (length updates)
