@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, TupleSections #-}
 
 module General.Extra(
-    Timestamp(..), getTimestamp, showRelativeTimestamp,
+    Timestamp(..), getTimestamp, showRelativeTimestamp, relativeTimestamp,
     createDir,
     newCVar, readCVar, modifyCVar, modifyCVar_,
     registerMaster, forkSlave,
@@ -39,6 +39,11 @@ getTimestamp = do
     t <- getCurrentTime
     i <- atomicModifyIORef timestamp $ dupe . (+1)
     return $ Timestamp t i
+
+relativeTimestamp :: IO (Timestamp -> Double)
+relativeTimestamp = do
+    now <- getCurrentTime
+    return $ \(Timestamp old _) -> subtractTime now old
 
 showRelativeTimestamp :: IO (Timestamp -> String)
 showRelativeTimestamp = do
