@@ -53,7 +53,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         handle_ (fmap OutputError . showException) $ do
             res <-
                 if null inputURL then
-                    web oven inputArgs =<< readCVar var
+                    fmap OutputHTML $ web oven inputArgs =<< readCVar var
                 else if ["html"] `isPrefixOf` inputURL then
                     return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if ["api"] `isPrefixOf` inputURL then

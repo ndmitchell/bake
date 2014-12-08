@@ -25,11 +25,11 @@ import Development.Bake.Server.Query
 import qualified Data.Map as Map
 
 
-web :: Oven State Patch Test -> [(String, String)] -> Server -> IO Output
+web :: Oven State Patch Test -> [(String, String)] -> Server -> IO String
 web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
     extra <- askDelayCache extra
     shower <- shower extra oven argsAdmin
-    return $ OutputHTML $ renderHTML $ template $ do
+    return $ renderHTML $ template $ do
         let noargs = argsEmpty a
 
         when (fatal /= []) $ do
