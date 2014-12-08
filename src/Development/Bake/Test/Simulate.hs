@@ -17,10 +17,14 @@ import General.Str
 import General.Extra
 import System.Random
 import System.IO.Extra
+import System.Time.Extra
 
 
 simulate :: IO ()
 simulate = withBuffering stdout NoBuffering $ do
+    when False $ do
+        (t,_) <- duration performance
+        putStrLn $ "Performance test took " ++ showDuration t
     quickPlausible
     replicateM_ 20 randomSimple
 
@@ -169,3 +173,20 @@ quickPlausible = do
                 -> return ()
             xs -> error $ "quickPlausible wrong test sequence: " ++ show xs
         putStrLn $ "Success at quickPlausible " ++ show initialPatch
+
+
+performance :: IO ()
+performance = do
+    -- 1000 tests, 50 submissions, about every 200 tests
+    let nTests = 1000
+    let nPatches = 50
+
+    let info t = mempty{testPriority = if (read $ fromTest t :: Int) < 100 then 1 else 0}
+    let client = Client "c"
+    let tests = (map (Test . show) [1 :: Int .. nTests], [])
+    simulation info [(client,3)] (0::Int, 0::Int) $ \active (patch,tick) -> {- (print (patch,tick) >>) $ -} return $ case () of
+        _ | tick >= 200, patch < nPatches -> ((patch+1, 0), True, Submit (Patch $ show patch) True (const False))
+          | q:_ <- active -> ((patch, tick+1), True, Reply q True tests)
+          | otherwise -> ((patch, tick), patch /= nPatches, Request client)
+    putStrLn $ "Success at performance"
+    error "stop"
