@@ -7,7 +7,7 @@
 
 :{
 :def test \_ -> return $ unlines
-        [":!ghc --make -o .test/bake-test -outputdir .test -isrc Test src/Paths -main-is Test.main -threaded"
+        [":!ghc --make -o .test/bake-test -outputdir .test -isrc Test src/Paths -main-is Test.main -threaded -with-rtsopts=-T"
         ,":!.test\\bake-test"
         ]
 :}
