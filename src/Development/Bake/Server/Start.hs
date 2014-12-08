@@ -15,6 +15,7 @@ import General.Extra
 import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
+import Development.Bake.Server.Stats
 import Control.Applicative
 import General.DelayCache
 import Control.DeepSeq
@@ -53,7 +54,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         handle_ (fmap OutputError . showException) $ do
             res <-
                 if null inputURL then
-                    fmap OutputHTML $ web oven inputArgs =<< readCVar var
+                    fmap OutputHTML $ recordIO "web" $ web oven inputArgs =<< readCVar var
                 else if ["html"] `isPrefixOf` inputURL then
                     return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if ["api"] `isPrefixOf` inputURL then
@@ -118,7 +119,7 @@ operate timeout oven message server = case message of
         server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $ server
             {pings = Map.insert (pClient ping) (now,ping) $ pings server}
         flip loopM server $ \(unpause -> server) ->
-            case brains (ovenTestInfo oven) server ping of
+            case record "brains" (brains (ovenTestInfo oven) server) ping of
                 Sleep ->
                     return $ Right (server, Nothing)
                 Task q -> do
