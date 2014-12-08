@@ -14,6 +14,7 @@ import Data.Maybe
 import Data.List.Extra
 import Data.Tuple.Extra
 import General.Extra
+import qualified Data.Set as Set
 
 
 data Neuron
@@ -97,9 +98,9 @@ targetBlessedPrefix server@Server{..} = head $ filter isBlessed $ reverse $ init
 -- | Given a State, is it blessed
 blessedState :: Server -> (State, [Patch]) -> Bool
 blessedState server c
-    | let f t = answered server [test' t, success', candidate' c]
-    , todo:_ <- aTests . snd <$> f Nothing
-    = all (not . null . f . Just) todo
+    | todo:_ <- aTests . snd <$> answered server [test' Nothing, success', candidate' c]
+    , done <- Set.fromList $ mapMaybe (qTest . fst) $ answered server [success', candidate' c]
+    = all (`Set.member` done) todo -- the only permissable tests
 blessedState _ _ = False
 
 
