@@ -9,6 +9,7 @@ import Development.Bake.Core.Type
 import Development.Bake.Server.Type
 import Development.Bake.Server.Query
 import Control.Applicative
+import Control.DeepSeq
 import Data.Maybe
 import Data.List.Extra
 import Data.Tuple.Extra
@@ -21,6 +22,12 @@ data Neuron
     | Update (State, [Patch])-- update to the target state
     | Reject Patch (Maybe Test) -- reject this patch
       deriving (Show,Eq)
+
+instance NFData Neuron where
+    rnf Sleep = ()
+    rnf (Task x) = rnf x
+    rnf (Update x) = rnf x
+    rnf (Reject x y) = rnf x `seq` rnf y
 
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron

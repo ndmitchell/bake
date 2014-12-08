@@ -9,6 +9,7 @@ import Development.Bake.Core.Type
 import General.Web
 import Control.Applicative
 import Control.Monad
+import Control.DeepSeq
 import Data.Aeson hiding (Success)
 import General.Str
 import qualified Data.ByteString.Lazy.Char8 as LBS
@@ -33,6 +34,9 @@ data Question = Question
     ,qClient :: Client
     }
     deriving (Show,Eq)
+
+instance NFData Question where
+    rnf (Question a b c d) = rnf (a,b,c,d)
 
 data Answer = Answer
     {aStdout :: Str
