@@ -18,7 +18,6 @@ import GHC.Stats
 import System.IO.Unsafe
 import System.Time.Extra
 import Control.Exception
-import Control.Monad.Extra
 import Data.Tuple.Extra
 import Numeric.Extra
 import qualified Data.Map as Map
@@ -48,10 +47,11 @@ stats :: Server -> IO HTML
 stats Server{..} = do
     recorded <- readIORef recorded
 #if __GLASGOW_HASKELL__ < 706
-    stats <- return Nothing
+    getGCStatsEnabled <- return True
 #else
-    stats <- ifM getGCStatsEnabled (Just <$> getGCStats) (return Nothing)
+    getGCStatsEnabled <- getGCStatsEnabled
 #endif
+    stats <- if getGCStatsEnabled then Just <$> getGCStats else return Nothing
     rel <- relativeTimestamp
     return $ do
         p_ $ str_ $ "Requests = " ++ show (length history) ++ ", updates = " ++ show (length updates)
