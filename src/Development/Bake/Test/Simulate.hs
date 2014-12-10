@@ -13,6 +13,7 @@ import Data.List.Extra
 import Data.Tuple.Extra
 import Data.Monoid
 import Data.Maybe
+import Numeric.Extra
 import General.Str
 import General.Extra
 import System.Random
@@ -23,7 +24,7 @@ import System.Time.Extra
 simulate :: IO ()
 simulate = withBuffering stdout NoBuffering $ do
     when False $ do
-        (t,_) <- duration performance
+        (t,_) <- duration $ performance 10
         putStrLn $ "Performance test took " ++ showDuration t
     quickPlausible
     replicateM_ 20 randomSimple
@@ -175,17 +176,17 @@ quickPlausible = do
         putStrLn $ "Success at quickPlausible " ++ show initialPatch
 
 
-performance :: IO ()
-performance = do
-    -- 1000 tests, 50 submissions, about every 200 tests
-    let nTests = 1000
+performance :: Int -> IO ()
+performance nTests = do
+    -- 1000 tests, 50 submissions, 10 failing, about every 200 tests
     let nPatches = 50
+    let f x = min (nTests-1) $ max 0 $ round $ intToDouble nTests * x 
 
-    let info t = mempty{testPriority = if (read $ fromTest t :: Int) < 100 then 1 else 0}
+    let info t = mempty{testPriority = if (read $ fromTest t :: Int) < f 0.1 then 1 else 0}
     let client = Client "c"
-    let tests = (map (Test . show) [1 :: Int .. nTests], [])
+    let tests = (map (Test . show) [0 :: Int .. nTests - 1], [])
     simulation info [(client,3)] (0::Int, 0::Int) $ \active (patch,tick) -> {- (print (patch,tick) >>) $ -} return $ case () of
-        _ | tick >= 200, patch < nPatches -> ((patch+1, 0), True, Submit (Patch $ show patch) True (const False))
+        _ | tick >= f 0.2, patch < nPatches -> ((patch+1, 0), True, Submit (Patch $ show patch) True (const False))
           | q:_ <- active -> ((patch, tick+1), True, Reply q True tests)
           | otherwise -> ((patch, tick), patch /= nPatches, Request client)
     putStrLn $ "Success at performance"
