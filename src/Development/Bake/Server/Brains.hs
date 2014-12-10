@@ -51,7 +51,7 @@ brains info server@Server{..} Ping{..}
             [(qTest, Nothing : map Just (snd qCandidate)) | (Question{..},_) <- translate' server (fst target) $ answered server [success']] ++
             map (,[]) (allTests target)
             where orderPriority = negate . maybe 0 (testPriority . info)  . fst
-                  orderRarity = length . nub . concat . snd
+                  orderRarity = Set.size . Set.fromList . concat . snd
 
         todoFail = [((fst target, init ps), t) | (t, ps@(_:_)) <- failures, t <- dependencies [t]]
 
