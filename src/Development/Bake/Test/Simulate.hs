@@ -177,16 +177,24 @@ quickPlausible = do
 
 performance :: Int -> IO ()
 performance nTests = do
-    -- 1000 tests, 50 submissions, 10 failing, about every 200 tests
+    -- TODO: ping the website regularly
+    -- 1000 tests, 50 submissions, 7 failing, spawn about every 200 tests
     let nPatches = 50
     let f x = min (nTests-1) $ max 0 $ round $ intToDouble nTests * x 
+    let fails = [(3,f 0.2),(4,f 0),(10,f 0.1),(22,f 0.6),(40,f 0.6),(48,f 0.9),(49,f 0.9)]
 
     let info t = mempty{testPriority = if (read $ fromTest t :: Int) < f 0.1 then 1 else 0}
     let client = Client "c"
     let tests = (map (Test . show) [0 :: Int .. nTests - 1], [])
-    simulation info [(client,3)] (0::Int, 0::Int) $ \active (patch,tick) -> {- (print (patch,tick) >>) $ -} return $ case () of
-        _ | tick >= f 0.2, patch < nPatches -> ((patch+1, 0), True, Submit (Patch $ show patch) True (const False))
-          | q:_ <- active -> ((patch, tick+1), True, Reply q True tests)
+    simulation info [(client,3)] (0::Int, 0::Int) $ \active (patch,tick) -> return $ case () of
+        _ | tick >= f 0.2, patch < nPatches ->
+                let pass = patch `notElem` map fst fails
+                    fail t = (patch,maybe (-1) (read . fromTest) t) `elem` fails
+                in  ((patch+1, 0), True, Submit (Patch $ show patch) pass fail)
+          | q:_ <- active ->
+                let pass = and [ (read $ fromPatch p, maybe (-1) (read . fromTest) $ qTest q) `notElem` fails
+                               | p <- unstate (fst $ qCandidate q) ++ snd (qCandidate q)]
+                in ((patch, tick+1), True, Reply q pass tests)
           | otherwise -> ((patch, tick), patch /= nPatches, Request client)
     putStrLn $ "Success at performance"
     error "stop"
