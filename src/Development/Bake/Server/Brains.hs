@@ -36,7 +36,7 @@ brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron
 brains info server@Server{..} Ping{..}
     | (i,_):_ <- filter (isBlessed . snd) pinfo, i /= 0 || null (snd target)
         = if i == 0 then Sleep else Update $ second (take i) target
-    | blame:_ <- targetBlame server = uncurry Reject blame
+    | Just (i, test) <- findBlame pinfo = Reject (snd target !! (i-1)) test
     | (c,t):_ <- filter (uncurry suitableTest) $ unasked todoFail ++ unasked todoPass
         = Task $ Question c t (threadsForTest t) pClient
     | otherwise = Sleep
@@ -90,15 +90,6 @@ brains info server@Server{..} Ping{..}
         self' = client' pClient
 
 
--- | Which failures have occured for patches whose prefix is in the target.
---   The earliest failure (by timestamp) will be first
-targetBlame :: Server -> [(Patch, Maybe Test)]
-targetBlame server@Server{..} =
-    [ (last $ snd $ qCandidate q, qTest q)
-    | (q, a) <- translate' server (fst target) $ answered server
-        [blame', candidateBy' (fst target) $ \ps -> ps `isPrefixOf` snd target && not (null ps)]]
-
-
 ----------------------------------------------------------------
 
 -- | From the history, find those which are the current target state, plus some prefix of patches
@@ -113,6 +104,19 @@ prepare server@Server{..} =
 
 isBlessed :: PatchInfo -> Bool
 isBlessed PatchInfo{patchTodo=t, patchSuccess=s} = not (Set.null t) && Set.size t == Set.size s
+
+
+findBlame :: [(Int,PatchInfo)] -> Maybe (Int, Maybe Test)
+findBlame ((i,a):(j,b):_)
+    | i - 1 == j, not $ Set.null $ patchTodo b, bad:_ <- Set.toList $ blame a b = Just (i, bad)
+    where
+        blame PatchInfo{patchFailure=failure} PatchInfo{patchTodo=todo, patchSuccess=success} =
+            (failure `Set.intersection` success) `Set.union` -- failed this time, success the time before
+            (failure `Set.difference` todo) -- a new test that failed
+findBlame ((i,a):_) -- assume the state is good, even if you don't have evidence
+    | i == 1, bad:_ <- Set.toList $ patchFailure a = Just (i, bad)
+findBlame (_:xs) = findBlame xs
+findBlame [] = Nothing
 
 
 data PatchInfo = PatchInfo
