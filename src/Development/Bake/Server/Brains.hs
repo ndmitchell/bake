@@ -123,19 +123,21 @@ data PatchInfo = PatchInfo
     {patchTodo :: Set.Set (Maybe Test) -- empty means we haven't run it yet, or we did and it failed
     ,patchSuccess :: Set.Set (Maybe Test)
     ,patchFailure :: Set.Set (Maybe Test)
+    ,patchAsked :: Set.Set (Maybe Test)
     } deriving Show
 
 instance Monoid PatchInfo where
-    mempty = PatchInfo Set.empty Set.empty Set.empty
-    mappend (PatchInfo x1 x2 x3) (PatchInfo y1 y2 y3) =
-        PatchInfo (if Set.null x1 then y1 else x1) (x2 `Set.union` y2) (x3 `Set.union` y3)
+    mempty = PatchInfo Set.empty Set.empty Set.empty Set.empty
+    mappend (PatchInfo x1 x2 x3 x4) (PatchInfo y1 y2 y3 y4) =
+        PatchInfo (if Set.null x1 then y1 else x1) (x2 `Set.union` y2) (x3 `Set.union` y3) (x4 `Set.union` y4)
 
 -- | Return patch info, sorted from highest number of patches to lowest
 patchInfo :: [(Int, Question, Maybe Answer)] -> [(Int,PatchInfo)]
 patchInfo = Map.toDescList . Map.fromListWith mappend . map (fst3 &&& f)
     where
-        f (i,Question{qTest=Nothing},Just Answer{aSuccess=True, aTestsSuitable=(a,b)})
+        f (_, Question{qTest=Nothing}, Just Answer{aSuccess=True, aTestsSuitable=(a,b)})
             = mempty{patchTodo = Set.fromList $ Nothing : map Just (a ++ b), patchSuccess=Set.singleton Nothing}
-        f (i,Question{qTest=t},Just Answer{aSuccess=b})
+        f (_, Question{qTest=t}, Just Answer{aSuccess=b})
             = if b then mempty{patchSuccess=Set.singleton t} else mempty{patchFailure=Set.singleton t}
-        f _ = mempty
+        f (_, Question{qTest=t}, Nothing)
+            = mempty{patchAsked=Set.singleton t}
