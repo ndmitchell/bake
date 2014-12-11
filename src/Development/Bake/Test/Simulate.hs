@@ -63,7 +63,7 @@ simulation
     -> ([Question] -> s -> IO (s, Bool, Step))  -- ^ step function
     -> IO s
 simulation testInfo clients u step = do
-    let s = S u server0{target = (State "", [])} 200 [] [] []
+    let s = S u server0{target = (State "", [])} 20 [] [] []
 
     let count s c = sum [qThreads | Question{..} <- active s, qClient == c]
 
@@ -90,7 +90,7 @@ simulation testInfo clients u step = do
                 return s{active = delete q $ active s, server = (server s){history = f $ history $ server s}}
 
             Request c -> case ping s c of
-                Sleep -> return s
+                Sleep -> return $ if cont then s else s{wait = wait s - 1}
                 Task q -> do
                     when (q `elem` asked s) $ error "asking a duplicate question"
                     return s{active = q : active s, server = (server s){history = (t,q,Nothing) : history (server s)} }
@@ -106,7 +106,6 @@ simulation testInfo clients u step = do
         forM_ clients $ \(c,mx) ->
             when (count s c > mx) $ error "threads exceeded"
 
-        s <- return $ if cont then s else s{wait = wait s - 1}
         return $ if wait s == 0 then Right s else Left s
     putStrLn ""
 
