@@ -26,6 +26,7 @@ simulate = withBuffering stdout NoBuffering $ do
     when False $ do
         (t,_) <- duration $ performance 10
         putStrLn $ "Performance test took " ++ showDuration t
+    bisect
     quickPlausible
     replicateM_ 20 randomSimple
 
@@ -173,6 +174,19 @@ quickPlausible = do
                 -> return ()
             xs -> error $ "quickPlausible wrong test sequence: " ++ show xs
         putStrLn $ "Success at quickPlausible " ++ show initialPatch
+
+
+bisect :: IO ()
+bisect = do
+    let info t = mempty
+    let tests = (map (Test . show) [1 .. 3 :: Int], [])
+    let client = Client "c"
+    (done,_) <- simulation info [(client,1)] (0, map (Patch . show) [1 .. 1024 :: Int]) $ \active (done,patches) -> return $ case () of
+        _ | p:patches <- patches -> ((done,patches), True, Submit p (p /= Patch "26") (\t -> p == Patch "26" && t == Just (Test "2")))
+          | q:_ <- active -> ((done+1,[]), True, Reply q (qTest q /= Just (Test "2") || Patch "26" `notElem` (unstate (fst $ qCandidate q) ++ snd (qCandidate q))) tests)
+          | otherwise -> ((done,[]), False, Request client)
+    when (done > 50) $ error "Did too many tests to bisect"
+    putStrLn "Success at bisect"
 
 
 performance :: Int -> IO ()
