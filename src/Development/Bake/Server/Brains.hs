@@ -47,7 +47,6 @@ brains info server@Server{..} Ping{..}
         failures = targetFailures server
 
         -- all the tests, sorted so those which have been done least are first
-        todoPass :: [((State, [Patch]), Maybe Test)]
         todoPass
             | (i,PatchInfo{..}):_ <- pinfo, i == length (snd target), xs@(_:_) <- Set.toList patchTodo =
                 let orderAsked t = if t `Set.member` patchSuccess || t `Set.member` patchFailure then 0
