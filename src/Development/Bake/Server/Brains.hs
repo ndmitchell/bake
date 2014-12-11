@@ -9,7 +9,6 @@ import Development.Bake.Core.Type
 import Development.Bake.Server.Type
 import Development.Bake.Server.Query
 import Control.DeepSeq
-import Control.Monad
 import Data.Maybe
 import Data.Monoid
 import Data.List.Extra
@@ -113,27 +112,26 @@ prepare server@Server{..} =
 
 
 isBlessed :: PatchInfo -> Bool
-isBlessed PatchInfo{patchTodo=Just t, patchSuccess=s} = Set.size t == Set.size s
-isBlessed _ = False
+isBlessed PatchInfo{patchTodo=t, patchSuccess=s} = not (Set.null t) && Set.size t == Set.size s
 
 
 data PatchInfo = PatchInfo
-    {patchTodo :: Maybe (Set.Set Test)
-    ,patchSuccess :: Set.Set Test
-    ,patchFailure :: Set.Set Test
-    }
+    {patchTodo :: Set.Set (Maybe Test) -- empty means we haven't run it yet, or we did and it failed
+    ,patchSuccess :: Set.Set (Maybe Test)
+    ,patchFailure :: Set.Set (Maybe Test)
+    } deriving Show
 
 instance Monoid PatchInfo where
-    mempty = PatchInfo Nothing Set.empty Set.empty
+    mempty = PatchInfo Set.empty Set.empty Set.empty
     mappend (PatchInfo x1 x2 x3) (PatchInfo y1 y2 y3) =
-        PatchInfo (x1 `mplus` y1) (x2 `Set.union` y2) (x3 `Set.union` y3)
+        PatchInfo (if Set.null x1 then y1 else x1) (x2 `Set.union` y2) (x3 `Set.union` y3)
 
 -- | Return patch info, sorted from highest number of patches to lowest
 patchInfo :: [(Int, Question, Maybe Answer)] -> [(Int,PatchInfo)]
 patchInfo = Map.toDescList . Map.fromListWith mappend . map (fst3 &&& f)
     where
         f (i,Question{qTest=Nothing},Just Answer{aSuccess=True, aTestsSuitable=(a,b)})
-            = mempty{patchTodo = Just $ Set.fromList $ a ++ b}
-        f (i,Question{qTest=Just t},Just Answer{aSuccess=b})
+            = mempty{patchTodo = Set.fromList $ Nothing : map Just (a ++ b), patchSuccess=Set.singleton Nothing}
+        f (i,Question{qTest=t},Just Answer{aSuccess=b})
             = if b then mempty{patchSuccess=Set.singleton t} else mempty{patchFailure=Set.singleton t}
         f _ = mempty
