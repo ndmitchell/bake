@@ -114,7 +114,7 @@ operate timeout oven message server = case message of
             print (target server, q, a{aStdout=strPack ""})
             putStrLn $ strUnpack $ aStdout a
             putStrLn $ replicate 70 '#'
-        server <- return server{history = [(t,qq,if q == qq then Just a else aa) | (t,qq,aa) <- history server]}
+        server <- return $ historyAnswer q a server
         serverConsistent server
         dull server 
     Pinged ping -> do

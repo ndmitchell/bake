@@ -87,8 +87,7 @@ simulation testInfo clients u step = do
 
             Reply q good tests -> do
                 let ans = Answer (strPack "") 0 (if good && isNothing (qTest q) then tests else mempty) good
-                let f xs = [(t,qq,if q == qq then Just ans else aa) | (t,qq,aa) <- xs]
-                return s{active = delete q $ active s, server = (server s){history = f $ history $ server s}}
+                return s{active = delete q $ active s, server = historyAnswer q ans $ server s}
 
             Request c -> case ping s c of
                 Sleep -> return $ if cont then s else s{wait = wait s - 1}
