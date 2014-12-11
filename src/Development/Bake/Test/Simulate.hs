@@ -183,7 +183,10 @@ performance nTests = do
     let f x = min (nTests-1) $ max 0 $ round $ intToDouble nTests * x 
     let fails = [(3,f 0.2),(4,f 0),(10,f 0.1),(22,f 0.6),(40,f 0.6),(48,f 0.9),(49,f 0.9)]
 
-    let info t = mempty{testPriority = if (read $ fromTest t :: Int) < f 0.1 then 1 else 0}
+    let pri = Test $ show $ f 0.1
+    let npri = length $ fromTest pri
+    let info t = mempty{testPriority = case compare (length $ fromTest t) npri of
+                                            LT -> 1; GT -> 0; EQ -> if t < pri then 1 else 0}
     let client = Client "c"
     let tests = (map (Test . show) [0 :: Int .. nTests - 1], [])
     simulation info [(client,3)] (0::Int, 0::Int) $ \active (patch,tick) -> return $ case () of
