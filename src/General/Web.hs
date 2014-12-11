@@ -1,11 +1,16 @@
-{-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings, CPP #-}
 
 module General.Web(
     Input(..), Output(..), send, server
     ) where
 
-import Development.Bake.Core.Type hiding (run)
+-- For some reason, profiling stops working if I import warp
+-- Tracked as https://github.com/yesodweb/wai/issues/311
+#ifndef PROFILE
 import Network.Wai.Handler.Warp hiding (Port)
+#endif
+
+import Development.Bake.Core.Type hiding (run)
 import Network.Wai
 import Control.DeepSeq
 import Control.Exception
@@ -55,6 +60,9 @@ send (host,port) Input{..} = do
 
 
 server :: Port -> (Input -> IO Output) -> IO ()
+#ifdef PROFILE
+server port act = return ()
+#else
 server port act = runSettings (setOnException exception $ setPort port defaultSettings) $ \req reply -> do
     bod <- strictRequestBody req
     whenLoud $ print ("receiving",bod,requestHeaders req,port)
@@ -75,3 +83,4 @@ exception r e
     | Just (_ :: InvalidRequest) <- fromException e = return ()
     | otherwise = putStrLn $ "Error when processing " ++ maybe "Nothing" (show . rawPathInfo) r ++
                              "\n    " ++ show e
+#endif
