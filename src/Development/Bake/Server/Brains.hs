@@ -47,7 +47,7 @@ brains info server@Server{..} Ping{..}
         failures = targetFailures server
 
         unasked xs = no ++ yes
-            where started = map (qCandidate &&& qTest) $ map fst $ asked server []
+            where started = map ((qCandidate &&& qTest) . fst) $ asked server []
                   (yes, no) = partition (`elem` started) xs
 
         -- all the tests, sorted so those which have been done least are first
