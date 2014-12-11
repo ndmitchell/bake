@@ -79,10 +79,10 @@ bake oven@Oven{..} = do
 
         RunInit -> do
             s <- ovenUpdateState Nothing
-            writeFile ".bake" $ stringyTo ovenStringyState s
+            writeFile ".bake.result" $ stringyTo ovenStringyState s
         RunUpdate{..} -> do
             s <- ovenUpdateState $ Just (stringyFrom ovenStringyState state, map (stringyFrom ovenStringyPatch) patch)
-            writeFile ".bake" $ stringyTo ovenStringyState s
+            writeFile ".bake.result" $ stringyTo ovenStringyState s
         RunTest{..} -> do
             case test of
                 Nothing -> do
@@ -100,14 +100,14 @@ bake oven@Oven{..} = do
                         error $ unlines $ "Test is a dependency that cannot be reached:" : missing
 
                     xs <- partitionM (testSuitable . ovenTestInfo) res
-                    writeFile ".bake" $ show $ both (map str) xs
+                    writeFile ".bake.result" $ show $ both (map str) xs
                 Just test -> do
                     testAction $ ovenTestInfo $ stringyFrom ovenStringyTest test
         RunExtra{..} -> do
             res <- ovenPatchExtra
                 (stringyFrom ovenStringyState state)
                 (fmap (stringyFrom ovenStringyPatch) $ listToMaybe patch)
-            writeFile ".bake" $ show res
+            writeFile ".bake.result" $ show res
     where
         getPort p = if p == 0 then snd ovenServer else p
         getHostPort h p = (if h == "" then fst ovenServer else h, getPort p)

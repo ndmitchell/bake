@@ -53,7 +53,7 @@ runAll name args1 args2 parse = do
         exe <- getExecutablePath
         (exit, Stdout sout, Stderr serr) <- cmd (Cwd dir) exe ("run" ++ name) args1 args2
         ex <- if exit /= ExitSuccess then return Nothing else do
-            ans <- fmap parse $ readFile' $ dir </> ".bake"
+            ans <- fmap parse $ readFile' $ dir </> ".bake.result"
             evaluate $ rnf ans
             return $ Just ans
         return (ex, Answer (strPack $ sout++serr) 0 ([],[]) (exit == ExitSuccess))
