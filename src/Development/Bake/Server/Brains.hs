@@ -37,7 +37,7 @@ brains info server@Server{..} Ping{..}
     | (i,_):_ <- filter (isBlessed . snd) pinfo, i /= 0 || null (snd target)
         = if i == 0 then Sleep else Update $ second (take i) target
     | Just (i, test) <- findBlame pinfo = Reject (snd target !! (i-1)) test
-    | (c,t):_ <- filter (uncurry suitableTest) $ unasked todoFail ++ unasked todoPass
+    | (c,t):_ <- filter (uncurry suitableTest) $ if null failures then todoPass else todoFail
         = Task $ Question c t (threadsForTest t) pClient
     | otherwise = Sleep
     where
@@ -46,27 +46,26 @@ brains info server@Server{..} Ping{..}
 
         failures = targetFailures server
 
+        -- all the tests, sorted so those which have been done least are first
+        todoPass :: [((State, [Patch]), Maybe Test)]
+        todoPass
+            | (i,PatchInfo{..}):_ <- pinfo, i == length (snd target), xs@(_:_) <- Set.toList patchTodo =
+                let orderAsked t = if t `Set.member` patchSuccess || t `Set.member` patchFailure then 0
+                                   else if t `Set.member` patchAsked then 1 else 2
+                    orderPriority = maybe 0 (negate . testPriority . info)
+                    orderRarity t = head $ [i | (i,PatchInfo{..}) <- pinfo, t `Set.member` patchSuccess] ++ [-1]
+                in map (target,) $ sortOn (\x -> (orderAsked x, orderPriority x, orderRarity x)) xs
+            | otherwise = [(target, Nothing)]
+
+
+        todoFail = unasked [((fst target, init ps), t) | (t, ps@(_:_)) <- failures, t <- dependencies [t]]
         unasked xs = no ++ yes
             where started = map ((qCandidate &&& qTest) . fst) $ asked server []
                   (yes, no) = partition (`elem` started) xs
 
-        -- all the tests, sorted so those which have been done least are first
-        todoPass = map ((target,) . fst) $ sortOn (orderPriority &&& orderRarity) $ groupSort $
-            [(qTest, Nothing : map Just (snd qCandidate)) | (Question{..},_) <- translate' server (fst target) $ answered server [success']] ++
-            map (,[]) (allTests target)
-            where orderPriority = negate . maybe 0 (testPriority . info)  . fst
-                  orderRarity = Set.size . Set.fromList . concat . snd
-
-        todoFail = [((fst target, init ps), t) | (t, ps@(_:_)) <- failures, t <- dependencies [t]]
-
-
         dependencies = transitiveClosure $ \t -> case t of
             Nothing -> []
             Just t -> Nothing : map Just (testRequire $ info t)
-
-        -- all the tests we know about for this candidate, may be incomplete if Nothing has not passed (yet)
-        allTests c = (Nothing:) $ map Just $ concat $ take 1 $
-            map (aTests . snd) $ answered server [success', test' Nothing, candidate' c]
 
         -- how many threads does this test require
         threadsForTest = maybe 1 (fromMaybe pMaxThreads . testThreads . info)
