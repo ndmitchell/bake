@@ -37,14 +37,15 @@ brains info server@Server{..} Ping{..}
     | (i,_):_ <- filter (isBlessed . snd) pinfo, i /= 0 || null (snd target)
         = if i == 0 then Sleep else Update $ second (take i) target
     | Just (i, test) <- findBlame pinfo = Reject (snd target !! (i-1)) test
-    | (c,t):_ <- filter (uncurry suitableTest) $ if null failures then todoPass else todoFail
+    | (c,t):_ <- filter (uncurry suitableTest) $ if isNothing failure then todoPass else todoFail
         = Task $ Question c t (threadsForTest t) pClient
     | otherwise = Sleep
     where
         prep = prepare server
         pinfo = patchInfo prep
 
-        failures = targetFailures server
+        -- pick a single failure to chase down, don't look at any others til that is eliminated
+        failure = listToMaybe [(i,x) | (i,PatchInfo{..}) <- reverse pinfo, i /= 0, x:_ <- [Set.toList patchFailure]]
 
         -- all the tests, sorted so those which have been done least are first
         todoPass
@@ -56,11 +57,11 @@ brains info server@Server{..} Ping{..}
                 in map (target,) $ sortOn (\x -> (orderAsked x, orderPriority x, orderRarity x)) xs
             | otherwise = [(target, Nothing)]
 
-
-        todoFail = unasked [((fst target, init ps), t) | (t, ps@(_:_)) <- failures, t <- dependencies [t]]
-        unasked xs = no ++ yes
-            where started = map ((qCandidate &&& qTest) . fst) $ asked server []
-                  (yes, no) = partition (`elem` started) xs
+        -- all the tests that are dependencies
+        todoFail | Just (bad,t) <- failure =
+            let good = maybe 0 fst $ find (Set.member t . patchSuccess . snd) $ dropWhile ((>= bad) . fst) pinfo
+                mid = good + ((bad - good) `div` 2)
+            in [(second (take mid) target, t) | t <- dependencies [t]]
 
         dependencies = transitiveClosure $ \t -> case t of
             Nothing -> []
