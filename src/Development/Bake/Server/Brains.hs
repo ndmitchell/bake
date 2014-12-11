@@ -8,13 +8,15 @@ import Development.Bake.Core.Message
 import Development.Bake.Core.Type
 import Development.Bake.Server.Type
 import Development.Bake.Server.Query
-import Control.Applicative
 import Control.DeepSeq
+import Control.Monad
 import Data.Maybe
+import Data.Monoid
 import Data.List.Extra
 import Data.Tuple.Extra
 import General.Extra
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 
 
 data Neuron
@@ -33,13 +35,16 @@ instance NFData Neuron where
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron
 brains info server@Server{..} Ping{..}
-    | bless@(_:_) <- targetBlessedPrefix server = Update (fst target, bless)
-    | blessedState server target = Sleep
+    | (i,_):_ <- filter (isBlessed . snd) pinfo, i /= 0 || null (snd target)
+        = if i == 0 then Sleep else Update $ second (take i) target
     | blame:_ <- targetBlame server = uncurry Reject blame
     | (c,t):_ <- filter (uncurry suitableTest) $ unasked todoFail ++ unasked todoPass
         = Task $ Question c t (threadsForTest t) pClient
     | otherwise = Sleep
     where
+        prep = prepare server
+        pinfo = patchInfo prep
+
         failures = targetFailures server
 
         unasked xs = no ++ yes
@@ -86,24 +91,6 @@ brains info server@Server{..} Ping{..}
         self' = client' pClient
 
 
--- | Given the current target, what prefix is already blessed.
---   Usually the empty list, can immediately be rolled into the target.
-targetBlessedPrefix :: Server -> [Patch]
-targetBlessedPrefix server@Server{..} = head $ filter isBlessed $ reverse $ inits $ snd target
-    where
-        isBlessed [] = True
-        isBlessed ps = blessedState server (fst target, ps)
-
-
--- | Given a State, is it blessed
-blessedState :: Server -> (State, [Patch]) -> Bool
-blessedState server c
-    | todo:_ <- aTests . snd <$> answered server [test' Nothing, success', candidate' c]
-    , done <- Set.fromList $ mapMaybe (qTest . fst) $ answered server [success', candidate' c]
-    = all (`Set.member` done) todo -- the only permissable tests
-blessedState _ _ = False
-
-
 -- | Which failures have occured for patches whose prefix is in the target.
 --   The earliest failure (by timestamp) will be first
 targetBlame :: Server -> [(Patch, Maybe Test)]
@@ -111,3 +98,42 @@ targetBlame server@Server{..} =
     [ (last $ snd $ qCandidate q, qTest q)
     | (q, a) <- translate' server (fst target) $ answered server
         [blame', candidateBy' (fst target) $ \ps -> ps `isPrefixOf` snd target && not (null ps)]]
+
+
+----------------------------------------------------------------
+
+-- | From the history, find those which are the current target state, plus some prefix of patches
+--   The Int is how many patches.
+prepare :: Server -> [(Int, Question, Maybe Answer)]
+prepare server@Server{..} =
+    [ (length p, q, a)
+    | (_,q,a) <- history
+    , Just p <- [translate server (fst target) $ qCandidate q]
+    , p `isPrefixOf` snd target]
+
+
+isBlessed :: PatchInfo -> Bool
+isBlessed PatchInfo{patchTodo=Just t, patchSuccess=s} = Set.size t == Set.size s
+isBlessed _ = False
+
+
+data PatchInfo = PatchInfo
+    {patchTodo :: Maybe (Set.Set Test)
+    ,patchSuccess :: Set.Set Test
+    ,patchFailure :: Set.Set Test
+    }
+
+instance Monoid PatchInfo where
+    mempty = PatchInfo Nothing Set.empty Set.empty
+    mappend (PatchInfo x1 x2 x3) (PatchInfo y1 y2 y3) =
+        PatchInfo (x1 `mplus` y1) (x2 `Set.union` y2) (x3 `Set.union` y3)
+
+-- | Return patch info, sorted from highest number of patches to lowest
+patchInfo :: [(Int, Question, Maybe Answer)] -> [(Int,PatchInfo)]
+patchInfo = Map.toDescList . Map.fromListWith mappend . map (fst3 &&& f)
+    where
+        f (i,Question{qTest=Nothing},Just Answer{aSuccess=True, aTestsSuitable=(a,b)})
+            = mempty{patchTodo = Just $ Set.fromList $ a ++ b}
+        f (i,Question{qTest=Just t},Just Answer{aSuccess=b})
+            = if b then mempty{patchSuccess=Set.singleton t} else mempty{patchFailure=Set.singleton t}
+        f _ = mempty
