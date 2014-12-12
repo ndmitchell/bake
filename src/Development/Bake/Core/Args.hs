@@ -17,6 +17,7 @@ import Control.DeepSeq
 import System.Directory
 import Control.Monad.Extra
 import Control.Applicative
+import Data.Either
 import Data.Maybe
 import Data.List.Extra
 import Data.Tuple.Extra
@@ -32,6 +33,7 @@ data Bake
     | DelPatches {host :: Host, port :: Port, author :: Author}
     | Pause {host :: Host, port :: Port, author :: Author}
     | Unpause {host :: Host, port :: Port, author :: Author}
+    | GC {dry_run :: Bool, days :: Double}
       -- actions sent through from Bake itself
     | RunInit
     | RunUpdate {state :: String, patch :: [String]}
@@ -48,6 +50,7 @@ bakeMode = cmdArgsMode $ modes
     ,DelPatches{}
     ,Pause{}
     ,Unpause{}
+    ,GC def 7
     ,RunTest def def def
     ,RunInit{}
     ,RunExtra{}
@@ -76,6 +79,23 @@ bake oven@Oven{..} = do
         DelPatches{..} -> sendDelAllPatches (getHostPort host port) author
         Pause{..} -> sendPause (getHostPort host port) author
         Unpause{..} -> sendUnpause (getHostPort host port) author
+        GC{..} -> do
+            xs <- calculateGC $ days * 24 * 60 *60
+            failed <- flip filterM xs $ \x -> do
+                (act,msg) <- return $ case x of
+                    Left file -> (removeFile file, "Delete file " ++ file)
+                    Right dir -> (removeDirectoryRecursive dir, "Delete directory " ++ dir)
+                if dry_run then do
+                    putStrLn $ "[DRY RUN] " ++ msg
+                    return False
+                 else do
+                    putStr $ msg ++ "... "
+                    res <- isRight <$> try_ act
+                    putStrLn $ if res then "success" else "FAILED"
+                    return $ not res
+            putStrLn $
+                (if dry_run then "[DRY RUN] " else "") ++
+                "Deleted " ++ show (length xs) ++ " items, " ++ show (length failed) ++ " failed"
 
         RunInit -> do
             s <- ovenUpdateState Nothing
@@ -125,3 +145,7 @@ defaultNames = words "Simon Lennart Dave Brian Warren Joseph Kevin Ralf Paul Joh
 
 pick :: [a] -> IO a
 pick xs = randomRIO (0, (length xs - 1)) >>= return . (xs !!)
+
+
+calculateGC :: Double -> IO [Either FilePath FilePath]
+calculateGC _ = return []
