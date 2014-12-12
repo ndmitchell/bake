@@ -13,7 +13,6 @@ import General.Extra
 import System.Time.Extra
 import Control.DeepSeq
 import Data.Tuple.Extra
-import System.Directory
 import System.IO.Extra
 import System.Environment.Extra
 import System.FilePath
@@ -43,11 +42,7 @@ runExtra s ps = runAll "extra" (state s : map patch (maybeToList ps)) [] (both s
 runAll :: NFData a => String -> [String] -> [String] -> (String -> a) -> IO (Maybe a, Answer)
 runAll name args1 args2 parse = do
     exe <- getExecutablePath
-    dir <- if not $ null args1 then createDir ("bake-" ++ name) (map (drop 1 . dropWhile (/= '=')) args1) else do
-        let dir = "bake-" ++ name
-        ignore $ removeDirectoryRecursive dir
-        createDirectoryIfMissing True dir
-        return dir
+    dir <- createDir ("bake-" ++ name) args1
 
     (time, res) <- duration $ try_ $ do
         exe <- getExecutablePath
