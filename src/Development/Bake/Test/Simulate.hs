@@ -93,7 +93,7 @@ simulation testInfo clients u step = do
                 Sleep -> return $ if cont then s else s{wait = wait s - 1}
                 Task q -> do
                     when (q `elem` asked s) $ error "asking a duplicate question"
-                    return s{active = q : active s, server = (server s){history = (t,q,Nothing) : history (server s)} }
+                    return s{active = active s ++ [q], server = (server s){history = (t,q,Nothing) : history (server s)} }
                 Update (ss, ps) -> do
                     let (nss, nps) = (restate $ unstate ss ++ ps, snd (target $ server s) \\ ps)
                     forM_ ps $ \p -> unless (fst $ fromJust $ lookup p $ patches s) $ error "incorrect test pass"
