@@ -33,7 +33,7 @@ data Question = Question
     ,qThreads :: Int
     ,qClient :: Client
     }
-    deriving (Show,Eq)
+    deriving (Show,Eq,Ord)
 
 instance NFData Question where
     rnf (Question a b c d) = rnf (a,b,c,d)
