@@ -21,7 +21,6 @@ import Data.Either
 import Data.Maybe
 import Data.List.Extra
 import Data.Tuple.Extra
-import System.Random
 import Paths_bake
 
 
@@ -142,9 +141,6 @@ check typ Stringy{..} x = do
 
 
 defaultNames = words "Simon Lennart Dave Brian Warren Joseph Kevin Ralf Paul John Thomas Mark Erik Alastair Colin Philip"
-
-pick :: [a] -> IO a
-pick xs = randomRIO (0, (length xs - 1)) >>= return . (xs !!)
 
 
 calculateGC :: Double -> IO [Either FilePath FilePath]

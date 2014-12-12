@@ -3,6 +3,7 @@
 module General.Extra(
     Timestamp(..), getTimestamp, showRelativeTimestamp, relativeTimestamp,
     createDir,
+    pick,
     newCVar, readCVar, modifyCVar, modifyCVar_,
     registerMaster, forkSlave,
     transitiveClosure, findCycle,
@@ -22,6 +23,7 @@ import Data.Hashable
 import System.FilePath
 import Control.Monad.Extra
 import Control.Concurrent.Extra
+import System.Random
 import qualified Data.Set as Set
 
 
@@ -59,12 +61,17 @@ showRelativeTimestamp = do
             (i,s) = head $ dropWhile ((==) 0 . fst) poss
         in show i ++ " " ++ s ++ ['s' | i /= 1] ++ " ago"
 
+
 createDir :: String -> [String] -> IO FilePath
 createDir prefix info = do
     let name = prefix ++ (if null info then "" else "-" ++ show (abs $ hash info))
     createDirectoryIfMissing True name
     writeFile (name </> "bake.name") $ unlines info
     return name
+
+
+pick :: [a] -> IO a
+pick xs = randomRIO (0, (length xs - 1)) >>= return . (xs !!)
 
 
 ---------------------------------------------------------------------
