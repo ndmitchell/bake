@@ -5,64 +5,36 @@ module Development.Bake.Build(ovenIncremental, incrementalDone) where
 import Development.Bake.Core.Type
 import Development.Shake.Command
 import Control.Monad.Extra
-import Data.List.Extra
-import Control.Arrow
-import Data.Function
-import System.Directory
-import System.IO.Extra
+import Control.Applicative
 import System.FilePath
-import Data.Maybe
+import Control.Exception.Extra
+import System.Directory
 
+
+-- Files involved:
+-- ../bake-incremental.txt, stores the directory name of the most recent successful increment
+-- .bake.incremental exists if you have done an increment yourself, or copied from someone who has
+-- we always use the most recent increment to build onwards from
 
 -- | This requires a version of @cp@. On Windows, you can get that here:
 --   <http://gnuwin32.sourceforge.net/packages/coreutils.htm>
 ovenIncremental :: Oven state patch test -> Oven state patch test
-ovenIncremental oven@Oven{..} = oven
-    {ovenUpdateState = \s -> do r <- ovenUpdateState s; whenJust s $ addUpdateState r; return r
-    ,ovenPrepare = \s ps -> do incPrepare s ps; ovenPrepare s ps
-    }
+ovenIncremental oven@Oven{..} = oven{ovenPrepare = \s ps -> do incPrepare s ps; ovenPrepare s ps}
     where
-        showState = stringyTo   ovenStringyState
-        readState = stringyFrom ovenStringyState
-        showPatch = stringyTo   ovenStringyPatch
-        readPatch = stringyFrom ovenStringyPatch
+        incPrepare s ps = ignore $ do
+            -- if i have already been incremental'd (via copy, or via completion) don't do anything
+            unlessM (doesFileExist ".bake.incremental") $ do
+                src <- takeWhile (/= '\n') <$> readFile "../bake-incremental.txt"
+                whenM (doesFileExist $ ".." </> src </> ".bake.incremental") $ do
+                    putStrLn $ "Preparing by copying from " ++ src
+                    unit $ cmd "cp --preserve=timestamps --recursive --no-target-directory" ("../" ++ src) "."
 
-        showUpdate (s1,(s2,ps2)) = show (showState s1, (showState s2, map showPatch ps2))
-        readUpdate (read -> (s1,(s2,ps2))) = (readState s1, (readState s2, map readPatch ps2))
-
-        addUpdateState new old =
-            appendFile "../incremental-update.txt" $ showUpdate (new,old) ++ "\n"
-
-        readUpdateState = do
-            appendFile "../incremental-update.txt" ""
-            src <- readFile' "../incremental-update.txt"
-            return $ map readUpdate $ lines src
-
-        readCandidate file = do
-            state:patches <- fmap lines $ readFile' file
-            return (readState state, map readPatch patches)
-
-        incPrepare s ps = do
-            me <- getDirectoryContents "."
-            -- check we haven't already been prepared, probably in a previous client run
-            when (null $ filter (not . all (== '.')) me) $ do
-                dir <- getDirectoryContents ".."
-                states <- fmap (map (first showState)) readUpdateState
-                let resolve (s,ps) | Just new <- lookup (showState s) states = resolve $ second (++ps) new
-                                   | otherwise = (showState s, map showPatch ps)
-                (selfState, selfPatches) <- return $ resolve (s,ps)
-
-                poss <- fmap catMaybes $ forM [x | x <- dir, "bake-test-" `isPrefixOf` x, takeExtension x == ".incremental"] $ \x -> do
-                    (state, patches) <- fmap resolve $ readCandidate $ "../" ++ replaceExtension x ".txt"
-                    return $ if state /= selfState && any (`notElem` selfPatches) patches then Nothing else
-                        Just (length $ filter (`notElem` patches) selfPatches, dropExtension x)
-
-                when (not $ null poss) $ do
-                    let best = snd $ minimumBy (compare `on` fst) poss
-                    unit $ cmd "cp --preserve=timestamps --recursive --no-target-directory" ("../" ++ best) "."
-
+incrementalStart :: IO ()
+incrementalStart =
+    writeFile ".bake.incremental" ""
 
 incrementalDone :: IO ()
 incrementalDone = do
+    incrementalStart
     x <- getCurrentDirectory
-    writeFile (x <.> "incremental") ""
+    writeFile "../bake-incremental.txt" $ unlines [takeFileName x]
