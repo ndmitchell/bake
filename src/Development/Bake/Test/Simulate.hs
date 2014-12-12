@@ -24,7 +24,7 @@ import System.Time.Extra
 simulate :: IO ()
 simulate = withBuffering stdout NoBuffering $ do
     when False $ do
-        (t,_) <- duration $ performance 10
+        (t,_) <- duration $ performance 200
         putStrLn $ "Performance test took " ++ showDuration t
     bisect
     quickPlausible
