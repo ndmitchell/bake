@@ -19,6 +19,7 @@ import General.Extra
 import System.Random
 import System.IO.Extra
 import System.Time.Extra
+import qualified Data.Set as Set
 
 
 simulate :: IO ()
@@ -43,7 +44,7 @@ data S s = S
     ,server :: Server
     ,wait :: Int
     ,active :: [Question]
-    ,asked :: [Question]
+    ,asked :: Set.Set Question
     ,patches :: [(Patch, (Bool, Maybe Test -> Bool))]
     }
 
@@ -64,7 +65,7 @@ simulation
     -> ([Question] -> s -> IO (s, Bool, Step))  -- ^ step function
     -> IO s
 simulation testInfo clients u step = do
-    let s = S u server0{target = (State "", [])} 20 [] [] []
+    let s = S u server0{target = (State "", [])} 20 [] Set.empty []
 
     let count s c = sum [qThreads | Question{..} <- active s, qClient == c]
 
@@ -92,8 +93,10 @@ simulation testInfo clients u step = do
             Request c -> case ping s c of
                 Sleep -> return $ if cont then s else s{wait = wait s - 1}
                 Task q -> do
-                    when (q `elem` asked s) $ error "asking a duplicate question"
-                    return s{active = active s ++ [q], server = (server s){history = (t,q,Nothing) : history (server s)} }
+                    when (q `Set.member` asked s) $ error "asking a duplicate question"
+                    return s{active = active s ++ [q]
+                            ,asked = Set.insert q $ asked s
+                            ,server = (server s){history = (t,q,Nothing) : history (server s)} }
                 Update (ss, ps) -> do
                     let (nss, nps) = (restate $ unstate ss ++ ps, snd (target $ server s) \\ ps)
                     forM_ ps $ \p -> unless (fst $ fromJust $ lookup p $ patches s) $ error "incorrect test pass"
