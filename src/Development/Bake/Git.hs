@@ -59,7 +59,9 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
 
         -- initialise the mirror, or make it up to date
         gitInitMirror = traced "gitInitMirror" $ do
-            mirror <- createDir "../bake-git" [repo]
+            -- make sure we descend one directory, since bake writes .bake.name
+            mirror <- fmap (</> "mirror") $ createDir "../bake-git" [repo]
+            createDirectoryIfMissing True mirror
             -- see http://blog.plataformatec.com.br/2013/05/how-to-properly-mirror-a-git-repository/
             ready <- doesFileExist $ mirror </> "HEAD"
             if ready then
@@ -84,12 +86,10 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
         gitCheckout s ps = traced "gitCheckout" $ do
             createDirectoryIfMissing True path
             mirror <- gitInitMirror
-            b <- doesDirectoryExist $ path </>".git"
-            if b then
-                unit $ cmd (Cwd path) "git pull origin"
-             else do
-                unit $ cmd (Cwd path) "git clone" [(if path == "." then "" else "../") ++ mirror] "." ["--branch",branch]
-                gitSafe path
+            unlessM (doesDirectoryExist $ path </>".git") $ do
+                unit $ cmd (Cwd path) "git init"
+                unit $ cmd (Cwd path) "git remote add origin" [(if path == "." then "" else "../") ++ mirror]
+            unit $ cmd (Cwd path) "git fetch"
             unit $ cmd (Cwd path) "git checkout" [branch]
             unit $ cmd (Cwd path) "git reset --hard" ["origin/" ++ branch]
             Stdout x <- cmd (Cwd path) "git rev-parse HEAD"
