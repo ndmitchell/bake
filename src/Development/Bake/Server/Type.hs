@@ -56,7 +56,9 @@ state0 :: Server -> State
 state0 Server{..} = snd3 $ last updates
 
 historyAnswer :: Question -> Answer -> Server -> Server
-historyAnswer qq aa server = server{history = [(t,q,if q == qq then Just aa else a) | (t,q,a) <- history server]}
+historyAnswer qq aa server
+    | (pre,(t,_,_):post) <- break ((==) qq . snd3) $ history server = server{history = pre ++ (t,qq,Just aa) : post}
+    | otherwise = server
 
 
 ---------------------------------------------------------------------
