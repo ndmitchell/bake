@@ -61,7 +61,7 @@ showRelativeTimestamp = do
 
 createDir :: String -> [String] -> IO FilePath
 createDir prefix info = do
-    let name = prefix ++ "-" ++ show (abs $ hash info)
+    let name = prefix ++ (if null info then "" else "-" ++ show (abs $ hash info))
     writeFile (name <.> "txt") $ unlines info
     createDirectoryIfMissing True name
     return name
