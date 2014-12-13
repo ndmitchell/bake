@@ -88,6 +88,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             mirror <- gitInitMirror
             unlessM (doesDirectoryExist $ path </>".git") $ do
                 unit $ cmd (Cwd path) "git init"
+                gitSafe path
                 unit $ cmd (Cwd path) "git remote add origin" [(if path == "." then "" else "../") ++ mirror]
             unit $ cmd (Cwd path) "git fetch"
             unit $ cmd (Cwd path) "git checkout" [branch]
