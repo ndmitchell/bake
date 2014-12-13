@@ -17,7 +17,7 @@ import Control.DeepSeq
 import System.Directory
 import Control.Monad.Extra
 import Control.Applicative
-import Data.Either
+import Data.Either.Extra
 import Data.Maybe
 import Data.List.Extra
 import Data.Tuple.Extra
