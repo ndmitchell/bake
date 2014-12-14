@@ -1,6 +1,8 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns #-}
 
-module Development.Bake.Build(ovenIncremental, incrementalDone) where
+module Development.Bake.Build(
+    ovenIncremental, incrementalDone, incrementalStart
+    ) where
 
 import Development.Bake.Core.Type
 import Development.Shake.Command
