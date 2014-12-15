@@ -58,10 +58,11 @@ stats Server{..} = do
 
         h2_ $ str_ "Sampled statistics"
         let ms x = show $ (ceiling $ x * 1000 :: Integer)
-        table ["Counter","Count","Mean (ms)","Max (ms)","Last 10 (ms)"]
-            [ map str_ [name, show statCount, ms $ statSum / intToDouble statCount
+        table ["Counter","Count","Sum (ms)","Mean (ms)","Max (ms)","Last 10 (ms)"]
+            [ (if null name then i_ $ str_ "All" else str_ name) :
+              map str_ [name, show statSum, show statCount, ms $ statSum / intToDouble statCount
                        ,ms statMax, unwords $ map ms statHistory] 
-            | (name,Stat{..}) <- Map.toList recorded]
+            | (name,Stat{..}) <- Map.toAscList recorded]
 
         h2_ $ str_ "Requests per client"
         table ["Client","Requests","Utilisation (last hour)","Utilisation"]
