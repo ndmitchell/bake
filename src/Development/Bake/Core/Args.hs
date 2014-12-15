@@ -150,10 +150,14 @@ defaultNames = words "Simon Lennart Dave Brian Warren Joseph Kevin Ralf Paul Joh
 calculateGC :: Double -> IO [Either FilePath FilePath]
 calculateGC secs = do
     now <- getCurrentTime
-    dirs <- filterM doesDirectoryExist =<< listContents "."
-    fmap concat $ forM dirs $ \dir -> do
-        let file = dir </> ".bake.name"
-        b <- doesFileExist $ dir </> ".bake.name"
-        if not b then return [] else do
+    let test file = do
             t <- getModificationTime file
-            return [Right dir | now `subtractTime` t > secs]
+            return $ now `subtractTime` t > secs
+
+    dirs <- listContents "."
+    dirs <- flip filterM dirs $ \dir -> do
+        let file = dir </> ".bake.name"
+        doesDirectoryExist dir &&^ doesFileExist file &&^ do test file
+
+    files <- filterM test =<< listFiles "bake-string"
+    return $ map Left files ++ map Right dirs
