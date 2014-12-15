@@ -1,7 +1,7 @@
 
 module General.HTML(
     -- * Library
-    HTML, HTML_, renderHTML, str_, raw_,
+    HTML, HTML_, renderHTML, valueHTML, str_, raw_,
     Attribute, attribute_,
     tag_, tag__,
     (<>),
@@ -45,6 +45,9 @@ instance Monoid Rope where
 data HTML_ a = HTML_ Rope a
 
 type HTML = HTML_ ()
+
+valueHTML :: HTML_ a -> a
+valueHTML (HTML_ _ x) = x
 
 renderHTML :: HTML -> String
 renderHTML (HTML_ x _) = renderRope x
