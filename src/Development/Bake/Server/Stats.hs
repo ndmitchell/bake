@@ -45,6 +45,10 @@ recordIO x = do
         atomicModifyIORef recorded $ (,()) .  Map.insertWith mappend (unwords msg) (Stat [d] 1 d d)
     return x
 
+mean :: [Double] -> Double
+mean xs = sum xs / intToDouble (length xs)
+
+
 stats :: Server -> IO HTML
 stats Server{..} = do
     recorded <- readIORef recorded
@@ -65,6 +69,15 @@ stats Server{..} = do
               map str_ [show statCount, ms $ statSum / intToDouble statCount, ms statSum
                        ,ms statMax, unwords $ map ms statHistory] 
             | (name,Stat{..}) <- Map.toAscList recorded]
+
+        h2_ $ str_ "Slowest 25 tests"
+        table ["Test","Count","Mean","Sum","Max","Last 10"] $
+            let xs = [(qTest, aDuration) | (_,Question{..}, Just Answer{..}) <- history]
+                f name xs = name : map str_ [show (length xs), showDuration (mean xs), showDuration (sum xs)
+                                            ,showDuration (maximum xs), unwords $ map showDuration $ take 10 xs]
+            in [f (i_ $ str_ "All") (map snd xs) | not $ null xs] ++
+               [ f (str_ $ maybe "Preparing" fromTest test) dur
+               | (test,dur) <- take 25 $ sortOn (negate . mean . snd) $ groupSort xs]
 
         h2_ $ str_ "Requests per client"
         table ["Client","Requests","Utilisation (last hour)","Utilisation"]
