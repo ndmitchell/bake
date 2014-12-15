@@ -4,6 +4,8 @@ module General.Web(
     Input(..), Output(..), send, server
     ) where
 
+-- #define PROFILE
+
 -- For some reason, profiling stops working if I import warp
 -- Tracked as https://github.com/yesodweb/wai/issues/311
 #ifndef PROFILE
