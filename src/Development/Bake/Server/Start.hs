@@ -25,6 +25,7 @@ import Data.Maybe
 import Data.Time.Clock
 import Control.Monad.Extra
 import Data.Tuple.Extra
+import System.Directory
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
 import qualified Data.Map as Map
@@ -32,6 +33,9 @@ import qualified Data.Map as Map
 
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
 startServer port datadir author name timeout (validate . concrete -> oven) = do
+    do
+        dir <- getCurrentDirectory
+        strInit (dir </> "bake-string") (100 * 1024 * 1024) -- use at most 100Mb for strings
     var <- do
         now <- getTimestamp
         extra <- newDelayCache
