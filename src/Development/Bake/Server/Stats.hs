@@ -60,9 +60,9 @@ stats Server{..} = do
 
         h2_ $ str_ "Sampled statistics"
         let ms x = show $ (ceiling $ x * 1000 :: Integer)
-        table ["Counter","Count","Sum (ms)","Mean (ms)","Max (ms)","Last 10 (ms)"]
+        table ["Counter","Count","Mean (ms)","Sum (ms)","Max (ms)","Last 10 (ms)"]
             [ (if null name then i_ $ str_ "All" else str_ name) :
-              map str_ [name, show statSum, show statCount, ms $ statSum / intToDouble statCount
+              map str_ [show statCount, ms $ statSum / intToDouble statCount, ms statSum
                        ,ms statMax, unwords $ map ms statHistory] 
             | (name,Stat{..}) <- Map.toAscList recorded]
 
