@@ -90,10 +90,13 @@ operate timeout oven message server = case message of
         if p `elem` concatMap (maybe [] snd . thd3) (updates server) then
             -- gets confusing if a patch is both included AND active
             dull server
+         else if p `elem` snd (target server) then
+            -- moving a promotion requires retrying every previous promotion
+            dull server
          else
             dull server
                 {target = second (if isJust (paused server) then id else add) $ target server
-                ,paused = (if p `elem` snd (target server) then id else add) <$> paused server
+                ,paused = add <$> paused server
                 ,authors = Map.insertWith (++) (Just p) [author] $ authors server
                 ,submitted = (now,p) : submitted server}
     DelPatch author p -> do
