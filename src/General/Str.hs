@@ -13,6 +13,7 @@ import Data.IORef
 import System.IO.Unsafe
 import System.FilePath
 import System.IO.Extra
+import System.Directory
 import Control.Exception.Extra
 import Data.Tuple.Extra
 import qualified Data.Text as Text
@@ -37,8 +38,10 @@ paged :: IORef (Maybe Paged)
 paged = unsafePerformIO $ newIORef Nothing
 
 strInit :: FilePath -> Int -> IO ()
-strInit dir free = atomicModifyIORef paged $ \Nothing ->
-    (Just $ Paged 0 MRU.empty free dir, ())
+strInit dir free = do
+    createDirectoryIfMissing True dir
+    atomicModifyIORef paged $ \Nothing ->
+        (Just $ Paged 0 MRU.empty free dir, ())
 
 pagedEvict :: Paged -> Paged
 pagedEvict p@Paged{..}
