@@ -22,6 +22,7 @@ import Control.DeepSeq
 import Control.Exception.Extra
 import Data.List.Extra
 import Data.Maybe
+import Data.Char
 import Data.Time.Clock
 import Control.Monad.Extra
 import Data.Tuple.Extra
@@ -58,7 +59,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         handle_ (fmap OutputError . showException) $ do
             res <-
                 if null inputURL then
-                    fmap OutputHTML $ recordIO "web" $ web oven inputArgs =<< readCVar var
+                    fmap OutputHTML $ web oven inputArgs =<< readCVar var
                 else if ["html"] `isPrefixOf` inputURL then
                     return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if ["api"] `isPrefixOf` inputURL then
@@ -129,8 +130,9 @@ operate timeout oven message server = case message of
         now <- getTimestamp
         server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $ server
             {pings = Map.insert (pClient ping) (now,ping) $ pings server}
-        flip loopM server $ \(unpause -> server) ->
-            case record "brains" (brains (ovenTestInfo oven) server) ping of
+        flip loopM server $ \(unpause -> server) -> do
+            let neuronName x = ["brains", lower $ takeWhile (not . isSpace) $ show x]
+            case record ((neuronName &&& id) . brains (ovenTestInfo oven) server) ping of
                 Sleep ->
                     return $ Right (server, Nothing)
                 Task q -> do

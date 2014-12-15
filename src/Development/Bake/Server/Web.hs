@@ -27,11 +27,11 @@ import qualified Data.Map as Map
 
 
 web :: Oven State Patch Test -> [(String, String)] -> Server -> IO String
-web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
+web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
     extra <- askDelayCache extra
     shower <- shower extra oven argsAdmin
     stats <- if argsStats then stats server else return mempty
-    return $ renderHTML $ template $ do
+    return $ (valueHTML &&& renderHTML . void) $ template $ do
         let noargs = argsEmpty a
 
         when (fatal /= []) $ do
@@ -67,9 +67,11 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
                     li_ $ if isNothing paused
                         then str_ "Cannot unpause, not paused"
                         else admin (Unpause "admin") $ str_ "Unpause"
+            return "home"
 
          else if argsStats then do
             stats
+            return "stats"
 
          else if isJust argsServer then do
             let s = fromJust argsServer
@@ -80,6 +82,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
             whenJust s $ \s -> do
                 h2_ $ str_ "Output"
                 pre_ $ str_ $ strUnpack $ aStdout $ snd $ fst3 $ reverse updates !! s
+            return "server"
 
          else do
             let xs = filter (argsFilter a . snd3) history
@@ -88,15 +91,22 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = do
 
             case xs of
                 _ | Just s <- argsState, argsEmpty a{argsState=Nothing} ->
-                    whenJust (extra $ Left s) $ \(_, e) -> do
+                    maybeM (return "list") (extra $ Left s) $ \(_, e) -> do
                         h2_ $ str_ "State information"; raw_ $ strUnpack e
+                        return "state"
                 _ | [p] <- argsPatch, argsEmpty a{argsPatch=[]} ->
-                    whenJust (extra $ Right p) $ \(_, e) -> do
+                    maybeM (return "list") (extra $ Right p) $ \(_, e) -> do
                         h2_ $ str_ "Patch information"; raw_ $ strUnpack e
+                        return "patch"
                 [(_,_,Just Answer{..})] -> do
                     h2_ $ str_ "Output"
                     pre_ $ str_ $ strUnpack aStdout
-                _ -> mempty
+                    return "output"
+                _ -> return "list"
+
+maybeM :: Monad m => m b -> Maybe a -> (a -> m b) -> m b
+maybeM nothing Nothing _ = nothing
+maybeM _ (Just x) just = just x
 
 data Args = Args
     {argsState :: Maybe State
@@ -189,7 +199,7 @@ shower extra Oven{..} argsAdmin = do
                           ["test=" ++ maybe "" fromTest t]
 
 
-template :: HTML -> HTML
+template :: HTML_ a -> HTML_ a
 template inner = do
     raw_ "<!HTML>"
     html_ $ do
@@ -221,6 +231,7 @@ template inner = do
             p__ [id_ "footer"] $
                 a__ [href_ "https://github.com/ndmitchell/bake"] $
                     str_ $ "Copyright Neil Mitchell 2014, version " ++ showVersion version
+    return $ valueHTML inner
 
 
 failures :: Shower -> Server -> HTML

@@ -7,6 +7,7 @@ module Development.Bake.Server.Stats(
 
 import Control.DeepSeq
 import Control.Applicative
+import Control.Monad
 import Development.Bake.Core.Type
 import Development.Bake.Server.Type
 import Data.IORef
@@ -34,13 +35,14 @@ instance Monoid Stat where
 recorded :: IORef (Map.Map String Stat)
 recorded = unsafePerformIO $ newIORef Map.empty
 
-record :: NFData b => String -> (a -> b) -> a -> b
-record msg f x = unsafePerformIO $ recordIO msg $ return $ f x
+record :: NFData b => (a -> ([String], b)) -> a -> b
+record f x = unsafePerformIO $ recordIO $ return $ f x
 
-recordIO :: NFData a => String -> IO a -> IO a
-recordIO msg x = do
-    (d, x) <- duration $ do x <- x; evaluate $ rnf x; return x
-    atomicModifyIORef recorded $ (,()) .  Map.insertWith mappend msg (Stat [d] 1 d d)
+recordIO :: NFData a => IO ([String], a) -> IO a
+recordIO x = do
+    (d, (msg,x)) <- duration $ do x <- x; evaluate $ rnf x; return x
+    forM_ (inits msg) $ \msg ->
+        atomicModifyIORef recorded $ (,()) .  Map.insertWith mappend (unwords msg) (Stat [d] 1 d d)
     return x
 
 stats :: Server -> IO HTML
