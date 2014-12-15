@@ -14,13 +14,16 @@ import Development.Bake.Core.Send
 import Control.Exception.Extra
 import General.Extra
 import Control.DeepSeq
-import System.Directory
+import System.Directory.Extra
+import System.FilePath
 import Control.Monad.Extra
 import Control.Applicative
 import Data.Either.Extra
 import Data.Maybe
 import Data.List.Extra
 import Data.Tuple.Extra
+import Data.Time.Clock
+import System.Time.Extra
 import Paths_bake
 
 
@@ -143,5 +146,14 @@ check typ Stringy{..} x = do
 defaultNames = words "Simon Lennart Dave Brian Warren Joseph Kevin Ralf Paul John Thomas Mark Erik Alastair Colin Philip"
 
 
+-- | Either a Left file, or Right dir
 calculateGC :: Double -> IO [Either FilePath FilePath]
-calculateGC _ = return []
+calculateGC secs = do
+    now <- getCurrentTime
+    dirs <- filterM doesDirectoryExist =<< listContents "."
+    fmap concat $ forM dirs $ \dir -> do
+        let file = dir </> ".bake.name"
+        b <- doesFileExist $ dir </> ".bake.name"
+        if not b then return [] else do
+            t <- getModificationTime file
+            return [Right dir | now `subtractTime` t > secs]
