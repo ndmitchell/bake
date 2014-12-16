@@ -36,7 +36,7 @@ startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patc
 startServer port datadir author name timeout (validate . concrete -> oven) = do
     do
         dir <- getCurrentDirectory
-        strInit (dir </> "bake-string") (100 * 1024 * 1024) -- use at most 100Mb for strings
+        strInit (dir </> "bake-string") (25 * 1024 * 1024) -- use at most 25Mb for strings
     var <- do
         now <- getTimestamp
         extra <- newDelayCache
