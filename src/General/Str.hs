@@ -3,6 +3,7 @@
 -- | A notion of a string that might take up less space.
 module General.Str(
     Str, strInit, strPack, strUnpack,
+    strInfo,
     strTest
     ) where
 
@@ -42,6 +43,18 @@ strInit dir free = do
     createDirectoryIfMissing True dir
     atomicModifyIORef paged $ \Nothing ->
         (Just $ Paged 0 MRU.empty free dir, ())
+
+strInfo :: IO String
+strInfo = do
+    ref <- readIORef paged
+    return $ unlines $ case ref of
+        Nothing -> ["Not using paged strings"]
+        Just Paged{..} ->
+            let xs = MRU.toList pagedStore in
+            ["Using paged strings in " ++ pagedDir
+            ,show pagedCount ++ " paged strings, " ++ show (length xs) ++ " in memory"
+            ,show pagedFree ++ " bytes free, " ++ show (sum $ map (fst . snd) xs) ++ " bytes used"
+            ]
 
 pagedEvict :: Paged -> Paged
 pagedEvict p@Paged{..}
