@@ -1,11 +1,13 @@
 
 module General.MRU(
-    MRU, empty, insert, lookup, delete
+    MRU, empty, insert, lookup, delete, toList
     ) where
 
 import Prelude hiding (lookup)
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
+import Data.Tuple.Extra
+
 
 -- Basically a bimap where we can do minview on the second element
 data MRU k v = MRU
@@ -16,6 +18,9 @@ data MRU k v = MRU
 
 empty :: MRU k v
 empty = MRU 0 Map.empty IntMap.empty
+
+toList :: MRU k v -> [(k, v)]
+toList (MRU _ mp1 _) = map (second snd) $ Map.toList mp1
 
 insert :: Ord k => k -> v -> MRU k v -> MRU k v
 insert k v (MRU n mp1 mp2) = MRU (n+1) (Map.insert k (n, v) mp1) (IntMap.insert n k mp22)
