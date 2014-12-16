@@ -103,6 +103,7 @@ instance NFData Str where
 
 {-# NOINLINE txtPack #-}
 txtPack :: Text.Text -> Str
+txtPack t | Text.null t = StrPinned Text.empty
 txtPack t = unsafePerformIO $
     atomicModifyIORef paged $ \p -> case p of
         Nothing -> (Nothing, StrPinned t)
