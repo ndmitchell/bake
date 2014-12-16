@@ -27,6 +27,15 @@ data Message
     | Finished {question :: Question, answer :: Answer}
     deriving (Show,Eq)
 
+instance NFData Message where
+    rnf (AddPatch x y) = rnf x `seq` rnf y
+    rnf (DelPatch x y) = rnf x `seq` rnf y
+    rnf (DelAllPatches x) = rnf x
+    rnf (Pause x) = rnf x
+    rnf (Unpause x) = rnf x
+    rnf (Pinged x) = rnf x
+    rnf (Finished x y) = rnf x `seq` rnf y
+
 data Question = Question
     {qCandidate :: (State, [Patch])
     ,qTest :: Maybe Test
@@ -48,6 +57,9 @@ data Answer = Answer
     }
     deriving (Show,Eq)
 
+instance NFData Answer where
+    rnf (Answer a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+
 aTests :: Answer -> [Test]
 aTests = uncurry (++) . aTestsSuitable
 
@@ -59,6 +71,8 @@ data Ping = Ping
     }
     deriving (Show,Eq)
 
+instance NFData Ping where
+    rnf (Ping a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
 -- JSON instance is only true for Finished
 instance ToJSON Message where
