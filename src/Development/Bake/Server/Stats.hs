@@ -15,6 +15,7 @@ import Data.Monoid
 import Data.List.Extra
 import General.HTML
 import General.Extra
+import General.Str
 import GHC.Stats
 import System.IO.Unsafe
 import System.Time.Extra
@@ -58,6 +59,7 @@ stats Server{..} = do
     getGCStatsEnabled <- getGCStatsEnabled
 #endif
     stats <- if getGCStatsEnabled then Just <$> getGCStats else return Nothing
+    info <- strInfo
     rel <- relativeTimestamp
     return $ do
         p_ $ str_ $ "Requests = " ++ show (length history) ++ ", updates = " ++ show (length updates)
@@ -94,6 +96,9 @@ stats Server{..} = do
             -- 75 10 60 = 0   15
             -- 65 10 60 = 5   5
             -- 55 10 60 = 10  0
+
+        h2_ $ str_ "String pool statistics"
+        pre_ $ str_ info
 
         h2_ $ str_ "GHC statistics"
         case stats of
