@@ -159,5 +159,5 @@ calculateGC secs = do
         let file = dir </> ".bake.name"
         doesDirectoryExist dir &&^ doesFileExist file &&^ do test file
 
-    files <- filterM test =<< listFiles "bake-string"
+    files <- filterM test =<< ifM (doesDirectoryExist "bake-string") (listFiles "bake-string") (return [])
     return $ map Left files ++ map Right dirs
