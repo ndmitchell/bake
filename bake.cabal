@@ -7,7 +7,7 @@ license-file:       LICENSE
 category:           Development
 author:             Neil Mitchell <ndmitchell@gmail.com>
 maintainer:         Neil Mitchell <ndmitchell@gmail.com>
-copyright:          Neil Mitchell 2015
+copyright:          Neil Mitchell 2014-2015
 synopsis:           Continuous integration system
 description:
     Bake is a continuous integration server, designed for large, productive, semi-trusted teams.
