@@ -230,7 +230,7 @@ template inner = do
             inner
             p__ [id_ "footer"] $
                 a__ [href_ "https://github.com/ndmitchell/bake"] $
-                    str_ $ "Copyright Neil Mitchell 2014, version " ++ showVersion version
+                    str_ $ "Copyright Neil Mitchell 2014-2015, version " ++ showVersion version
     return $ valueHTML inner
 
 
