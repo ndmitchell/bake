@@ -17,6 +17,7 @@ import Data.Tuple.Extra
 import Data.Char
 import Data.Hashable
 import Data.Monoid
+import Prelude
 
 
 newtype SHA1 = SHA1 {fromSHA1 :: String} deriving (Show,Eq)

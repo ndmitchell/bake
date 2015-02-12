@@ -23,6 +23,7 @@ import Control.Exception
 import Data.Tuple.Extra
 import Numeric.Extra
 import qualified Data.Map as Map
+import Prelude
 
 
 data Stat = Stat {statHistory :: [Double], statCount :: !Int, statSum :: !Double, statMax :: !Double}

@@ -17,6 +17,7 @@ import Data.Monoid
 import Data.Aeson
 import Data.Hashable
 import Control.Arrow
+import Prelude
 
 
 type Author = String

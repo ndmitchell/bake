@@ -19,6 +19,7 @@ import Data.Monoid
 import Data.List
 import Control.Monad
 import Data.Char
+import Prelude
 
 
 ---------------------------------------------------------------------

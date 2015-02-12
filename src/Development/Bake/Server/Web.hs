@@ -24,6 +24,7 @@ import Data.Monoid
 import Paths_bake
 import Development.Bake.Server.Query
 import qualified Data.Map as Map
+import Prelude
 
 
 web :: Oven State Patch Test -> [(String, String)] -> Server -> IO String
