@@ -9,7 +9,7 @@ import Control.Arrow
 
 data Pretty a = Pretty String a deriving (Read,Show,Eq)
 
-prettyStringy :: Show a => String -> Stringy a -> Stringy (Pretty a)
+prettyStringy :: String -> Stringy a -> Stringy (Pretty a)
 prettyStringy sep Stringy{..} = Stringy
     {stringyTo = \(Pretty a b) -> a ++ sep ++ stringyTo b
     ,stringyFrom = \s -> let (a,b) = breakOn sep s in
@@ -17,7 +17,7 @@ prettyStringy sep Stringy{..} = Stringy
     ,stringyPretty = \(Pretty a b) -> a ++ sep ++ stringyPretty b
     }
 
-ovenPretty :: Show patch => String -> Oven state patch test -> Oven state (Pretty patch) test
+ovenPretty :: String -> Oven state patch test -> Oven state (Pretty patch) test
 ovenPretty sep oven@Oven{..} = oven
     {ovenUpdateState = ovenUpdateState . fmap (second $ map unpretty)
     ,ovenPrepare = \s ps -> ovenPrepare s (map unpretty ps)

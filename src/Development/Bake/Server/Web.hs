@@ -105,7 +105,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
                     return "output"
                 _ -> return "list"
 
-maybeM :: Monad m => m b -> Maybe a -> (a -> m b) -> m b
+maybeM :: m b -> Maybe a -> (a -> m b) -> m b
 maybeM nothing Nothing _ = nothing
 maybeM _ (Just x) just = just x
 
