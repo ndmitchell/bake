@@ -122,7 +122,7 @@ messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
 messageToInput (Pinged Ping{..}) = Input ["api","ping"]
     [("client",fromClient pClient),("author",pAuthor)
     ,("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)] ""
-messageToInput x@Finished{} = Input ["api","finish"] [] $ LBS.unpack $ encode x
+messageToInput x@Finished{} = Input ["api","finish"] [] $ encode x
 
 
 -- return either an error message (not a valid message), or a message
@@ -135,7 +135,7 @@ messageFromInput (Input [msg] args body)
     | msg == "unpause" = Unpause <$> str "author"
     | msg == "ping" = Pinged <$> (Ping <$> (Client <$> str "client") <*>
         str "author" <*> int "maxthreads" <*> int "nowthreads")
-    | msg == "finish" = eitherDecode $ LBS.pack body
+    | msg == "finish" = eitherDecode body
     where str x | Just v <- lookup x args = Right v
                 | otherwise = Left $ "Missing field " ++ show x ++ " from " ++ show msg
           int x = read <$> str x
@@ -149,4 +149,4 @@ questionToOutput = OutputString . LBS.unpack . encode
 sendMessage :: (Host,Port) -> Message -> IO (Maybe Question)
 sendMessage hp msg = do
     res <- send hp $ messageToInput msg
-    return $ decode $ LBS.pack res
+    return $ decode res

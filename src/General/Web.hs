@@ -27,7 +27,7 @@ import System.Console.CmdArgs.Verbosity
 data Input = Input
     {inputURL :: [String]
     ,inputArgs :: [(String, String)]
-    ,inputBody :: String
+    ,inputBody :: LBS.ByteString
     } deriving Show
 
 data Output
@@ -46,18 +46,18 @@ instance NFData Output where
     rnf OutputMissing = ()
 
 
-send :: (Host,Port) -> Input -> IO String
+send :: (Host,Port) -> Input -> IO LBS.ByteString
 send (host,port) Input{..} = do
     let url = "http://" ++ host ++ ":" ++ show port ++ concatMap ('/':) inputURL ++
               concat (zipWith (++) ("?":repeat "&") [a ++ "=" ++ b | (a,b) <- inputArgs])
     whenLoud $ print ("sending",inputBody,host,port)
     res <- simpleHTTP (getRequest url)
         {rqBody=inputBody
-        ,rqHeaders=[Header HdrContentType "application/x-www-form-urlencoded", Header HdrContentLength $ show $ length inputBody]}
+        ,rqHeaders=[Header HdrContentType "application/x-www-form-urlencoded", Header HdrContentLength $ show $ LBS.length inputBody]}
     case res of
         Left err -> error $ show err
         Right r | rspCode r /= (2,0,0) -> error $
-                    "Incorrect code: " ++ show (rspCode r,rspReason r,url) ++ "\n" ++ rspBody r
+                    "Incorrect code: " ++ show (rspCode r,rspReason r,url) ++ "\n" ++ show (rspBody r)
                 | otherwise -> return $ rspBody r
 
 
@@ -71,7 +71,7 @@ server port act = runSettings (setOnException exception $ setPort port defaultSe
     let pay = Input
             (map Text.unpack $ pathInfo req)
             [(BS.unpack a, maybe "" BS.unpack b) | (a,b) <- queryString req]
-            (LBS.unpack bod)
+            bod
     res <- act pay
     reply $ case res of
         OutputFile file -> responseFile status200 [] file Nothing
