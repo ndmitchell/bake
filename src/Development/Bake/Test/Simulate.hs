@@ -20,6 +20,7 @@ import System.Random
 import System.IO.Extra
 import System.Time.Extra
 import qualified Data.Set as Set
+import Prelude
 
 
 simulate :: IO ()
