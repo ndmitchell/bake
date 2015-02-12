@@ -62,11 +62,15 @@ showRelativeTimestamp = do
         in show i ++ " " ++ s ++ ['s' | i /= 1] ++ " ago"
 
 
+{-# NOINLINE createDirLock #-}
+createDirLock :: Lock
+createDirLock = unsafePerformIO newLock
+
 createDir :: String -> [String] -> IO FilePath
 createDir prefix info = do
     let name = prefix ++ (if null info then "" else "-" ++ show (abs $ hash info))
     createDirectoryIfMissing True name
-    writeFile (name </> "bake.name") $ unlines info
+    withLock createDirLock $ writeFile (name </> "bake.name") $ unlines info
     return name
 
 
