@@ -7,6 +7,7 @@ module General.Str(
     strTest
     ) where
 
+import Control.Applicative
 import Control.Monad
 import Control.DeepSeq
 import Data.Aeson
@@ -20,11 +21,6 @@ import Data.Tuple.Extra
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import qualified General.MRU as MRU
-
-fileSize :: FilePath -> IO Int
-fileSize file =
-    -- open with write privileges, so you touch the modtime for GC
-    withFile file AppendMode $ fmap fromIntegral . hFileSize
 
 
 data Paged = Paged
@@ -71,20 +67,20 @@ pagedInsert i (n,t) p@Paged{..} = pagedEvict $ p
 pagedAdd :: Text.Text -> Paged -> IO (Paged, Int)
 pagedAdd t p@Paged{..} = do
     let i = pagedCount
-    let file = pagedDir </> show i <.> "txt"
-    Text.writeFile file t
-    n <- fileSize file
+    n <- withFile (pagedDir </> show i <.> "txt") WriteMode $ \h -> do
+        Text.hPutStr h t
+        fromIntegral <$> hFileSize h
     return (pagedInsert i (n,t) p{pagedCount = pagedCount+1}, pagedCount)
 
 pagedLookup :: Int -> Paged -> IO (Paged, Text.Text)
 pagedLookup i p@Paged{..}
     | Just (_, t) <- MRU.lookup i pagedStore = return (p, t)
     | otherwise = do
-        res <- catch_ (do
-            let file = pagedDir </> show i <.> "txt"
-            t <- Text.readFile file
-            n <- fileSize file
-            return (n,t)) $
+        res <- catch_ (
+            withFile (pagedDir </> show i <.> "txt") ReadMode $ \h -> do
+                n <- fromIntegral <$> hFileSize h
+                t <- Text.hGetContents h
+                return (n, t)) $
             \e -> do
                 t <- fmap Text.pack $ showException e
                 return (Text.length t, t)
