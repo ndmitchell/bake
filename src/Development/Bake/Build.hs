@@ -11,6 +11,7 @@ import Control.Applicative
 import System.FilePath
 import Control.Exception.Extra
 import System.Directory
+import General.Extra
 
 
 -- Files involved:
@@ -29,7 +30,8 @@ ovenIncremental oven@Oven{..} = oven{ovenPrepare = \s ps -> do incPrepare s ps; 
                 src <- takeWhile (/= '\n') <$> readFile "../bake-incremental.txt"
                 whenM (doesFileExist $ ".." </> src </> ".bake.incremental") $ do
                     putStrLn $ "Preparing by copying from " ++ src
-                    unit $ cmd "cp --preserve=timestamps --recursive --no-target-directory" ("../" ++ src) "."
+                    timed "copying for ovenIncremental" $
+                        unit $ cmd "cp --preserve=timestamps --recursive --no-target-directory" ("../" ++ src) "."
 
 incrementalStart :: IO ()
 incrementalStart =

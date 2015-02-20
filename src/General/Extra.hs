@@ -4,6 +4,7 @@ module General.Extra(
     Timestamp(..), getTimestamp, showRelativeTimestamp, relativeTimestamp,
     createDir,
     pick,
+    timed,
     newCVar, readCVar, modifyCVar, modifyCVar_,
     registerMaster, forkSlave,
     transitiveClosure, findCycle,
@@ -76,6 +77,13 @@ createDir prefix info = do
 
 pick :: [a] -> IO a
 pick xs = randomRIO (0, (length xs - 1)) >>= return . (xs !!)
+
+
+timed :: String -> IO a -> IO a
+timed msg act = do
+    (t,r) <- duration act
+    putStrLn $ "Spent " ++ showDuration t ++ " on " ++ msg
+    return r
 
 
 ---------------------------------------------------------------------

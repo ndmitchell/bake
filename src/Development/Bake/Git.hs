@@ -66,14 +66,14 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             -- see http://blog.plataformatec.com.br/2013/05/how-to-properly-mirror-a-git-repository/
             ready <- doesFileExist $ mirror </> "HEAD"
             if ready then
-                unit $ cmd (Cwd mirror) "git fetch --prune"
+                timed "git fetch for mirror" $ unit $ cmd (Cwd mirror) "git fetch --prune"
              else do
-                unit $ cmd (Cwd mirror) "git clone --mirror" [repo] "."
+                timed "git clone for mirror" $ unit $ cmd (Cwd mirror) "git clone --mirror" [repo] "."
                 gitSafe mirror
             return mirror
 
         gitUpdateState Nothing = traced "gitUpdateState Nothing" $ do
-            Stdout hash <- cmd "git ls-remote" [repo] [branch]
+            Stdout hash <- timed "git ls-remote" $ cmd "git ls-remote" [repo] [branch]
             case words $ concat $ takeEnd 1 $ lines hash of
                 [] -> error "Couldn't find branch"
                 x:xs -> return $ sha1 $ trim x
@@ -91,16 +91,16 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
                 unit $ cmd (Cwd path) "git init"
                 gitSafe path
                 unit $ cmd (Cwd path) "git remote add origin" [(if path == "." then "" else "../") ++ mirror]
-            unit $ cmd (Cwd path) "git fetch"
-            unit $ cmd (Cwd path) "git checkout" [branch]
-            unit $ cmd (Cwd path) "git reset --hard" ["origin/" ++ branch]
+            timed "git fetch" $ unit $ cmd (Cwd path) "git fetch"
+            timed "git checkout" $ unit $ cmd (Cwd path) "git checkout" [branch]
+            timed "git reset" $ unit $ cmd (Cwd path) "git reset --hard" ["origin/" ++ branch]
             Stdout x <- cmd (Cwd path) "git rev-parse HEAD"
             when (trim x /= fromSHA1 s) $ error $
                 "The branch " ++ branch ++ " changed SHA1 independently of bake.\n" ++
                 "Expected value: " ++ fromSHA1 s ++ "\n" ++
                 "But has become: " ++ trim x
             forM_ ps $ \p ->
-                unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
+                timed "git merge" $ unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
 
         gitPatchExtra s Nothing = traced "gitPatchExtra Nothing" $ do
             mirror <- gitInitMirror
