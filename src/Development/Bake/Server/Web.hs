@@ -290,7 +290,7 @@ rowPatch Shower{..} server@Server{..} argsAdmin p =
             when (xs /= []) br_
             span__ [class_ "info"] $ commasLimit_ 3 $ map showQuestion xs
         Progressing done todo -> do
-            str_ $ "Testing (passed " ++ show (length done + 1) ++ " of " ++ show (length (done++todo) + 1) ++ ")"
+            span__ [class_ "nobr"] $ str_ $ "Testing (passed " ++ show (length done + 1) ++ " of " ++ show (length (done++todo) + 1) ++ ")"
             running
     ]
     where
