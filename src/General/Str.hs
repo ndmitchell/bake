@@ -10,6 +10,7 @@ module General.Str(
 import Control.Applicative
 import Control.Monad
 import Control.DeepSeq
+import Control.Concurrent.Extra
 import Data.Aeson
 import Data.IORef
 import System.IO.Unsafe
@@ -28,6 +29,7 @@ data Paged = Paged
     ,pagedStore :: !(MRU.MRU Int (Int,Text.Text)) -- index, (size,text)
     ,pagedFree :: !Int -- free space in the paged cache
     ,pagedDir :: !FilePath
+    ,pagedLock :: !Lock -- Lock to be held while accessing files
     }
 
 {-# NOINLINE paged #-}
@@ -37,8 +39,9 @@ paged = unsafePerformIO $ newIORef Nothing
 strInit :: FilePath -> Int -> IO ()
 strInit dir free = do
     createDirectoryIfMissing True dir
+    lock <- newLock
     atomicModifyIORef paged $ \Nothing ->
-        (Just $ Paged 0 MRU.empty free dir, ())
+        (Just $ Paged 0 MRU.empty free dir lock, ())
 
 strInfo :: IO String
 strInfo = do
@@ -67,7 +70,7 @@ pagedInsert i (n,t) p@Paged{..} = pagedEvict $ p
 pagedAdd :: Text.Text -> Paged -> IO (Paged, Int)
 pagedAdd t p@Paged{..} = do
     let i = pagedCount
-    n <- withFile (pagedDir </> show i <.> "txt") WriteMode $ \h -> do
+    n <- withLock pagedLock $ withFile (pagedDir </> show i <.> "txt") WriteMode $ \h -> do
         Text.hPutStr h t
         fromIntegral <$> hFileSize h
     return (pagedInsert i (n,t) p{pagedCount = pagedCount+1}, pagedCount)
@@ -77,7 +80,7 @@ pagedLookup i p@Paged{..}
     | Just (_, t) <- MRU.lookup i pagedStore = return (p, t)
     | otherwise = do
         res <- catch_ (
-            withFile (pagedDir </> show i <.> "txt") ReadMode $ \h -> do
+            withLock pagedLock $ withFile (pagedDir </> show i <.> "txt") ReadMode $ \h -> do
                 n <- fromIntegral <$> hFileSize h
                 t <- Text.hGetContents h
                 return (n, t)) $
