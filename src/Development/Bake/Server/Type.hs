@@ -8,7 +8,7 @@ module Development.Bake.Server.Type(
     Question(..), Answer(..), Ping(..),
     serverConsistent, serverPrune,
     normalise, translate,
-    historyAnswer
+    addAnswer
     ) where
 
 import Development.Bake.Core.Type
@@ -72,8 +72,8 @@ server0 = Server [] [] Map.empty (error "server0: target") Nothing [] Map.empty 
 state0 :: Server -> State
 state0 Server{..} = uiState $ last updates
 
-historyAnswer :: Question -> Answer -> Server -> Server
-historyAnswer qq aa server
+addAnswer :: Question -> Answer -> Server -> Server
+addAnswer qq aa server
     | (pre,(t,_,_):post) <- break ((==) qq . snd3) $ history server = server{history = pre ++ (t,qq,Just aa) : post}
     | otherwise = server
 
