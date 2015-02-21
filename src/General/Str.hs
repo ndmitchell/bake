@@ -94,7 +94,10 @@ data Str = StrPinned Text.Text
          | StrPaged Int
 
 instance Show Str where show = strUnpack
-instance Eq Str where (==) = error "Can't do Eq on Str"
+instance Eq Str where
+    StrPinned x == StrPinned y = x == y
+    StrPaged x == StrPaged y = x == y
+    _ == _ = error "Can't do deep equality Eq on Str"
 instance NFData Str where
     rnf (StrPinned x) = rnf x
     rnf (StrPaged x) = rnf x
