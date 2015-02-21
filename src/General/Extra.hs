@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, TupleSections #-}
 
 module General.Extra(
-    Time, getCurrentTime, showRelativeTime, relativeTime,
+    Time, getCurrentTime, addSeconds, showRelativeTime, relativeTime,
     createDir,
     pick,
     timed,
@@ -28,6 +28,9 @@ import qualified Data.Set as Set
 
 
 type Time = UTCTime
+
+addSeconds :: Double -> Time -> Time
+addSeconds x = addUTCTime (fromRational $ toRational x)
 
 relativeTime :: IO (Time -> Double)
 relativeTime = do

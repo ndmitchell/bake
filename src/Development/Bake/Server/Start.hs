@@ -23,7 +23,6 @@ import Control.Exception.Extra
 import Data.List.Extra
 import Data.Maybe
 import Data.Char
-import Data.Time.Clock
 import Control.Monad.Extra
 import Data.Tuple.Extra
 import System.Directory
@@ -128,7 +127,7 @@ operate timeout oven message server = case message of
         dull server 
     Pinged ping -> do
         now <- getCurrentTime
-        server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) now) $
+        server <- return $ serverPrune (addSeconds (negate timeout) now) $
             addPing now ping server
         flip loopM server $ \(unpause -> server) -> do
             let neuronName x = ["brains", lower $ takeWhile (not . isSpace) $ show x]
