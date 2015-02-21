@@ -22,7 +22,6 @@ import Data.Either.Extra
 import Data.Maybe
 import Data.List.Extra
 import Data.Tuple.Extra
-import Data.Time.Clock
 import System.Time.Extra
 import Paths_bake
 

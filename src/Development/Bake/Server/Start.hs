@@ -38,7 +38,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         dir <- getCurrentDirectory
         strInit (dir </> "bake-string") (25 * 1024 * 1024) -- use at most 25Mb for strings
     var <- do
-        now <- getTime
+        now <- getCurrentTime
         extra <- newDelayCache
         putStrLn "Initialising server, computing initial state..."
         (res, answer) <- runInit
@@ -92,7 +92,7 @@ operate timeout oven message server = case message of
     _ | not $ null $ fatal server -> dull server
     AddPatch author p -> do
         let add ps = filter (/= p) ps `snoc` p
-        now <- getTime
+        now <- getCurrentTime
         if p `elem` concatMap (maybe [] snd . thd3) (updates server) then
             -- gets confusing if a patch is both included AND active
             dull server
@@ -127,9 +127,8 @@ operate timeout oven message server = case message of
         serverConsistent server
         dull server 
     Pinged ping -> do
-        limit <- getCurrentTime
-        now <- getTime
-        server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $
+        now <- getCurrentTime
+        server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) now) $
             addPing now ping server
         flip loopM server $ \(unpause -> server) -> do
             let neuronName x = ["brains", lower $ takeWhile (not . isSpace) $ show x]

@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, TupleSections #-}
 
 module General.Extra(
-    Time, getTime, showRelativeTime, relativeTime,
+    Time, getCurrentTime, showRelativeTime, relativeTime,
     createDir,
     pick,
     timed,
@@ -28,9 +28,6 @@ import qualified Data.Set as Set
 
 
 type Time = UTCTime
-
-getTime :: IO Time
-getTime = getCurrentTime
 
 relativeTime :: IO (Time -> Double)
 relativeTime = do
