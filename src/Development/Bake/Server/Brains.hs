@@ -43,18 +43,18 @@ brains info server@Server{..} Ping{..}
     | otherwise = Sleep
     where
         prep = prepare server
-        pinfo = patchInfo prep
+        pinfo = patchInfo2 prep
 
         -- pick a single failure to chase down, don't look at any others til that is eliminated
-        failure = listToMaybe [(i,x) | (i,PatchInfo{..}) <- reverse pinfo, i /= 0, x:_ <- [Set.toList patchFailure]]
+        failure = listToMaybe [(i,x) | (i,PatchInfo2{..}) <- reverse pinfo, i /= 0, x:_ <- [Set.toList patchFailure]]
 
         -- all the tests, sorted so those which have been done least are first
         todoPass
-            | (i,PatchInfo{..}):_ <- pinfo, i == length (snd target), xs@(_:_) <- Set.toList patchTodo =
+            | (i,PatchInfo2{..}):_ <- pinfo, i == length (snd target), xs@(_:_) <- Set.toList patchTodo =
                 let orderAsked t = if t `Set.member` patchSuccess || t `Set.member` patchFailure then 0
                                    else if t `Set.member` patchAsked then 1 else 2
                     orderPriority = maybe 0 (negate . testPriority . info)
-                    orderRarity t = head $ [i | (i,PatchInfo{..}) <- pinfo, t `Set.member` patchSuccess] ++ [-1]
+                    orderRarity t = head $ [i | (i,PatchInfo2{..}) <- pinfo, t `Set.member` patchSuccess] ++ [-1]
                 in map (target,) $ sortOn (\x -> (orderAsked x, orderPriority x, orderRarity x)) xs
             | otherwise = [(target, Nothing)]
 
@@ -102,15 +102,15 @@ prepare server@Server{..} =
     , p `isPrefixOf` snd target]
 
 
-isBlessed :: PatchInfo -> Bool
-isBlessed PatchInfo{patchTodo=t, patchSuccess=s} = not (Set.null t) && Set.size t == Set.size s
+isBlessed :: PatchInfo2 -> Bool
+isBlessed PatchInfo2{patchTodo=t, patchSuccess=s} = not (Set.null t) && Set.size t == Set.size s
 
 
-findBlame :: [(Int,PatchInfo)] -> Maybe (Int, Maybe Test)
+findBlame :: [(Int,PatchInfo2)] -> Maybe (Int, Maybe Test)
 findBlame ((i,a):(j,b):_)
     | i - 1 == j, not $ Set.null $ patchTodo b, bad:_ <- Set.toList $ blame a b = Just (i, bad)
     where
-        blame PatchInfo{patchFailure=failure} PatchInfo{patchTodo=todo, patchSuccess=success} =
+        blame PatchInfo2{patchFailure=failure} PatchInfo2{patchTodo=todo, patchSuccess=success} =
             (failure `Set.intersection` success) `Set.union` -- failed this time, success the time before
             (failure `Set.difference` todo) -- a new test that failed
 findBlame ((i,a):_) -- assume the state is good, even if you don't have evidence
@@ -119,21 +119,21 @@ findBlame (_:xs) = findBlame xs
 findBlame [] = Nothing
 
 
-data PatchInfo = PatchInfo
+data PatchInfo2 = PatchInfo2
     {patchTodo :: Set.Set (Maybe Test) -- empty means we haven't run it yet, or we did and it failed
     ,patchSuccess :: Set.Set (Maybe Test)
     ,patchFailure :: Set.Set (Maybe Test)
     ,patchAsked :: Set.Set (Maybe Test)
     } deriving Show
 
-instance Monoid PatchInfo where
-    mempty = PatchInfo Set.empty Set.empty Set.empty Set.empty
-    mappend (PatchInfo x1 x2 x3 x4) (PatchInfo y1 y2 y3 y4) =
-        PatchInfo (if Set.null x1 then y1 else x1) (x2 `Set.union` y2) (x3 `Set.union` y3) (x4 `Set.union` y4)
+instance Monoid PatchInfo2 where
+    mempty = PatchInfo2 Set.empty Set.empty Set.empty Set.empty
+    mappend (PatchInfo2 x1 x2 x3 x4) (PatchInfo2 y1 y2 y3 y4) =
+        PatchInfo2 (if Set.null x1 then y1 else x1) (x2 `Set.union` y2) (x3 `Set.union` y3) (x4 `Set.union` y4)
 
 -- | Return patch info, sorted from highest number of patches to lowest
-patchInfo :: [(Int, Question, Maybe Answer)] -> [(Int,PatchInfo)]
-patchInfo = Map.toDescList . Map.fromListWith mappend . map (fst3 &&& f)
+patchInfo2 :: [(Int, Question, Maybe Answer)] -> [(Int,PatchInfo2)]
+patchInfo2 = Map.toDescList . Map.fromListWith mappend . map (fst3 &&& f)
     where
         f (_, Question{qTest=Nothing}, Just Answer{aSuccess=True, aTestsSuitable=(a,b)})
             = mempty{patchTodo = Set.fromList $ Nothing : map Just (a ++ b), patchSuccess=Set.singleton Nothing}
