@@ -12,7 +12,6 @@ module General.Extra(
     commas, commasLimit, unwordsLimit
     ) where
 
-import Control.Applicative
 import Data.Time.Clock
 import Data.Time.Calendar
 import System.Time.Extra
@@ -28,20 +27,20 @@ import System.Random
 import qualified Data.Set as Set
 
 
-newtype Timestamp = Timestamp UTCTime deriving (Show,Eq,Ord)
+type Timestamp = UTCTime
 
 getTimestamp :: IO Timestamp
-getTimestamp = Timestamp <$> getCurrentTime
+getTimestamp = getCurrentTime
 
 relativeTimestamp :: IO (Timestamp -> Double)
 relativeTimestamp = do
     now <- getCurrentTime
-    return $ \(Timestamp old) -> subtractTime now old
+    return $ \old -> subtractTime now old
 
 showRelativeTimestamp :: IO (Timestamp -> String)
 showRelativeTimestamp = do
     now <- getCurrentTime
-    return $ \(Timestamp old) ->
+    return $ \old ->
         let secs = subtractTime now old
             days = toModifiedJulianDay . utctDay
             poss = [(days now - days old, "day")

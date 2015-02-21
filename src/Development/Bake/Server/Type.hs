@@ -74,7 +74,7 @@ historyAnswer qq aa server
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
 serverPrune :: UTCTime -> Server -> Server
 serverPrune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
-    where clients = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTimestamp >= Timestamp cutoff]
+    where clients = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTimestamp >= cutoff]
 
 addPing :: Timestamp -> Ping -> Server -> Server
 addPing now ping s = s{pings = Map.insert (pClient ping) (PingInfo now ping True) $ pings s}
