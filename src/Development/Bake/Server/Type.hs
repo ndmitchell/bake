@@ -28,15 +28,15 @@ import qualified Data.Map as Map
 -- THE DATA TYPE
 
 data PingInfo = PingInfo
-    {piTimestamp :: Timestamp
+    {piTime :: Time
     ,piPing :: Ping
     ,piAlive :: Bool
     }
 
 data Server = Server
-    {history :: [(Timestamp, Question, Maybe Answer)]
+    {history :: [(Time, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
-    ,updates :: [((Timestamp,Answer), State, Maybe (State, [Patch]))]
+    ,updates :: [((Time,Answer), State, Maybe (State, [Patch]))]
         -- ^ Updates that have been made. If the Answer failed, you must have an entry in fatal
     ,pings :: Map Client PingInfo
         -- ^ Latest time of a ping sent by each client
@@ -44,7 +44,7 @@ data Server = Server
         -- ^ The candidate we are currently aiming to prove
     ,paused :: Maybe [Patch]
         -- ^ 'Just' if we are paused, and the number of people queued up (reset when target becomes Nothing)
-    ,submitted :: [(Timestamp, Patch)]
+    ,submitted :: [(Time, Patch)]
         -- ^ List of all patches that have been submitted over time
     ,authors :: Map (Maybe Patch) [Author]
         -- ^ Authors associated with each patch (Nothing is the server author)
@@ -74,9 +74,9 @@ historyAnswer qq aa server
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
 serverPrune :: UTCTime -> Server -> Server
 serverPrune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
-    where clients = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTimestamp >= cutoff]
+    where clients = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTime >= cutoff]
 
-addPing :: Timestamp -> Ping -> Server -> Server
+addPing :: Time -> Ping -> Server -> Server
 addPing now ping s = s{pings = Map.insert (pClient ping) (PingInfo now ping True) $ pings s}
 
 serverConsistent :: Server -> IO ()

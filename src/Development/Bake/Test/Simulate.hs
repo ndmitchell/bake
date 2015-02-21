@@ -79,7 +79,7 @@ simulation testInfo clients u step = do
     s@S{..} <- flip loopM s $ \s -> do
         putChar '.'
 
-        t <- getTimestamp
+        t <- getTime
         (u, cont, res) <- step (active s) (user s)
         s <- return s{user = u}
         s <- case res of

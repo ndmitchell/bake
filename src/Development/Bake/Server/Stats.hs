@@ -61,7 +61,7 @@ stats Server{..} = do
 #endif
     stats <- if getGCStatsEnabled then Just <$> getGCStats else return Nothing
     info <- strInfo
-    rel <- relativeTimestamp
+    rel <- relativeTime
     return $ do
         p_ $ str_ $ "Requests = " ++ show (length history) ++ ", updates = " ++ show (length updates)
 

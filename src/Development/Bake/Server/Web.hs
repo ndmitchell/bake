@@ -164,13 +164,13 @@ data Shower = Shower
     ,showClient :: Client -> HTML
     ,showState :: State -> HTML
     ,showCandidate :: (State, [Patch]) -> HTML
-    ,showTime :: Timestamp -> HTML
+    ,showTime :: Time -> HTML
     ,showThreads :: Int -> HTML
     }
 
 shower :: (Either State Patch -> Maybe (Str, Str)) -> Oven State Patch Test -> Bool -> IO Shower
 shower extra Oven{..} argsAdmin = do
-    showTimestamp <- showRelativeTimestamp
+    showTime <- showRelativeTime
     let shwState (State "") = span__ [class_ "bad" ] $ str_ $ "invalid state"
         shwState s = shwLink ("state=" ++ fromState s) $ str_ $ stringyPretty ovenStringyState s
     let shwPatch p = shwLink ("patch=" ++ fromPatch p) $ str_ $ stringyPretty ovenStringyPatch p
@@ -185,7 +185,7 @@ shower extra Oven{..} argsAdmin = do
         ,showClient = \c -> shwLink ("client=" ++ fromClient c) $ str_ $ fromClient c
         ,showTest = f Nothing Nothing []
         ,showQuestion = \Question{..} -> f (Just qClient) (Just $ fst qCandidate) (snd qCandidate) qTest
-        ,showTime = span__ [class_ "nobr"] . str_ . showTimestamp
+        ,showTime = span__ [class_ "nobr"] . str_ . showTime
         ,showThreads = \i -> str_ $ show i ++ " thread" ++ ['s' | i /= 1]
         }
     where
@@ -249,7 +249,7 @@ showAnswer (Just Answer{..}) =
                 else span__ [class_ "bad" ] $ str_ $ "Failed in "    ++ showDuration aDuration
 
 
-rowHistory :: Shower -> Server -> (Timestamp, Question, Maybe Answer) -> [HTML]
+rowHistory :: Shower -> Server -> (Time, Question, Maybe Answer) -> [HTML]
 rowHistory Shower{..} Server{..} (t, q@Question{..}, a) = [showTime t, body, showAnswer a]
     where
         body = do
@@ -259,7 +259,7 @@ rowHistory Shower{..} Server{..} (t, q@Question{..}, a) = [showTime t, body, sho
             str_ " with " <> showThreads qThreads
 
 
-rowUpdate :: Shower -> Server -> (Int,((Timestamp,Answer), State, Maybe (State, [Patch]))) -> [HTML]
+rowUpdate :: Shower -> Server -> (Int,((Time,Answer), State, Maybe (State, [Patch]))) -> [HTML]
 rowUpdate Shower{..} Server{..} (i,((t,a), to, from)) = [showTime t, body, showAnswer $ Just a]
     where
         body = do

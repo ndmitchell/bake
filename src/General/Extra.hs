@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, TupleSections #-}
 
 module General.Extra(
-    Timestamp(..), getTimestamp, showRelativeTimestamp, relativeTimestamp,
+    Time, getTime, showRelativeTime, relativeTime,
     createDir,
     pick,
     timed,
@@ -27,18 +27,18 @@ import System.Random
 import qualified Data.Set as Set
 
 
-type Timestamp = UTCTime
+type Time = UTCTime
 
-getTimestamp :: IO Timestamp
-getTimestamp = getCurrentTime
+getTime :: IO Time
+getTime = getCurrentTime
 
-relativeTimestamp :: IO (Timestamp -> Double)
-relativeTimestamp = do
+relativeTime :: IO (Time -> Double)
+relativeTime = do
     now <- getCurrentTime
     return $ \old -> subtractTime now old
 
-showRelativeTimestamp :: IO (Timestamp -> String)
-showRelativeTimestamp = do
+showRelativeTime :: IO (Time -> String)
+showRelativeTime = do
     now <- getCurrentTime
     return $ \old ->
         let secs = subtractTime now old
