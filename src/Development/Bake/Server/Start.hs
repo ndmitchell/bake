@@ -129,8 +129,8 @@ operate timeout oven message server = case message of
     Pinged ping -> do
         limit <- getCurrentTime
         now <- getTimestamp
-        server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $ server
-            {pings = Map.insert (pClient ping) (now,ping) $ pings server}
+        server <- return $ serverPrune (addUTCTime (fromRational $ toRational $ negate timeout) limit) $
+            addPing now ping server
         flip loopM server $ \(unpause -> server) -> do
             let neuronName x = ["brains", lower $ takeWhile (not . isSpace) $ show x]
             case record ((neuronName &&& id) . brains (ovenTestInfo oven) server) ping of

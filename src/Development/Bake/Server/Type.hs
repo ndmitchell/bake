@@ -2,6 +2,7 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Type(
+    PingInfo(..), addPing,
     Server(..), server0, state0,
     Question(..), Answer(..), Ping(..),
     serverConsistent, serverPrune,
@@ -26,12 +27,18 @@ import qualified Data.Map as Map
 ---------------------------------------------------------------------
 -- THE DATA TYPE
 
+data PingInfo = PingInfo
+    {piTimestamp :: Timestamp
+    ,piPing :: Ping
+    ,piAlive :: Bool
+    }
+
 data Server = Server
     {history :: [(Timestamp, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
     ,updates :: [((Timestamp,Answer), State, Maybe (State, [Patch]))]
         -- ^ Updates that have been made. If the Answer failed, you must have an entry in fatal
-    ,pings :: Map Client (Timestamp, Ping)
+    ,pings :: Map Client PingInfo
         -- ^ Latest time of a ping sent by each client
     ,target :: (State, [Patch])
         -- ^ The candidate we are currently aiming to prove
@@ -67,8 +74,10 @@ historyAnswer qq aa server
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
 serverPrune :: UTCTime -> Server -> Server
 serverPrune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
-    where clients = [pClient | (Timestamp t, Ping{..}) <- Map.elems $ pings s, t >= cutoff]
+    where clients = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTimestamp >= Timestamp cutoff]
 
+addPing :: Timestamp -> Ping -> Server -> Server
+addPing now ping s = s{pings = Map.insert (pClient ping) (PingInfo now ping True) $ pings s}
 
 serverConsistent :: Server -> IO ()
 serverConsistent Server{..} = do
