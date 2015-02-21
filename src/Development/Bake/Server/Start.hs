@@ -110,9 +110,9 @@ operate timeout oven message server = case message of
         dull $ clearPatches server
     Pause author ->
         -- cannot pause if there is no work outstanding, unpause may immediately undo
-        dull $ ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $ paused server}
+        dull $ startPause server
     Unpause author ->
-        dull server{paused=Nothing, target = second (++ fromMaybe [] (paused server)) $ target server}
+        dull $ stopPause server
     Finished q a -> do
         when (not $ aSuccess a) $ do
             putStrLn $ replicate 70 '#'

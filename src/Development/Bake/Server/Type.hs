@@ -9,7 +9,8 @@ module Development.Bake.Server.Type(
     serverConsistent, serverPrune,
     normalise, translate,
     addAnswer, addQuestion,
-    deletePatch, clearPatches
+    deletePatch, clearPatches,
+    startPause, stopPause
     ) where
 
 import Control.Applicative
@@ -103,6 +104,12 @@ deletePatch p server = ensurePauseInvariants $ server
     {target = second (delete p) $ target server
     ,paused = delete p <$> paused server
     }
+
+startPause :: Server -> Server
+startPause server = ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $ paused server}
+
+stopPause :: Server -> Server
+stopPause server = ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $ paused server}
 
 
 ---------------------------------------------------------------------
