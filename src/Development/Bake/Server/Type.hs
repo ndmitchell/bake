@@ -28,18 +28,12 @@ import Data.List.Extra
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set(Set)
-import qualified Data.Set as Set
 
 
 ---------------------------------------------------------------------
 -- THE DATA TYPE
 
-data Point = Point
-    {pointKey :: Equal [Patch]
-    ,pointVal :: (State, [Patch])
-    ,pointPrev :: Maybe Point
-    ,pointInt :: Int
-    }
+newtype Point = Point (Equal [Patch])
 
 data PingInfo = PingInfo
     {piTime :: UTCTime
@@ -70,12 +64,11 @@ data Server = Server
     {history :: [(UTCTime, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
     ,pointInfo :: Map Point PointInfo
+        -- ^ Information about a point
     ,patchInfo :: Map Patch PatchInfo
-    ,rejectable :: Set (Point, Maybe Test)
-    ,points :: Map (State, [Patch]) Point
-        -- ^ Mapping to find a good point for something
-    ,pointsInt :: Map Int Point
-        -- ^ Mapping from point int back to a Point
+        -- ^ Information about a patch
+    ,rejectable :: Map (Point, Maybe Test) [Point]
+        -- ^ Things whose success lead to a rejection
     ,updates :: [UpdateInfo]
         -- ^ Updates that have been made. If the Answer failed, you must have an entry in fatal
     ,pings :: Map Client PingInfo
@@ -100,7 +93,7 @@ sFailure = State ""
 
 -- | Warning: target and extra are undefined, either define them or don't ever use them
 server0 :: Server
-server0 = Server [] Map.empty Map.empty Set.empty Map.empty Map.empty [] Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra") []
+server0 = Server [] Map.empty Map.empty Map.empty [] Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra") []
 
 state0 :: Server -> State
 state0 Server{..} = uiState $ last updates
