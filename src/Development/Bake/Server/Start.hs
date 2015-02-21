@@ -105,12 +105,9 @@ operate timeout oven message server = case message of
                 ,authors = Map.insertWith (++) (Just p) [author] $ authors server
                 ,submitted = (now,p) : submitted server}
     DelPatch author p -> do
-        dull $ ensurePauseInvariants server
-            {target = second (delete p) $ target server
-            ,paused = delete p <$> paused server
-            }
+        dull $ deletePatch p server
     DelAllPatches author ->
-        dull $ server{paused = Nothing, target = (fst $ target server, [])}
+        dull $ clearPatches server
     Pause author ->
         -- cannot pause if there is no work outstanding, unpause may immediately undo
         dull $ ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $ paused server}

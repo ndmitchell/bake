@@ -8,9 +8,11 @@ module Development.Bake.Server.Type(
     Question(..), Answer(..), Ping(..),
     serverConsistent, serverPrune,
     normalise, translate,
-    addAnswer, addQuestion
+    addAnswer, addQuestion,
+    deletePatch, clearPatches
     ) where
 
+import Control.Applicative
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Extra
@@ -92,6 +94,15 @@ ensurePauseInvariants server
         {paused = Nothing
         ,target = second (++ fromMaybe [] (paused server)) $ target server}
     | otherwise = server
+
+clearPatches :: Server -> Server
+clearPatches server = server{paused = Nothing, target = (fst $ target server, [])}
+
+deletePatch :: Patch -> Server -> Server
+deletePatch p server = ensurePauseInvariants $ server
+    {target = second (delete p) $ target server
+    ,paused = delete p <$> paused server
+    }
 
 
 ---------------------------------------------------------------------
