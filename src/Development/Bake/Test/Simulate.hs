@@ -99,10 +99,11 @@ simulation testInfo clients u step = do
                             ,asked = Set.insert q $ asked s
                             ,server = (server s){history = (t,q,Nothing) : history (server s)} }
                 Update (ss, ps) -> do
-                    let (nss, nps) = (restate $ unstate ss ++ ps, snd (target $ server s) \\ ps)
+                    let nss = restate $ unstate ss ++ ps
                     forM_ ps $ \p -> unless (fst $ fromJust $ lookup p $ patches s) $ error "incorrect test pass"
                     let ans = Answer (strPack "") 0 mempty True
-                    return $ dropPatches ps $ s{server = (server s){target = (nss,nps), updates = UpdateInfo t ans nss (Just (ss, ps)) : updates (server s)}}
+                    return $ dropPatches ps $ s{server = addUpdate t ans (Just nss) (ss,ps) $ server s}
+
                 Reject p t -> do
                     unless (snd (fromJust $ lookup p $ patches s) t) $ error "incorrect test failure"
                     return $ dropPatches [p] $ s{server = (server s){target = second (delete p) $ target $ server s}}
