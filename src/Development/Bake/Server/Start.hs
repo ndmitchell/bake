@@ -48,7 +48,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         when (isJust res) $ addDelayCache extra (Left state0) $ patchExtra state0 Nothing
         newCVar $ server0
             {target=(state0,[]), authors=Map.fromList [(Nothing,[author])]
-            ,updates=[((now,answer),state0,Nothing)]
+            ,updates=[UpdateInfo now answer state0 Nothing]
             ,extra=extra
             ,fatal=["Failed to initialise" | isNothing res]
             }
@@ -92,7 +92,7 @@ operate timeout oven message server = case message of
     AddPatch author p -> do
         let add ps = filter (/= p) ps `snoc` p
         now <- getCurrentTime
-        if p `elem` concatMap (maybe [] snd . thd3) (updates server) then
+        if p `elem` concatMap (maybe [] snd . uiPrevious) (updates server) then
             -- gets confusing if a patch is both included AND active
             dull server
          else if p `elem` snd (target server) then
@@ -105,7 +105,7 @@ operate timeout oven message server = case message of
                 ,authors = Map.insertWith (++) (Just p) [author] $ authors server
                 ,submitted = (now,p) : submitted server}
     DelPatch author p -> do
-        dull $ unpause server
+        dull $ ensurePauseInvariants server
             {target = second (delete p) $ target server
             ,paused = delete p <$> paused server
             }
@@ -113,7 +113,7 @@ operate timeout oven message server = case message of
         dull $ server{paused = Nothing, target = (fst $ target server, [])}
     Pause author ->
         -- cannot pause if there is no work outstanding, unpause may immediately undo
-        dull $ unpause $ server{paused = Just $ fromMaybe [] $ paused server}
+        dull $ ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $ paused server}
     Unpause author ->
         dull server{paused=Nothing, target = second (++ fromMaybe [] (paused server)) $ target server}
     Finished q a -> do
@@ -129,7 +129,7 @@ operate timeout oven message server = case message of
         now <- getCurrentTime
         server <- return $ serverPrune (addSeconds (negate timeout) now) $
             addPing now ping server
-        flip loopM server $ \(unpause -> server) -> do
+        flip loopM server $ \(ensurePauseInvariants -> server) -> do
             let neuronName x = ["brains", lower $ takeWhile (not . isSpace) $ show x]
             case record ((neuronName &&& id) . brains (ovenTestInfo oven) server) ping of
                 Sleep ->
@@ -144,23 +144,15 @@ operate timeout oven message server = case message of
                         Nothing -> do
                             ovenNotify oven [a | p <- Nothing : map Just (snd $ target server), a <- Map.findWithDefault [] p $ authors server]
                                 "Failed to update, pretty serious"
-                            return $ Right (server{fatal="Failed to update":fatal server, updates=((now,answer),sFailure,Just (s,ps)):updates server}, Nothing)
+                            return $ Right (addUpdate now answer Nothing (s,ps) server, Nothing)
                         Just s2 -> do
                             ovenNotify oven [a | p <- ps, a <- Map.findWithDefault [] (Just p) $ authors server]
                                 "Your patch just made it in"
                             addDelayCache (extra server) (Left s2) $ patchExtra s2 Nothing
-                            return $ Left server{target=(s2, snd (target server) \\ ps), updates=((now,answer),s2,Just (s,ps)):updates server}
+                            return $ Left $ addUpdate now answer (Just s2) (s,ps) server
                 Reject p t -> do
                     ovenNotify oven (Map.findWithDefault [] (Just p) (authors server)) $ unlines
                         ["Your patch " ++ show p ++ " got rejected","Failure in test " ++ show t]
                     return $ Left server{target=second (delete p) $ target server}
     where
         dull s = return (s,Nothing)
-        unpause server
-            | null $ snd $ target server = server
-                {paused = Nothing
-                ,target = second (++ fromMaybe [] (paused server)) $ target server}
-            | otherwise = server
-
-
-sFailure = State ""

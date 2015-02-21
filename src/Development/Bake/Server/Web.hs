@@ -82,7 +82,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
                     reverse $ zip [0..] $ reverse updates
             whenJust s $ \s -> do
                 h2_ $ str_ "Output"
-                pre_ $ str_ $ strUnpack $ aStdout $ snd $ fst3 $ reverse updates !! s
+                pre_ $ str_ $ strUnpack $ aStdout $ uiAnswer $ reverse updates !! s
             return "server"
 
          else do
@@ -259,20 +259,20 @@ rowHistory Shower{..} Server{..} (t, q@Question{..}, a) = [showTime t, body, sho
             str_ " with " <> showThreads qThreads
 
 
-rowUpdate :: Shower -> Server -> (Int,((UTCTime,Answer), State, Maybe (State, [Patch]))) -> [HTML]
-rowUpdate Shower{..} Server{..} (i,((t,a), to, from)) = [showTime t, body, showAnswer $ Just a]
+rowUpdate :: Shower -> Server -> (Int,UpdateInfo) -> [HTML]
+rowUpdate Shower{..} Server{..} (i,UpdateInfo{..}) = [showTime uiTime, body, showAnswer $ Just uiAnswer]
     where
         body = do
-            showLink ("server=" ++ show i) $ str_ $ if isNothing from then "Initialised" else "Updated"
+            showLink ("server=" ++ show i) $ str_ $ if isNothing uiPrevious then "Initialised" else "Updated"
             br_
-            whenJust from $ \c -> str_ "From " <> showCandidate c <> br_
-            str_ "To " <> showState to
+            whenJust uiPrevious $ \c -> str_ "From " <> showCandidate c <> br_
+            str_ "To " <> showState uiState
 
 
 rowPatch :: Shower -> Server -> Bool -> Maybe Patch -> [HTML]
 rowPatch Shower{..} server@Server{..} argsAdmin p =
     [case p of
-        Nothing -> showTime $ fst $ fst3 $ last updates
+        Nothing -> showTime $ uiTime $ last updates
         Just p -> maybe mempty (showTime . fst) $ find ((==) p . snd) submitted
 
     ,do
@@ -306,7 +306,7 @@ rowPatch Shower{..} server@Server{..} argsAdmin p =
         special | argsAdmin, Just p <- p =
             if p `elem` snd target || p `elem` fromMaybe [] paused then
                 do br_; admin (DelPatch "admin" p) $ str_ "Delete"
-            else if p `notElem` concatMap (maybe [] snd . thd3) updates then
+            else if p `notElem` concatMap (maybe [] snd . uiPrevious) updates then
                 do br_; admin (AddPatch "admin" p) $ str_ "Retry"
             else
                 mempty
@@ -322,7 +322,7 @@ rowClient Shower{..} Server{..} Nothing =
     [showLink "server=" $ i_ $ str_ "Server"
     ,showLink ("server=" ++ show (length updates - 1))
         (str_ $ if length updates == 1 then "Initialised" else "Updated") <>
-     str_ " finished " <> showTime (fst $ fst3 $ head updates)]
+     str_ " finished " <> showTime (uiTime $ head updates)]
 
 
 ---------------------------------------------------------------------
@@ -341,7 +341,7 @@ data Status
 patchStatus :: Server -> Maybe Patch -> Status
 -- Simple cases
 patchStatus server (Just p)
-    | p `elem` concatMap (maybe [] snd . thd3) (updates server) = Accepted
+    | p `elem` concatMap (maybe [] snd . uiPrevious) (updates server) = Accepted
     | p `elem` fromMaybe [] (paused server) = Paused
 patchStatus server Nothing
     | length (updates server) > 1 = Accepted

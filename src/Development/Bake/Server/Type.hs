@@ -2,7 +2,8 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Type(
-    PingInfo(..), addPing,
+    PingInfo(..), addPing, sFailure,
+    UpdateInfo(..), addUpdate, ensurePauseInvariants,
     Server(..), server0, state0,
     Question(..), Answer(..), Ping(..),
     serverConsistent, serverPrune,
@@ -32,10 +33,17 @@ data PingInfo = PingInfo
     ,piAlive :: Bool
     }
 
+data UpdateInfo = UpdateInfo
+    {uiTime :: UTCTime
+    ,uiAnswer :: Answer
+    ,uiState :: State
+    ,uiPrevious :: Maybe (State, [Patch])
+    }
+
 data Server = Server
     {history :: [(UTCTime, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
-    ,updates :: [((UTCTime,Answer), State, Maybe (State, [Patch]))]
+    ,updates :: [UpdateInfo]
         -- ^ Updates that have been made. If the Answer failed, you must have an entry in fatal
     ,pings :: Map Client PingInfo
         -- ^ Latest time of a ping sent by each client
@@ -53,17 +61,34 @@ data Server = Server
         -- ^ A list of fatal error messages that have been raised by the server
     }
 
+sFailure :: State
+sFailure = State ""
+
 
 -- | Warning: target and extra are undefined, either define them or don't ever use them
 server0 :: Server
 server0 = Server [] [] Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra") []
 
 state0 :: Server -> State
-state0 Server{..} = snd3 $ last updates
+state0 Server{..} = uiState $ last updates
 
 historyAnswer :: Question -> Answer -> Server -> Server
 historyAnswer qq aa server
     | (pre,(t,_,_):post) <- break ((==) qq . snd3) $ history server = server{history = pre ++ (t,qq,Just aa) : post}
+    | otherwise = server
+
+
+addUpdate :: UTCTime -> Answer -> Maybe State -> (State, [Patch]) -> Server -> Server
+addUpdate now answer (Just snew) (sold,ps) server | aSuccess answer = ensurePauseInvariants
+    server{target=(snew, snd (target server) \\ ps), updates=UpdateInfo now answer snew (Just (sold,ps)):updates server}
+addUpdate now answer _ (sold,ps) server =
+    server{fatal = "Failed to update" : fatal server, updates=UpdateInfo now answer sFailure (Just (sold,ps)):updates server}
+
+ensurePauseInvariants :: Server -> Server
+ensurePauseInvariants server
+    | null $ snd $ target server = server
+        {paused = Nothing
+        ,target = second (++ fromMaybe [] (paused server)) $ target server}
     | otherwise = server
 
 
@@ -94,7 +119,7 @@ normalise :: Server -> (State, [Patch]) -> (State, [Patch]) -> (State, [Patch], 
 normalise = f . updates
     where
         f _ (s1,p1) (s2,p2) | s1 == s2 = (s1,p1,p2)
-        f ((_,s,Just (s',ps)):us) s1 s2 = f us (g s1) (g s2)
+        f (UpdateInfo{uiState=s, uiPrevious=Just (s',ps)}:us) s1 s2 = f us (g s1) (g s2)
             where g (s1,p1) = if s1 == s then (s',ps++p1) else (s1,p1)
         f _ s1 s2 = error $ "Error with normalise, invariant about state violated: " ++ show (s1, s2)
 

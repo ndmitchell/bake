@@ -14,7 +14,6 @@ import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import Development.Bake.Server.Type
 import Data.Maybe
-import Data.Tuple.Extra
 import Data.List.Extra
 
 
@@ -64,8 +63,8 @@ candidateBy' s p server q a = maybe False p $ translate server s (qCandidate q)
 
 
 patch' :: Patch -> Query
-patch' p server Question{qCandidate=(s,ps)} a = p `elem` ps ++ concatMap (maybe [] snd . thd3) upds
-    where upds = dropWhile ((/=) s . snd3) $ updates server
+patch' p server Question{qCandidate=(s,ps)} a = p `elem` ps ++ concatMap (maybe [] snd . uiPrevious) upds
+    where upds = dropWhile ((/=) s . uiState) $ updates server
 
 lastPatch' :: Patch -> Query
 lastPatch' p server q a = maybe False ((==) p . snd) $ unsnocPatch server $ qCandidate q
@@ -89,7 +88,7 @@ blame' _ _ _ = False
 unsnocPatch :: Server -> (State, [Patch]) -> Maybe ((State, [Patch]), Patch)
 unsnocPatch server (s, ps)
     | Just (ps, p) <- unsnoc ps = Just ((s, ps), p)
-    | Just (_, _, Just r) <- find ((==) s . snd3) $ updates server = unsnocPatch server r
+    | Just UpdateInfo{uiPrevious = Just r} <- find ((==) s . uiState) $ updates server = unsnocPatch server r
     | otherwise = Nothing
 
 
