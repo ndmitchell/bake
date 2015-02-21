@@ -15,7 +15,6 @@ import Development.Bake.Core.Message
 import General.Extra
 import General.Str
 import General.DelayCache
-import Data.Time.Clock
 import Data.Tuple.Extra
 import Data.Maybe
 import Control.Monad
@@ -28,15 +27,15 @@ import qualified Data.Map as Map
 -- THE DATA TYPE
 
 data PingInfo = PingInfo
-    {piTime :: Time
+    {piTime :: UTCTime
     ,piPing :: Ping
     ,piAlive :: Bool
     }
 
 data Server = Server
-    {history :: [(Time, Question, Maybe Answer)]
+    {history :: [(UTCTime, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
-    ,updates :: [((Time,Answer), State, Maybe (State, [Patch]))]
+    ,updates :: [((UTCTime,Answer), State, Maybe (State, [Patch]))]
         -- ^ Updates that have been made. If the Answer failed, you must have an entry in fatal
     ,pings :: Map Client PingInfo
         -- ^ Latest time of a ping sent by each client
@@ -44,7 +43,7 @@ data Server = Server
         -- ^ The candidate we are currently aiming to prove
     ,paused :: Maybe [Patch]
         -- ^ 'Just' if we are paused, and the number of people queued up (reset when target becomes Nothing)
-    ,submitted :: [(Time, Patch)]
+    ,submitted :: [(UTCTime, Patch)]
         -- ^ List of all patches that have been submitted over time
     ,authors :: Map (Maybe Patch) [Author]
         -- ^ Authors associated with each patch (Nothing is the server author)
@@ -76,7 +75,7 @@ serverPrune :: UTCTime -> Server -> Server
 serverPrune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
     where clients = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTime >= cutoff]
 
-addPing :: Time -> Ping -> Server -> Server
+addPing :: UTCTime -> Ping -> Server -> Server
 addPing now ping s = s{pings = Map.insert (pClient ping) (PingInfo now ping True) $ pings s}
 
 serverConsistent :: Server -> IO ()

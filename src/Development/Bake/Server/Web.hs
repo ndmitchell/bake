@@ -164,7 +164,7 @@ data Shower = Shower
     ,showClient :: Client -> HTML
     ,showState :: State -> HTML
     ,showCandidate :: (State, [Patch]) -> HTML
-    ,showTime :: Time -> HTML
+    ,showTime :: UTCTime -> HTML
     ,showThreads :: Int -> HTML
     }
 
@@ -249,7 +249,7 @@ showAnswer (Just Answer{..}) =
                 else span__ [class_ "bad" ] $ str_ $ "Failed in "    ++ showDuration aDuration
 
 
-rowHistory :: Shower -> Server -> (Time, Question, Maybe Answer) -> [HTML]
+rowHistory :: Shower -> Server -> (UTCTime, Question, Maybe Answer) -> [HTML]
 rowHistory Shower{..} Server{..} (t, q@Question{..}, a) = [showTime t, body, showAnswer a]
     where
         body = do
@@ -259,7 +259,7 @@ rowHistory Shower{..} Server{..} (t, q@Question{..}, a) = [showTime t, body, sho
             str_ " with " <> showThreads qThreads
 
 
-rowUpdate :: Shower -> Server -> (Int,((Time,Answer), State, Maybe (State, [Patch]))) -> [HTML]
+rowUpdate :: Shower -> Server -> (Int,((UTCTime,Answer), State, Maybe (State, [Patch]))) -> [HTML]
 rowUpdate Shower{..} Server{..} (i,((t,a), to, from)) = [showTime t, body, showAnswer $ Just a]
     where
         body = do
