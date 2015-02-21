@@ -136,7 +136,7 @@ operate timeout oven message server = case message of
                     return $ Right (server, Nothing)
                 Task q -> do
                     when (qClient q /= pClient ping) $ error "client doesn't match the ping"
-                    server <- return $ server{history = (now,q,Nothing) : history server}
+                    server <- return $ addQuestion now q server
                     return $ Right (server, Just q)
                 Update (s,ps) -> do
                     (s2, answer) <- runUpdate s ps

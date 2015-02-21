@@ -97,7 +97,7 @@ simulation testInfo clients u step = do
                     when (q `Set.member` asked s) $ error "asking a duplicate question"
                     return s{active = active s ++ [q]
                             ,asked = Set.insert q $ asked s
-                            ,server = (server s){history = (t,q,Nothing) : history (server s)} }
+                            ,server = addQuestion t q $ server s}
                 Update (ss, ps) -> do
                     let nss = restate $ unstate ss ++ ps
                     forM_ ps $ \p -> unless (fst $ fromJust $ lookup p $ patches s) $ error "incorrect test pass"

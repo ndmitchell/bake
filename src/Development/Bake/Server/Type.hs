@@ -8,7 +8,7 @@ module Development.Bake.Server.Type(
     Question(..), Answer(..), Ping(..),
     serverConsistent, serverPrune,
     normalise, translate,
-    addAnswer
+    addAnswer, addQuestion
     ) where
 
 import Development.Bake.Core.Type
@@ -77,6 +77,8 @@ addAnswer qq aa server
     | (pre,(t,_,_):post) <- break ((==) qq . snd3) $ history server = server{history = pre ++ (t,qq,Just aa) : post}
     | otherwise = server
 
+addQuestion :: UTCTime -> Question -> Server -> Server
+addQuestion now q server = server{history = (now,q,Nothing) : history server}
 
 addUpdate :: UTCTime -> Answer -> Maybe State -> (State, [Patch]) -> Server -> Server
 addUpdate now answer (Just snew) (sold,ps) server | aSuccess answer = ensurePauseInvariants
