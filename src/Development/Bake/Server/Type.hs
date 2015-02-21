@@ -31,14 +31,14 @@ data PingInfo = PingInfo
     {piTime :: UTCTime
     ,piPing :: Ping
     ,piAlive :: Bool
-    }
+    } deriving (Eq,Show)
 
 data UpdateInfo = UpdateInfo
     {uiTime :: UTCTime
     ,uiAnswer :: Answer
     ,uiState :: State
     ,uiPrevious :: Maybe (State, [Patch])
-    }
+    } deriving (Eq,Show)
 
 data Server = Server
     {history :: [(UTCTime, Question, Maybe Answer)]
