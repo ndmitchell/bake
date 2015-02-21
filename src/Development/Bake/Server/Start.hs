@@ -16,7 +16,6 @@ import Development.Bake.Server.Type
 import Development.Bake.Server.Web
 import Development.Bake.Server.Brains
 import Development.Bake.Server.Stats
-import Control.Applicative
 import General.DelayCache
 import Control.DeepSeq
 import Control.Exception.Extra
@@ -90,20 +89,8 @@ operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, M
 operate timeout oven message server = case message of
     _ | not $ null $ fatal server -> dull server
     AddPatch author p -> do
-        let add ps = filter (/= p) ps `snoc` p
         now <- getCurrentTime
-        if p `elem` concatMap (maybe [] snd . uiPrevious) (updates server) then
-            -- gets confusing if a patch is both included AND active
-            dull server
-         else if p `elem` snd (target server) then
-            -- moving a promotion requires retrying every previous promotion
-            dull server
-         else
-            dull server
-                {target = second (if isJust (paused server) then id else add) $ target server
-                ,paused = add <$> paused server
-                ,authors = Map.insertWith (++) (Just p) [author] $ authors server
-                ,submitted = (now,p) : submitted server}
+        dull $ addPatch now author p server
     DelPatch author p -> do
         dull $ deletePatch p server
     DelAllPatches author ->

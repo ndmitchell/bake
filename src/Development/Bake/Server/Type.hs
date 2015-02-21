@@ -9,7 +9,7 @@ module Development.Bake.Server.Type(
     serverConsistent, serverPrune,
     normalise, translate,
     addAnswer, addQuestion,
-    deletePatch, clearPatches,
+    deletePatch, clearPatches, addPatch,
     startPause, stopPause
     ) where
 
@@ -104,6 +104,22 @@ deletePatch p server = ensurePauseInvariants $ server
     {target = second (delete p) $ target server
     ,paused = delete p <$> paused server
     }
+
+addPatch :: UTCTime -> Author -> Patch -> Server -> Server
+addPatch now author p server
+    | p `elem` concatMap (maybe [] snd . uiPrevious) (updates server)
+        -- gets confusing if a patch is both included AND active
+        = server
+    | p `elem` snd (target server)
+        -- moving a promotion requires retrying every previous promotion
+        = server
+    | otherwise = server
+        {target = second (if isJust (paused server) then id else add) $ target server
+        ,paused = add <$> paused server
+        ,authors = Map.insertWith (++) (Just p) [author] $ authors server
+        ,submitted = (now,p) : submitted server}
+        where add ps = filter (/= p) ps `snoc` p
+
 
 startPause :: Server -> Server
 startPause server = ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $ paused server}
