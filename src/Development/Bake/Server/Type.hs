@@ -2,6 +2,7 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Type(
+    Point(..), PointInfo(..), PatchInfo(..),
     PingInfo(..), addPing, sFailure,
     UpdateInfo(..), addUpdate, ensurePauseInvariants,
     Server(..), server0, state0,
@@ -17,6 +18,7 @@ import Control.Applicative
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Extra
+import General.Equal
 import General.Str
 import General.DelayCache
 import Data.Tuple.Extra
@@ -25,10 +27,19 @@ import Control.Monad
 import Data.List.Extra
 import Data.Map(Map)
 import qualified Data.Map as Map
+import Data.Set(Set)
+import qualified Data.Set as Set
 
 
 ---------------------------------------------------------------------
 -- THE DATA TYPE
+
+data Point = Point
+    {pointKey :: Equal [Patch]
+    ,pointVal :: (State, [Patch])
+    ,pointPrev :: Maybe Point
+    ,pointInt :: Int
+    }
 
 data PingInfo = PingInfo
     {piTime :: UTCTime
@@ -43,9 +54,28 @@ data UpdateInfo = UpdateInfo
     ,uiPrevious :: Maybe (State, [Patch])
     } deriving (Eq,Show)
 
+data PointInfo = PointInfo
+    {poTodo :: Maybe (Set Test)
+    ,poPass :: Map (Maybe Test) [(UTCTime, Question, Answer)]
+    ,poFail :: Map (Maybe Test) [(UTCTime, Question, Answer)]
+    ,poReject :: Set Test
+    }
+
+data PatchInfo = PatchInfo
+    {paReject :: Set Test
+    ,paTodoCount :: Int
+    }
+
 data Server = Server
     {history :: [(UTCTime, Question, Maybe Answer)]
         -- ^ Questions you have sent to clients, and how they responded (if they have).
+    ,pointInfo :: Map Point PointInfo
+    ,patchInfo :: Map Patch PatchInfo
+    ,rejectable :: Set (Point, Maybe Test)
+    ,points :: Map (State, [Patch]) Point
+        -- ^ Mapping to find a good point for something
+    ,pointsInt :: Map Int Point
+        -- ^ Mapping from point int back to a Point
     ,updates :: [UpdateInfo]
         -- ^ Updates that have been made. If the Answer failed, you must have an entry in fatal
     ,pings :: Map Client PingInfo
@@ -70,7 +100,7 @@ sFailure = State ""
 
 -- | Warning: target and extra are undefined, either define them or don't ever use them
 server0 :: Server
-server0 = Server [] [] Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra") []
+server0 = Server [] Map.empty Map.empty Set.empty Map.empty Map.empty [] Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra") []
 
 state0 :: Server -> State
 state0 Server{..} = uiState $ last updates
