@@ -48,6 +48,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         newCVar $ server0
             {target=(state0,[]), authors=Map.fromList [(Nothing,[author])]
             ,updates=[UpdateInfo now answer state0 Nothing]
+            ,updatesIdx=Map.singleton state0 []
             ,extra=extra
             ,fatal=["Failed to initialise" | isNothing res]
             }

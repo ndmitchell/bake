@@ -70,6 +70,7 @@ data Server = Server
     ,rejectable :: Map (Point, Maybe Test) [Point]
         -- ^ Things whose success lead to a rejection
     ,updates :: [UpdateInfo]
+    ,updatesIdx :: Map State [Patch]
         -- ^ Updates that have been made. If the Answer failed, you must have an entry in fatal
     ,pings :: Map Client PingInfo
         -- ^ Latest time of a ping sent by each client
@@ -93,7 +94,7 @@ sFailure = State ""
 
 -- | Warning: target and extra are undefined, either define them or don't ever use them
 server0 :: Server
-server0 = Server [] Map.empty Map.empty Map.empty [] Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra") []
+server0 = Server [] Map.empty Map.empty Map.empty [] Map.empty Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra") []
 
 state0 :: Server -> State
 state0 Server{..} = uiState $ last updates
@@ -107,10 +108,14 @@ addQuestion :: UTCTime -> Question -> Server -> Server
 addQuestion now q server = server{history = (now,q,Nothing) : history server}
 
 addUpdate :: UTCTime -> Answer -> Maybe State -> (State, [Patch]) -> Server -> Server
-addUpdate now answer (Just snew) (sold,ps) server | aSuccess answer = ensurePauseInvariants
-    server{target=(snew, snd (target server) \\ ps), updates=UpdateInfo now answer snew (Just (sold,ps)):updates server}
-addUpdate now answer _ (sold,ps) server =
-    server{fatal = "Failed to update" : fatal server, updates=UpdateInfo now answer sFailure (Just (sold,ps)):updates server}
+addUpdate now answer (Just snew) (sold,ps) server@Server{..} | aSuccess answer = ensurePauseInvariants
+    server{target=(snew, snd target \\ ps)
+          ,updates=UpdateInfo now answer snew (Just (sold,ps)):updates
+          ,updatesIdx=Map.insert snew ((updatesIdx Map.! sold) ++ ps) updatesIdx}
+addUpdate now answer _ (sold,ps) server@Server{..} =
+    server{fatal = "Failed to update" : fatal
+          ,updates=UpdateInfo now answer sFailure (Just (sold,ps)):updates
+          ,updatesIdx=Map.insert sFailure [] updatesIdx}
 
 ensurePauseInvariants :: Server -> Server
 ensurePauseInvariants server
