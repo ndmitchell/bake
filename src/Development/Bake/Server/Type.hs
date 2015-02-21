@@ -9,7 +9,7 @@ module Development.Bake.Server.Type(
     serverConsistent, serverPrune,
     normalise, translate,
     addAnswer, addQuestion,
-    deletePatch, clearPatches, addPatch,
+    deletePatch, clearPatches, addPatch, rejectPatch,
     startPause, stopPause
     ) where
 
@@ -120,6 +120,8 @@ addPatch now author p server
         ,submitted = (now,p) : submitted server}
         where add ps = filter (/= p) ps `snoc` p
 
+rejectPatch :: Patch -> Server -> Server
+rejectPatch p server = server{target=second (delete p) $ target server}
 
 startPause :: Server -> Server
 startPause server = ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $ paused server}

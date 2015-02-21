@@ -84,8 +84,7 @@ simulation testInfo clients u step = do
         s <- return s{user = u}
         s <- case res of
             Submit p pass fail -> do
-                let f x = x{target = second (`snoc` p) $ target x}
-                return s{server = f $ server s, patches = (p,(pass,fail)) : patches s}
+                return s{server = addPatch t "" p $ server s, patches = (p,(pass,fail)) : patches s}
 
             Reply q good tests -> do
                 let ans = Answer (strPack "") 0 (if good && isNothing (qTest q) then tests else mempty) good
@@ -106,7 +105,7 @@ simulation testInfo clients u step = do
 
                 Reject p t -> do
                     unless (snd (fromJust $ lookup p $ patches s) t) $ error "incorrect test failure"
-                    return $ dropPatches [p] $ s{server = (server s){target = second (delete p) $ target $ server s}}
+                    return $ dropPatches [p] $ s{server = rejectPatch p $ server s}
 
         forM_ clients $ \(c,mx) ->
             when (count s c > mx) $ error "threads exceeded"

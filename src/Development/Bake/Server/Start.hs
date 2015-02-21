@@ -137,6 +137,6 @@ operate timeout oven message server = case message of
                 Reject p t -> do
                     ovenNotify oven (Map.findWithDefault [] (Just p) (authors server)) $ unlines
                         ["Your patch " ++ show p ++ " got rejected","Failure in test " ++ show t]
-                    return $ Left server{target=second (delete p) $ target server}
+                    return $ Left $ rejectPatch p server
     where
         dull s = return (s,Nothing)
