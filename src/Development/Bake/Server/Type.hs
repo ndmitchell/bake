@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, NoMonomorphismRestriction #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Type(
@@ -15,11 +15,13 @@ module Development.Bake.Server.Type(
     ) where
 
 import Control.Applicative
+import Data.Monoid
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Extra
 import General.Equal
 import General.Str
+import General.Lens
 import General.DelayCache
 import Data.Tuple.Extra
 import Data.Maybe
@@ -28,12 +30,13 @@ import Data.List.Extra
 import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set(Set)
+import qualified Data.Set as Set
 
 
 ---------------------------------------------------------------------
 -- THE DATA TYPE
 
-newtype Point = Point (Equal [Patch])
+newtype Point = Point (Equal [Patch]) deriving (Eq,Ord)
 
 data PingInfo = PingInfo
     {piTime :: UTCTime
@@ -52,13 +55,21 @@ data PointInfo = PointInfo
     {poTodo :: Maybe (Set Test)
     ,poPass :: Map (Maybe Test) [(UTCTime, Question, Answer)]
     ,poFail :: Map (Maybe Test) [(UTCTime, Question, Answer)]
-    ,poReject :: Set Test
+    ,poReject :: Set (Maybe Test)
     }
 
+instance Monoid PointInfo where
+    mempty = PointInfo mempty mempty mempty mempty
+    mappend (PointInfo x1 x2 x3 x4) (PointInfo y1 y2 y3 y4) =
+        PointInfo (x1<>y1) (x2<>y2) (x3<>y3) (x4<>y4)
+
 data PatchInfo = PatchInfo
-    {paReject :: Set Test
-    ,paTodoCount :: Int
+    {paReject :: Set (Maybe Test)
     }
+
+instance Monoid PatchInfo where
+    mempty = PatchInfo mempty
+    mappend (PatchInfo x1) (PatchInfo y1) = PatchInfo (x1<>y1)
 
 data Server = Server
     {history :: [(UTCTime, Question, Maybe Answer)]
@@ -100,9 +111,41 @@ state0 :: Server -> State
 state0 Server{..} = uiState $ last updates
 
 addAnswer :: Question -> Answer -> Server -> Server
-addAnswer qq aa server
-    | (pre,(t,_,_):post) <- break ((==) qq . snd3) $ history server = server{history = pre ++ (t,qq,Just aa) : post}
+addAnswer q@Question{..} a@Answer{..} server
+    | (pre,(t,_,_):post) <- break ((==) q . snd3) $ history server =
+        let pt = newPoint server qCandidate
+        in
+        -- add to poTodo
+        (\s -> let todo = Set.fromList $ aTests a in
+               case s ^. _pointInfo . atm pt . _poTodo of
+                   _ | qTest /= Nothing -> s
+                   Just v | v /= todo -> s & _fatal %~ (:) ("Inconsistent tests for " ++ show qCandidate)
+                   _ -> s & _pointInfo . atm pt . _poTodo .~ Just todo) $
+        -- add to poPass/poFail
+        (_pointInfo . atm pt . (if aSuccess then _poPass else _poFail) . atm qTest %~ (:) (t, q, a)) $
+        -- update rejectables
+        (\s -> case rewindPoint pt of
+            Just (prev, patch)
+                | not aSuccess, _:_ <- s ^. _pointInfo . atm prev . _poPass . atm qTest
+                    -> s & (_pointInfo . atm pt . _poReject %~ Set.insert qTest) .
+                           (_patchInfo . atm patch . _paReject %~ Set.insert qTest)
+                | not aSuccess -> s & _rejectable . atm (prev, qTest) %~ (:) pt
+            _ | aSuccess, xs <- s ^. _rejectable . atm (pt, qTest)
+                -> foldr ($) (s & _rejectable %~ Map.delete (pt, qTest))
+                        [   (_pointInfo . atm x . _poReject %~ Set.insert qTest)
+                          . (_patchInfo . atm (snd $ fromJust $ rewindPoint x) . _paReject %~ Set.insert qTest)
+                        | x <- xs]
+            _ -> s) $
+        -- add to history
+        server{history = pre ++ (t,q,Just a) : post}
     | otherwise = server
+
+newPoint :: Server -> (State, [Patch]) -> Point
+newPoint Server{..} (s, ps) = Point $ newEqual $ (updatesIdx Map.! s) ++ ps
+
+rewindPoint :: Point -> Maybe (Point, Patch)
+rewindPoint (Point pt) = first (Point . newEqual) <$> unsnoc (fromEqual pt)
+
 
 addQuestion :: UTCTime -> Question -> Server -> Server
 addQuestion now q server = server{history = (now,q,Nothing) : history server}
@@ -192,3 +235,16 @@ normalise = f . updates
 translate :: Server -> State -> (State, [Patch]) -> Maybe [Patch]
 translate server s1 (s2,p2) = stripPrefix pp1 pp2
     where (_,pp1,pp2) = normalise server (s1,[]) (s2,p2)
+
+---------------------------------------------------------------------
+-- LENSES
+
+_pointInfo = makeLens pointInfo $ \v x -> x{pointInfo=v}
+_patchInfo = makeLens patchInfo $ \v x -> x{patchInfo=v}
+_poTodo = makeLens poTodo $ \v x -> x{poTodo=v}
+_poPass = makeLens poPass $ \v x -> x{poPass=v}
+_poFail = makeLens poFail $ \v x -> x{poFail=v}
+_poReject = makeLens poReject $ \v x -> x{poReject=v}
+_paReject = makeLens paReject $ \v x -> x{paReject=v}
+_fatal = makeLens fatal $ \v x -> x{fatal=v}
+_rejectable = makeLens rejectable $ \v x -> x{rejectable=v}
