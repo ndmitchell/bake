@@ -50,7 +50,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
                 p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
             failures shower server
             table "No patches submitted" ["Time","Job","Status"]
-                (map (rowPatch shower server argsAdmin) $ nub (map (Just . snd) submitted) ++ [Nothing])
+                (map (rowPatch shower server argsAdmin Nothing) $ nub (map (Just . snd) submitted) ++ [Nothing])
             h2_ $ str_ "Clients"
             table "No clients available" ["Name","Running"]
                 (map (rowClient shower server) $ Nothing : map Just (Map.keys pings))
@@ -269,24 +269,24 @@ rowUpdate Shower{..} Server{..} (i,UpdateInfo{..}) = [showTime uiTime, body, sho
             str_ "To " <> showState uiState
 
 
-rowPatch :: Shower -> Server -> Bool -> Maybe Patch -> [HTML]
-rowPatch Shower{..} server@Server{..} argsAdmin p =
-    [case p of
+rowPatch :: Shower -> Server -> Bool -> Maybe Point -> Maybe Patch -> [HTML]
+rowPatch Shower{..} server@Server{..} argsAdmin point patch =
+    [case patch of
         Nothing -> showTime $ uiTime $ last updates
         Just p -> maybe mempty (showTime . fst) $ find ((==) p . snd) submitted
 
     ,do
-        maybe (str_ "Initial state " <> showState s0) ((str_ "Patch " <>) . showPatch) p
-        str_ $ " by " ++ commasLimit 3 (nub $ Map.findWithDefault [] p authors)
+        maybe (str_ "Initial state " <> showState s0) ((str_ "Patch " <>) . showPatch) patch
+        str_ $ " by " ++ commasLimit 3 (nub $ Map.findWithDefault [] patch authors)
         br_
-        span__ [class_ "info"] $ showExtra $ maybe (Left s0) Right p
+        span__ [class_ "info"] $ showExtra $ maybe (Left s0) Right patch
 
-    ,(<> special) $ case patchStatus server p of
+    ,(<> special) $ case patchStatus server patch of
         Accepted -> span__ [class_ "good"] $ str_ "Success"
         Unknown -> str_ "Testing (passed 0 of ?)" <> running
         Paused -> str_ "Paused"
         Rejected xs -> do
-            span__ [class_ "bad"] $ str_ $ if isJust p then "Rejected" else "Failed"
+            span__ [class_ "bad"] $ str_ $ if isJust patch then "Rejected" else "Failed"
             when (xs /= []) br_
             span__ [class_ "info"] $ commasLimit_ 3 $ map showQuestion xs
         Progressing done todo -> do
@@ -299,11 +299,11 @@ rowPatch Shower{..} server@Server{..} argsAdmin p =
         running | null xs = mempty
                 | otherwise = br_ <> span__ [class_ "info"] (commasLimit_ 3 items)
             where -- put the oldest running process first
-                  xs = reverse $ unanswered server [maybe (candidate' (s0,[])) patch' p]
-                  (yes,no) = partition (maybe null (isSuffixOf . return) p . snd . qCandidate) xs
+                  xs = reverse $ unanswered server [maybe (candidate' (s0,[])) patch' patch]
+                  (yes,no) = partition (maybe null (isSuffixOf . return) patch . snd . qCandidate) xs
                   items = map (b_ . showQuestion) yes ++ map showQuestion no
 
-        special | argsAdmin, Just p <- p =
+        special | argsAdmin, Just p <- patch =
             if p `elem` snd target || p `elem` fromMaybe [] paused then
                 do br_; admin (DelPatch "admin" p) $ str_ "Delete"
             else if p `notElem` concatMap (maybe [] snd . uiPrevious) updates then
