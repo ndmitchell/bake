@@ -46,6 +46,7 @@ library
         time,
         random,
         hashable,
+        transformers,
         HTTP,
         http-types,
         deepseq,
