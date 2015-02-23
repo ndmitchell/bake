@@ -37,7 +37,7 @@ import qualified Data.Set as Set
 ---------------------------------------------------------------------
 -- THE DATA TYPE
 
-newtype Point = Point (Equal [Patch]) deriving (Eq,Ord)
+newtype Point = Point (Equal [Patch]) deriving (Eq,Ord,Show)
 
 data PingInfo = PingInfo
     {piTime :: UTCTime
@@ -57,7 +57,7 @@ data PointInfo = PointInfo
     ,poPass :: Map (Maybe Test) [(UTCTime, Question, Answer)]
     ,poFail :: Map (Maybe Test) [(UTCTime, Question, Answer)]
     ,poReject :: Set (Maybe Test)
-    }
+    } deriving Show
 
 instance Monoid PointInfo where
     mempty = PointInfo mempty mempty mempty mempty
