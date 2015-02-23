@@ -35,13 +35,30 @@ instance NFData Neuron where
 -- Given a ping from a client, figure out what work we can get them to do, if anything
 brains :: (Test -> TestInfo Test) -> Server -> Ping -> Neuron
 brains info server@Server{..} Ping{..}
-    | (i,_):_ <- filter (isBlessed . snd) pinfo, i /= 0 || null (snd target)
-        = if i == 0 then Sleep else Update $ second (take i) target
-    | Just (i, test) <- findBlame pinfo = Reject (snd target !! (i-1)) test
+    | null $ snd target, isBlessed target = Sleep
+    | pt:_ <- filter isBlessed points = Update pt
+    | (pt,t):_ <- [(pt,t) | pt <- points, Just t <- [isRejected pt]] = Reject (last $ snd pt) t
     | (c,t):_ <- filter (uncurry suitableTest) $ if isNothing failure then todoPass else todoFail
         = Task $ Question c t (threadsForTest t) pClient
     | otherwise = Sleep
     where
+        points = map (fst target,) $ reverse $ tail $ inits $ snd target
+
+        isBlessed (newPoint server -> pt)
+            | Just PointInfo{..} <- Map.lookup pt pointInfo
+            , Just t <- poTests
+            = Set.size t + 1 == Map.size poPass -- +1 for the Nothing test
+        isBlessed _ = False
+
+        isRejected (s, [p]) -- weird special case, assuming the zero state is blessed
+            | Just PointInfo{..} <- Map.lookup (newPoint server (s,[p])) pointInfo
+            = listToMaybe $ Map.keys poFail
+        isRejected (newPoint server -> pt)
+            | Just PointInfo{..} <- Map.lookup pt pointInfo
+            = listToMaybe $ Set.toList poReject
+        isRejected _ = Nothing
+
+
         prep = prepare server
         pinfo = patchInfo2 prep
 
@@ -100,23 +117,6 @@ prepare server@Server{..} =
     | (_,q,a) <- history
     , Just p <- [translate server (fst target) $ qCandidate q]
     , p `isPrefixOf` snd target]
-
-
-isBlessed :: PatchInfo2 -> Bool
-isBlessed PatchInfo2{patchTodo=t, patchSuccess=s} = not (Set.null t) && Set.size t == Set.size s
-
-
-findBlame :: [(Int,PatchInfo2)] -> Maybe (Int, Maybe Test)
-findBlame ((i,a):(j,b):_)
-    | i - 1 == j, not $ Set.null $ patchTodo b, bad:_ <- Set.toList $ blame a b = Just (i, bad)
-    where
-        blame PatchInfo2{patchFailure=failure} PatchInfo2{patchTodo=todo, patchSuccess=success} =
-            (failure `Set.intersection` success) `Set.union` -- failed this time, success the time before
-            (failure `Set.difference` todo) -- a new test that failed
-findBlame ((i,a):_) -- assume the state is good, even if you don't have evidence
-    | i == 1, bad:_ <- Set.toList $ patchFailure a = Just (i, bad)
-findBlame (_:xs) = findBlame xs
-findBlame [] = Nothing
 
 
 data PatchInfo2 = PatchInfo2
