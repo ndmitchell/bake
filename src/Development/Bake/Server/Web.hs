@@ -49,8 +49,11 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
             when (isJust paused) $
                 p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
             failures shower server
+            let toPoint p | ps@(_:_) <- dropWhileEnd (/= p) (snd target) = Just $ newPoint server (fst target, ps)
+                          | otherwise = Nothing
             table "No patches submitted" ["Time","Job","Status"]
-                (map (rowPatch shower server argsAdmin Nothing) $ nubOrd (map (Just . snd) submitted) ++ [Nothing])
+                (map (\p -> rowPatch shower server argsAdmin (maybe Nothing toPoint p) p) $
+                    nubOrd (map (Just . snd) submitted) ++ [Nothing])
             h2_ $ str_ "Clients"
             table "No clients available" ["Name","Running"]
                 (map (rowClient shower server) $ Nothing : map Just (Map.keys pings))
