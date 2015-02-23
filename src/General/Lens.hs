@@ -12,6 +12,7 @@ import Data.Functor.Identity
 import qualified Data.Map.Strict as Map
 import Data.Maybe
 import Data.Monoid
+import Prelude
 
 
 infixl 8 ^.
