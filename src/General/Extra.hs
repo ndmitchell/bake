@@ -21,6 +21,7 @@ import Data.List.Extra
 import System.Directory
 import Data.Hashable
 import System.FilePath
+import Control.Exception
 import Control.Monad.Extra
 import Control.Concurrent.Extra
 import System.Random
@@ -106,9 +107,9 @@ master = unsafePerformIO $ newIORef Nothing
 registerMaster :: IO ()
 registerMaster = writeIORef master . Just =<< myThreadId
 
-forkSlave :: IO () -> IO ()
-forkSlave act = void $ forkFinally act $ \v -> case v of
-    Left e -> do
+forkSlave :: IO () -> IO ThreadId
+forkSlave act = forkFinally act $ \v -> case v of
+    Left e | fromException e /= Just ThreadKilled -> do
         m <- readIORef master
         whenJust m $ flip throwTo e
     _ -> return ()

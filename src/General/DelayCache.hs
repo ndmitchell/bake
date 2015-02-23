@@ -27,7 +27,7 @@ newDelayCache = do
 -- | If you add multiple things only the first will be computed
 addDelayCache :: Ord k => DelayCache k v -> k -> IO v -> IO ()
 addDelayCache DelayCache{..} k v =
-    forkSlave $
+    void $ forkSlave $
         withLock lock $ do
             i <- readVar info
             unless (k `Map.member` i) $ do

@@ -34,7 +34,7 @@ startClient hp author (Client -> client) maxThreads ping (validate . concrete ->
         whenJust q $ \q@Question{..} -> do
             atomicModifyIORef nowThreads $ \now -> (now - qThreads, ())
             writeChan queue ()
-            forkSlave $ do
+            void $ forkSlave $ do
                 i <- atomicModifyIORef unique $ dupe . succ
                 putBlock "Client start" $
                     ["Client: " ++ fromClient client
