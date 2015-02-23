@@ -141,3 +141,20 @@ patchInfo2 = Map.toDescList . Map.fromListWith mappend . map (fst3 &&& f)
             = if b then mempty{patchSuccess=Set.singleton t} else mempty{patchFailure=Set.singleton t}
         f (_, Question{qTest=t}, Nothing)
             = mempty{patchAsked=Set.singleton t}
+
+
+---------------------------------------------------------------------
+-- STATE/PATCH ISOMORPISMS
+
+normalise :: Server -> (State, [Patch]) -> (State, [Patch]) -> (State, [Patch], [Patch])
+normalise = f . updates
+    where
+        f _ (s1,p1) (s2,p2) | s1 == s2 = (s1,p1,p2)
+        f (UpdateInfo{uiState=s, uiPrevious=Just (s',ps)}:us) s1 s2 = f us (g s1) (g s2)
+            where g (s1,p1) = if s1 == s then (s',ps++p1) else (s1,p1)
+        f _ s1 s2 = error $ "Error with normalise, invariant about state violated: " ++ show (s1, s2)
+
+translate :: Server -> State -> (State, [Patch]) -> Maybe [Patch]
+translate server s1 (s2,p2) = stripPrefix pp1 pp2
+    where (_,pp1,pp2) = normalise server (s1,[]) (s2,p2)
+
