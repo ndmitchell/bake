@@ -1,5 +1,6 @@
 Changelog for Bake
 
+    Add ping expiration
     Start testing as soon as you are launched
 0.2
     Require extra-0.3
