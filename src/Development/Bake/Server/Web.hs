@@ -289,7 +289,7 @@ rowPatch Shower{..} server@Server{..} argsAdmin point patch = ("",) $
 
     ,(<> special) $ case patchStatus server patch of
         Accepted -> span__ [class_ "good"] $ str_ "Success"
-        Unknown -> str_ "Testing (passed 0 of ?)" <> running
+        Unknown -> str_ "Testing (passed 0 of ?)"
         Paused -> str_ "Paused"
         Rejected xs -> do
             span__ [class_ "bad"] $ str_ $ if isJust patch then "Rejected" else "Failed"
@@ -297,17 +297,9 @@ rowPatch Shower{..} server@Server{..} argsAdmin point patch = ("",) $
             span__ [class_ "info"] $ commasLimit_ 3 $ map showQuestion xs
         Progressing done todo -> do
             span__ [class_ "nobr"] $ str_ $ "Testing (passed " ++ show (length done + 1) ++ " of " ++ show (length (done++todo) + 1) ++ ")"
-            running
     ]
     where
         s0 = state0 server
-
-        running | null xs = mempty
-                | otherwise = br_ <> span__ [class_ "info"] (commasLimit_ 3 items)
-            where -- put the oldest running process first
-                  xs = reverse $ unanswered server [maybe (candidate' (s0,[])) patch' patch]
-                  (yes,no) = partition (maybe null (isSuffixOf . return) patch . snd . qCandidate) xs
-                  items = map (b_ . showQuestion) yes ++ map showQuestion no
 
         special | argsAdmin, Just p <- patch =
             if p `elem` snd target || p `elem` fromMaybe [] paused then
