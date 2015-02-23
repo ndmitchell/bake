@@ -216,7 +216,7 @@ serverPrune cutoff s
     | null died = s
     | otherwise = s{history = filter (flip elem died . qClient . snd3) $ history s
                    ,pings = Map.map (\pi@PingInfo{..} -> pi{piAlive = piAlive && pClient piPing `notElem` died}) $ pings s}
-    where died = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTime >= cutoff, piAlive]
+    where died = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTime < cutoff, piAlive]
 
 addPing :: UTCTime -> Ping -> Server -> Server
 addPing now ping s = s{pings = Map.insert (pClient ping) (PingInfo now ping True) $ pings s}
