@@ -56,9 +56,12 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
+            now <- getCurrentTime
+            let prune = serverPrune (addSeconds (negate timeout) now)
             res <-
-                if null inputURL then
-                    fmap OutputHTML $ web oven inputArgs =<< readCVar var
+                if null inputURL then do
+                    -- prune but don't save, will reprune on the next ping
+                    fmap OutputHTML $ web oven inputArgs . prune =<< readCVar var
                 else if ["html"] `isPrefixOf` inputURL then
                     return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if ["api"] `isPrefixOf` inputURL then
@@ -70,7 +73,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                                 case v of
                                     AddPatch _ p -> addDelayCache (extra s) (Right p) $ patchExtra (fst $ target s) $ Just p
                                     _ -> return ()
-                                operate timeout oven v s
+                                operate oven v $ prune s
                     )
                 else
                     return OutputMissing
@@ -86,8 +89,8 @@ patchExtra s p = do
     return $ fromMaybe (strPack failSummary, strPack failDetail) ex
 
 
-operate :: Double -> Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
-operate timeout oven message server = case message of
+operate :: Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
+operate oven message server = case message of
     _ | not $ null $ fatal server -> dull server
     AddPatch author p -> do
         now <- getCurrentTime
@@ -112,8 +115,7 @@ operate timeout oven message server = case message of
         dull server 
     Pinged ping -> do
         now <- getCurrentTime
-        server <- return $ serverPrune (addSeconds (negate timeout) now) $
-            addPing now ping server
+        server <- return $ addPing now ping server
         flip loopM server $ \(ensurePauseInvariants -> server) -> do
             let neuronName x = ["brains", lower $ takeWhile (not . isSpace) $ show x]
             case record ((neuronName &&& id) . brains (ovenTestInfo oven) server) ping of
