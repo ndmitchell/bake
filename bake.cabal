@@ -79,6 +79,7 @@ library
         General.Equal
         General.Extra
         General.HTML
+        General.Lens
         General.MRU
         General.Str
         General.Web
