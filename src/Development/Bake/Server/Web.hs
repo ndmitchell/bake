@@ -220,6 +220,9 @@ template inner = do
                 ,"a.info {color: #4183c4;}" -- tie breaker
                 ,".good {font-weight: bold; color: darkgreen;}"
                 ,".bad {font-weight: bold; color: darkred;}"
+                ,".dead {background-color: #ccc;}"
+                ,".pass {background-color: #ae9;}"
+                ,".fail {background-color: #e99;}"
                 ,".nobr {white-space: nowrap;}"
                 ,".red {background-color: #ffdddd;}"
                 ,".green {background-color: #ddffdd;}"
