@@ -108,6 +108,7 @@ executable bake-test
         hashable,
         HTTP,
         http-types,
+        transformers,
         deepseq,
         aeson,
         extra >= 0.2,
