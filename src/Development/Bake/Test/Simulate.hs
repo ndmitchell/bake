@@ -20,6 +20,7 @@ import System.Random
 import System.IO.Extra
 import System.Time.Extra
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 import Prelude
 
 
@@ -66,7 +67,12 @@ simulation
     -> ([Question] -> s -> IO (s, Bool, Step))  -- ^ step function
     -> IO s
 simulation testInfo clients u step = do
-    let s = S u server0{target = (State "", [])} 20 [] Set.empty []
+    t <- getCurrentTime
+    let ss0 = server0
+            {target = (State "", [])
+            ,updates=[UpdateInfo t (Answer (strPack "") 0 mempty True) (State "") Nothing]
+            ,updatesIdx=Map.singleton (State "") []}
+    let s = S u ss0 20 [] Set.empty []
 
     let count s c = sum [qThreads | Question{..} <- active s, qClient == c]
 
