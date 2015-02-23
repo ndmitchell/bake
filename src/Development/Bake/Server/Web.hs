@@ -312,7 +312,7 @@ rowPatch Shower{..} server@Server{..} argsAdmin point patch = ("",) $
 
 
 rowClient :: Shower -> Server -> Maybe Client -> (String, [HTML])
-rowClient Shower{..} server (Just c) = ((if maybe False piAlive $ Map.lookup c $ pings server then "" else "dead"),) $
+rowClient Shower{..} server (Just c) = ((if maybe False piAlive $ Map.lookup c $ pings server then "" else "dull"),) $
     [showLink ("client=" ++ fromClient c) $ str_ $ fromClient c
     ,if null xs then i_ $ str_ "None" else mconcat $ intersperse br_ xs]
     where xs = reverse [showQuestion q <> str_ " started " <> showTime t | (t,q,Nothing) <- history server, qClient q == c]
