@@ -50,7 +50,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
                 p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
             failures shower server
             table "No patches submitted" ["Time","Job","Status"]
-                (map (rowPatch shower server argsAdmin Nothing) $ nub (map (Just . snd) submitted) ++ [Nothing])
+                (map (rowPatch shower server argsAdmin Nothing) $ nubOrd (map (Just . snd) submitted) ++ [Nothing])
             h2_ $ str_ "Clients"
             table "No clients available" ["Name","Running"]
                 (map (rowClient shower server) $ Nothing : map Just (Map.keys pings))
@@ -242,7 +242,7 @@ failures :: Shower -> Server -> HTML
 failures Shower{..} server = when (xs /= []) $ do
     p_ $ str_ "Tracking down failures in:"
     ul_ $ mconcat $ map (li_ . showTest) xs
-    where xs = nub $ map fst $ targetFailures server
+    where xs = nubOrd $ map fst $ targetFailures server
 
 
 showAnswer :: Maybe Answer -> HTML
@@ -280,7 +280,7 @@ rowPatch Shower{..} server@Server{..} argsAdmin point patch = ("",) $
 
     ,do
         maybe (str_ "Initial state " <> showState s0) ((str_ "Patch " <>) . showPatch) patch
-        str_ $ " by " ++ commasLimit 3 (nub $ Map.findWithDefault [] patch authors)
+        str_ $ " by " ++ commasLimit 3 (nubOrd $ Map.findWithDefault [] patch authors)
         br_
         span__ [class_ "info"] $ showExtra $ maybe (Left s0) Right patch
 
@@ -354,7 +354,7 @@ patchStatus server (Just p)
     -- we may have previously failed, but been requeued, so if we're active don't hunt for reject
     | p `notElem` snd (target server)
     , bad <- reverse $ answered server [lastPatch' p, blame']
-    = Rejected $ nub $ map fst bad
+    = Rejected $ nubOrd $ map fst bad
     -- note we may be rejected with null bad, could be due to admin action
 patchStatus server Nothing
     | fails@(_:_) <- reverse $ answered server [candidate' (state0 server, []), failure']
@@ -364,7 +364,7 @@ patchStatus server Nothing
 patchStatus server p
     | let filt = maybe (candidate' (state0 server, [])) patch' p
     , total:_ <- map (aTests . snd) $ answered server [filt, test' Nothing]
-    , done <- nub $ mapMaybe (qTest . fst) $ answered server [filt, success']
+    , done <- nubOrd $ mapMaybe (qTest . fst) $ answered server [filt, success']
     , todo <- total \\ done
     = if null todo && isNothing p then Accepted else Progressing done todo
 patchStatus _ _ = Unknown
