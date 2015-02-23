@@ -52,7 +52,7 @@ library
         deepseq,
         filepath,
         aeson,
-        extra >= 0.3,
+        extra >= 1.1,
         wai >= 3.0.1,
         warp >= 3.0
 
