@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, Rank2Types, TupleSections #-}
+{-# LANGUAGE RecordWildCards, Rank2Types, TupleSections, NoMonomorphismRestriction #-}
 
 -- | Simple lenses
 module General.Lens(
