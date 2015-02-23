@@ -24,6 +24,7 @@ import Data.Monoid
 import Paths_bake
 import Development.Bake.Server.Query
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Prelude
 
 
@@ -276,29 +277,39 @@ rowUpdate Shower{..} Server{..} (i,UpdateInfo{..}) = [showTime uiTime, body, sho
 
 
 rowPatch :: Shower -> Server -> Bool -> Maybe Point -> Maybe Patch -> (String, [HTML])
-rowPatch Shower{..} server@Server{..} argsAdmin point patch = ("",) $
-    [case patch of
-        Nothing -> showTime $ uiTime $ last updates
-        Just p -> maybe mempty (showTime . fst) $ find ((==) p . snd) submitted
-
-    ,do
-        maybe (str_ "Initial state " <> showState s0) ((str_ "Patch " <>) . showPatch) patch
-        str_ $ " by " ++ commasLimit 3 (nubOrd $ Map.findWithDefault [] patch authors)
-        br_
-        span__ [class_ "info"] $ showExtra $ maybe (Left s0) Right patch
-
-    ,(<> special) $ case patchStatus server patch of
-        Accepted -> span__ [class_ "good"] $ str_ "Success"
-        Unknown -> str_ "Testing (passed 0 of ?)"
-        Paused -> str_ "Paused"
-        Rejected xs -> do
-            span__ [class_ "bad"] $ str_ $ if isJust patch then "Rejected" else "Failed"
-            when (xs /= []) br_
-            span__ [class_ "info"] $ commasLimit_ 3 $ map showQuestion xs
-        Progressing done todo -> do
-            span__ [class_ "nobr"] $ str_ $ "Testing (passed " ++ show (length done + 1) ++ " of " ++ show (length (done++todo) + 1) ++ ")"
-    ]
+rowPatch Shower{..} server@Server{..} argsAdmin point patch = second (\x -> [time,state,x <> special]) $
+    case () of
+        _ | Just p <- point
+          , me <- Map.findWithDefault mempty p pointInfo
+          , root <- Map.findWithDefault mempty (newPoint server target) pointInfo
+            -> ((if not $ Set.null $ Map.keysSet (poFail me) `Set.intersection` Map.keysSet (poFail root) then "fail"
+                 else if not $ Set.null $ Map.keysSet (poPass me) `Set.intersection` Map.keysSet (poFail root) then "pass" else "")
+               ,span__ [class_ "nobr"] $ str_ $
+                    "Testing (passed " ++ show (maybe (Map.size $ poPass me) (\p -> Set.size $ paPass $ Map.findWithDefault mempty p patchInfo) patch) ++
+                    " of " ++ maybe "?" (show . Set.size) (poTests root) ++ ")")
+        _ | Just p <- patch, p `elem` concatMap (maybe [] snd . uiPrevious) updates
+            -> ("dull", span__ [class_ "good"] $ str_ "Success")
+        _ | Just p <- patch, p `elem` fromMaybe [] paused
+            -> ("dull", str_ "Paused")
+        _ | Just p <- patch, xs <- concatMap (map snd3 . take 1) $ Map.elems $ paReject $ Map.findWithDefault mempty p patchInfo
+            -> ("dull",) $ do
+                span__ [class_ "bad"] $ str_ "Rejected"
+                when (xs /= []) br_
+                span__ [class_ "info"] $ commasLimit_ 3 $ map showQuestion xs
+        _ | xs@(_:_) <- concatMap (map snd3 . take 1) $ Map.elems $ poReject $ Map.findWithDefault mempty (newPoint server (state0 server,[])) pointInfo
+            -> ("dull",) $ do
+                span__ [class_ "bad"] $ str_ "Failed"
+        _ -> ("dull", span__ [class_ "good"] $ str_ "Success")
     where
+        time | Just p <- patch = maybe mempty (showTime . fst) $ find ((==) p . snd) submitted
+             | otherwise = showTime $ uiTime $ last updates
+
+        state = do
+            maybe (str_ "Initial state " <> showState s0) ((str_ "Patch " <>) . showPatch) patch
+            str_ $ " by " ++ commasLimit 3 (nubOrd $ Map.findWithDefault [] patch authors)
+            br_
+            span__ [class_ "info"] $ showExtra $ maybe (Left s0) Right patch
+
         s0 = state0 server
 
         special | argsAdmin, Just p <- patch =
@@ -321,45 +332,3 @@ rowClient Shower{..} Server{..} Nothing = ("",) $
     ,showLink ("server=" ++ show (length updates - 1))
         (str_ $ if length updates == 1 then "Initialised" else "Updated") <>
      str_ " finished " <> showTime (uiTime $ head updates)]
-
-
----------------------------------------------------------------------
--- LOGIC
-
-data Status
-    = Unknown                    -- ^ Been given, not yet been prepared
-    | Progressing [Test] [Test]  -- ^ In progress, on left have been done, on right still todo.
-                                 --   Once all done, not yet accepted, merely plausible.
-    | Accepted                   -- ^ Accepted, rolled into production
-    | Paused                     -- ^ In the pause queue
-    | Rejected [Question]        -- ^ Rejected, because of the following tests
-
-
--- | Nothing stands for using the zero patch on the initial state 
-patchStatus :: Server -> Maybe Patch -> Status
--- Simple cases
-patchStatus server (Just p)
-    | p `elem` concatMap (maybe [] snd . uiPrevious) (updates server) = Accepted
-    | p `elem` fromMaybe [] (paused server) = Paused
-patchStatus server Nothing
-    | length (updates server) > 1 = Accepted
-
--- Detect rejection
-patchStatus server (Just p)
-    -- we may have previously failed, but been requeued, so if we're active don't hunt for reject
-    | p `notElem` snd (target server)
-    , bad <- reverse $ answered server [lastPatch' p, blame']
-    = Rejected $ nubOrd $ map fst bad
-    -- note we may be rejected with null bad, could be due to admin action
-patchStatus server Nothing
-    | fails@(_:_) <- reverse $ answered server [candidate' (state0 server, []), failure']
-    = Rejected $ map fst fails
-
--- Detect progress
-patchStatus server p
-    | let filt = maybe (candidate' (state0 server, [])) patch' p
-    , total:_ <- map (aTests . snd) $ answered server [filt, test' Nothing]
-    , done <- nubOrd $ mapMaybe (qTest . fst) $ answered server [filt, success']
-    , todo <- total \\ done
-    = if null todo && isNothing p then Accepted else Progressing done todo
-patchStatus _ _ = Unknown
