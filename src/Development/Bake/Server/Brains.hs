@@ -7,7 +7,7 @@ module Development.Bake.Server.Brains(
 import Development.Bake.Core.Message
 import Development.Bake.Core.Type
 import Development.Bake.Server.Type
-import Development.Bake.Server.Query
+import Development.Bake.Server.Query(asked, test', candidateExact', answered, success', client')
 import Control.DeepSeq
 import Data.Maybe
 import Data.Monoid
