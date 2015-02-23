@@ -66,11 +66,12 @@ instance Monoid PointInfo where
 
 data PatchInfo = PatchInfo
     {paReject :: Set (Maybe Test)
+    ,paPass :: Set (Maybe Test)
     }
 
 instance Monoid PatchInfo where
-    mempty = PatchInfo mempty
-    mappend (PatchInfo x1) (PatchInfo y1) = PatchInfo (x1<>y1)
+    mempty = PatchInfo mempty mempty
+    mappend (PatchInfo x1 x2) (PatchInfo y1 y2) = PatchInfo (x1<>y1) (x2<>y2)
 
 data Server = Server
     {history :: [(UTCTime, Question, Maybe Answer)]
@@ -124,6 +125,9 @@ addAnswer q@Question{..} a@Answer{..} server
                    _ -> s & _pointInfo . atm pt . _poTests .~ Just todo) $
         -- add to poPass/poFail
         (_pointInfo . atm pt . (if aSuccess then _poPass else _poFail) . atm qTest %~ (:) (t, q, a)) $
+        -- add to paPass
+        (if not aSuccess || null (snd qCandidate) then id
+         else _patchInfo . atm (last $ snd qCandidate) . _paPass %~ Set.insert qTest) $
         -- update rejectables
         (\s -> case rewindPoint pt of
             Just (prev, patch)
@@ -248,5 +252,6 @@ _poPass = makeLens poPass $ \v x -> x{poPass=v}
 _poFail = makeLens poFail $ \v x -> x{poFail=v}
 _poReject = makeLens poReject $ \v x -> x{poReject=v}
 _paReject = makeLens paReject $ \v x -> x{paReject=v}
+_paPass = makeLens paPass $ \v x -> x{paPass=v}
 _fatal = makeLens fatal $ \v x -> x{fatal=v}
 _rejectable = makeLens rejectable $ \v x -> x{rejectable=v}
