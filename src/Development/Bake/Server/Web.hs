@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, ViewPatterns #-}
+{-# LANGUAGE RecordWildCards, ViewPatterns, TupleSections #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Web(
@@ -77,7 +77,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
          else if isJust argsServer then do
             let s = fromJust argsServer
             table "No server operations" ["Time","Job","Status"] $
-                map (rowUpdate shower server) $
+                map (("",) . rowUpdate shower server) $
                     filter (maybe (const True) (==) s . fst) $
                     reverse $ zip [0..] $ reverse updates
             whenJust s $ \s -> do
@@ -88,7 +88,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
          else do
             let xs = filter (argsFilter a . snd3) history
             table "No runs" ["Time","Job","Status"] $
-                map (rowHistory shower server) xs
+                map (("",) . rowHistory shower server) xs
 
             case xs of
                 _ | Just s <- argsState, argsEmpty a{argsState=Nothing} ->
@@ -148,11 +148,11 @@ admin :: Message -> HTML -> HTML
 admin (messageToInput -> Input parts args _) body = a__ [href_ url, class_ "admin"] body
     where url = intercalate "/" parts ++ "?" ++ intercalate "&" [a ++ "=" ++ b | (a,b) <- args]
 
-table :: String -> [String] -> [[HTML]] -> HTML
+table :: String -> [String] -> [(String, [HTML])] -> HTML
 table zero cols [] = p_ $ str_ zero
 table _ cols body = table_ $ do
     thead_ $ tr_ $ mconcat $ map (td_ . str_) cols
-    tbody_ $ mconcat $ [tr_ $ mconcat $ map td_ x | x <- body]
+    tbody_ $ mconcat $ [tr__ [class_ cls] $ mconcat $ map td_ x | (cls,x) <- body]
 
 
 data Shower = Shower
@@ -272,8 +272,8 @@ rowUpdate Shower{..} Server{..} (i,UpdateInfo{..}) = [showTime uiTime, body, sho
             str_ "To " <> showState uiState
 
 
-rowPatch :: Shower -> Server -> Bool -> Maybe Point -> Maybe Patch -> [HTML]
-rowPatch Shower{..} server@Server{..} argsAdmin point patch =
+rowPatch :: Shower -> Server -> Bool -> Maybe Point -> Maybe Patch -> (String, [HTML])
+rowPatch Shower{..} server@Server{..} argsAdmin point patch = ("",) $
     [case patch of
         Nothing -> showTime $ uiTime $ last updates
         Just p -> maybe mempty (showTime . fst) $ find ((==) p . snd) submitted
@@ -316,12 +316,12 @@ rowPatch Shower{..} server@Server{..} argsAdmin point patch =
                 | otherwise = mempty
 
 
-rowClient :: Shower -> Server -> Maybe Client -> [HTML]
-rowClient Shower{..} server (Just c) =
+rowClient :: Shower -> Server -> Maybe Client -> (String, [HTML])
+rowClient Shower{..} server (Just c) = ((if maybe False piAlive $ Map.lookup c $ pings server then "" else "dead"),) $
     [showLink ("client=" ++ fromClient c) $ str_ $ fromClient c
     ,if null xs then i_ $ str_ "None" else mconcat $ intersperse br_ xs]
     where xs = reverse [showQuestion q <> str_ " started " <> showTime t | (t,q,Nothing) <- history server, qClient q == c]
-rowClient Shower{..} Server{..} Nothing =
+rowClient Shower{..} Server{..} Nothing = ("",) $
     [showLink "server=" $ i_ $ str_ "Server"
     ,showLink ("server=" ++ show (length updates - 1))
         (str_ $ if length updates == 1 then "Initialised" else "Updated") <>
