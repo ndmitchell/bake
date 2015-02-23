@@ -35,7 +35,8 @@ over :: Lens s a -> (a -> a) -> s -> s
 over l f s = runIdentity $ l (Identity . f) s
 
 (^.) :: s -> Lens s a -> a
-(^.) = flip view
+s ^. l = getConst $ l Const s
+-- flip view doesn't work in 7.10, I guess because the forall gets lifted to the top
 
 (&) :: a -> (a -> b) -> b
 (&) = flip ($)
