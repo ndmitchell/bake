@@ -53,7 +53,7 @@ data UpdateInfo = UpdateInfo
     } deriving (Eq,Show)
 
 data PointInfo = PointInfo
-    {poTodo :: Maybe (Set Test)
+    {poTests :: Maybe (Set Test)
     ,poPass :: Map (Maybe Test) [(UTCTime, Question, Answer)]
     ,poFail :: Map (Maybe Test) [(UTCTime, Question, Answer)]
     ,poReject :: Set (Maybe Test)
@@ -118,10 +118,10 @@ addAnswer q@Question{..} a@Answer{..} server
         in
         -- add to poTodo
         (\s -> let todo = Set.fromList $ aTests a in
-               case s ^. _pointInfo . atm pt . _poTodo of
+               case s ^. _pointInfo . atm pt . _poTests of
                    _ | qTest /= Nothing -> s
                    Just v | v /= todo -> s & _fatal %~ (:) ("Inconsistent tests for " ++ show qCandidate)
-                   _ -> s & _pointInfo . atm pt . _poTodo .~ Just todo) $
+                   _ -> s & _pointInfo . atm pt . _poTests .~ Just todo) $
         -- add to poPass/poFail
         (_pointInfo . atm pt . (if aSuccess then _poPass else _poFail) . atm qTest %~ (:) (t, q, a)) $
         -- update rejectables
@@ -132,7 +132,7 @@ addAnswer q@Question{..} a@Answer{..} server
                            (_patchInfo . atm patch . _paReject %~ Set.insert qTest)
                 | not aSuccess -> s & _rejectable . atm (prev, qTest) %~ (:) pt
             _ | aSuccess, xs <- s ^. _rejectable . atm (pt, qTest)
-                -> foldr ($) (s & _rejectable %~ Map.delete (pt, qTest))
+                -> foldr ($) (s & _rejectable . at (pt, qTest) .~ Nothing)
                         [   (_pointInfo . atm x . _poReject %~ Set.insert qTest)
                           . (_patchInfo . atm (snd $ fromJust $ rewindPoint x) . _paReject %~ Set.insert qTest)
                         | x <- xs]
@@ -243,7 +243,7 @@ translate server s1 (s2,p2) = stripPrefix pp1 pp2
 
 _pointInfo = makeLens pointInfo $ \v x -> x{pointInfo=v}
 _patchInfo = makeLens patchInfo $ \v x -> x{patchInfo=v}
-_poTodo = makeLens poTodo $ \v x -> x{poTodo=v}
+_poTests = makeLens poTests $ \v x -> x{poTests=v}
 _poPass = makeLens poPass $ \v x -> x{poPass=v}
 _poFail = makeLens poFail $ \v x -> x{poFail=v}
 _poReject = makeLens poReject $ \v x -> x{poReject=v}
