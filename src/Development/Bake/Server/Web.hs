@@ -22,7 +22,7 @@ import Data.Maybe
 import Control.Monad.Extra
 import Data.Monoid
 import Paths_bake
-import Development.Bake.Server.Query
+import Development.Bake.Server.Query(targetFailures)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Prelude
