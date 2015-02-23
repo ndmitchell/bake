@@ -2,7 +2,8 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Type(
-    Point(..), PointInfo(..), PatchInfo(..),
+    Point, newPoint,
+    PointInfo(..), PatchInfo(..),
     PingInfo(..), addPing, sFailure,
     UpdateInfo(..), addUpdate, ensurePauseInvariants,
     Server(..), server0, state0,
