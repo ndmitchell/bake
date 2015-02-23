@@ -213,7 +213,7 @@ stopPause server = ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $
 serverPrune :: UTCTime -> Server -> Server
 serverPrune cutoff s
     | null died = s
-    | otherwise = s{history = filter (flip elem died . qClient . snd3) $ history s
+    | otherwise = s{history = filter (flip notElem died . qClient . snd3) $ history s
                    ,pings = Map.map (\pi@PingInfo{..} -> pi{piAlive = piAlive && pClient piPing `notElem` died}) $ pings s}
     where died = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTime < cutoff, piAlive]
 
