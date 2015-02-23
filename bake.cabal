@@ -71,7 +71,6 @@ library
         Development.Bake.Git
         Development.Bake.Pretty
         Development.Bake.Server.Brains
-        Development.Bake.Server.Query
         Development.Bake.Server.Start
         Development.Bake.Server.Stats
         Development.Bake.Server.Type
