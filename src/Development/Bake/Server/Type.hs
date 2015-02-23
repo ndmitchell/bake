@@ -141,7 +141,8 @@ addAnswer q@Question{..} a@Answer{..} server
     | otherwise = server
 
 newPoint :: Server -> (State, [Patch]) -> Point
-newPoint Server{..} (s, ps) = Point $ newEqual $ (updatesIdx Map.! s) ++ ps
+newPoint Server{..} (s, ps) = Point $ newEqual $ (fromMaybe err $ Map.lookup s updatesIdx) ++ ps
+    where err = error $ "newPoint, failed to resolve state " ++ show s ++ ", not in " ++ show (Map.keys updatesIdx)
 
 rewindPoint :: Point -> Maybe (Point, Patch)
 rewindPoint (Point pt) = first (Point . newEqual) <$> unsnoc (fromEqual pt)
