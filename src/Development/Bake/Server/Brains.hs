@@ -55,7 +55,7 @@ brains info server@Server{..} Ping{..}
             = listToMaybe $ Map.keys poFail
         isRejected (newPoint server -> pt)
             | Just PointInfo{..} <- Map.lookup pt pointInfo
-            = listToMaybe $ Set.toList poReject
+            = listToMaybe $ Map.keys poReject
         isRejected _ = Nothing
 
 

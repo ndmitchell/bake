@@ -56,7 +56,7 @@ data PointInfo = PointInfo
     {poTests :: Maybe (Set Test)
     ,poPass :: Map (Maybe Test) [(UTCTime, Question, Answer)]
     ,poFail :: Map (Maybe Test) [(UTCTime, Question, Answer)]
-    ,poReject :: Set (Maybe Test)
+    ,poReject :: Map (Maybe Test) [(UTCTime, Question, Answer)]
     } deriving Show
 
 instance Monoid PointInfo where
@@ -65,7 +65,7 @@ instance Monoid PointInfo where
         PointInfo (x1<>y1) (x2<>y2) (x3<>y3) (x4<>y4)
 
 data PatchInfo = PatchInfo
-    {paReject :: Set (Maybe Test)
+    {paReject :: Map (Maybe Test) [(UTCTime, Question, Answer)]
     ,paPass :: Set (Maybe Test)
     }
 
@@ -80,7 +80,7 @@ data Server = Server
         -- ^ Information about a point
     ,patchInfo :: Map Patch PatchInfo
         -- ^ Information about a patch
-    ,rejectable :: Map (Point, Maybe Test) [Point]
+    ,rejectable :: Map (Point, Maybe Test) [(Point, (UTCTime, Question, Answer))]
         -- ^ Things whose success lead to a rejection
     ,updates :: [UpdateInfo]
     ,updatesIdx :: Map State [Patch]
@@ -132,14 +132,14 @@ addAnswer q@Question{..} a@Answer{..} server
         (\s -> case rewindPoint pt of
             Just (prev, patch)
                 | not aSuccess, _:_ <- s ^. _pointInfo . atm prev . _poPass . atm qTest
-                    -> s & (_pointInfo . atm pt . _poReject %~ Set.insert qTest) .
-                           (_patchInfo . atm patch . _paReject %~ Set.insert qTest)
-                | not aSuccess -> s & _rejectable . atm (prev, qTest) %~ (:) pt
+                    -> s & (_pointInfo . atm pt . _poReject . atm qTest %~ (:) (t, q, a)) .
+                           (_patchInfo . atm patch . _paReject . atm qTest %~ (:) (t, q, a))
+                | not aSuccess -> s & _rejectable . atm (prev, qTest) %~ (:) (pt, (t, q, a))
             _ | aSuccess, xs <- s ^. _rejectable . atm (pt, qTest)
                 -> foldr ($) (s & _rejectable . at (pt, qTest) .~ Nothing)
-                        [   (_pointInfo . atm x . _poReject %~ Set.insert qTest)
-                          . (_patchInfo . atm (snd $ fromJust $ rewindPoint x) . _paReject %~ Set.insert qTest)
-                        | x <- xs]
+                        [   (_pointInfo . atm x . _poReject . atm qTest %~ (:) tqa)
+                          . (_patchInfo . atm (snd $ fromJust $ rewindPoint x) . _paReject . atm qTest %~ (:) tqa)
+                        | (x,tqa) <- xs]
             _ -> s) $
         -- add to history
         server{history = pre ++ (t,q,Just a) : post}
