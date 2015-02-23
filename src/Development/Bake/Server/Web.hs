@@ -22,7 +22,6 @@ import Data.Maybe
 import Control.Monad.Extra
 import Data.Monoid
 import Paths_bake
-import Development.Bake.Server.Query(targetFailures)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Prelude
@@ -246,7 +245,7 @@ failures :: Shower -> Server -> HTML
 failures Shower{..} server = when (xs /= []) $ do
     p_ $ str_ "Tracking down failures in:"
     ul_ $ mconcat $ map (li_ . showTest) xs
-    where xs = nubOrd $ map fst $ targetFailures server
+    where xs = Map.keys $ poFail $ Map.findWithDefault mempty (newPoint server (target server)) $ pointInfo server
 
 
 showAnswer :: Maybe Answer -> HTML
