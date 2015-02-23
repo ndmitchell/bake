@@ -212,8 +212,11 @@ stopPause server = ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $
 
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
 serverPrune :: UTCTime -> Server -> Server
-serverPrune cutoff s = s{history = filter (flip elem clients . qClient . snd3) $ history s}
-    where clients = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTime >= cutoff]
+serverPrune cutoff s
+    | null died = s
+    | otherwise = s{history = filter (flip elem died . qClient . snd3) $ history s
+                   ,pings = Map.map (\pi@PingInfo{..} -> pi{piAlive = piAlive && pClient piPing `notElem` died}) $ pings s}
+    where died = [pClient piPing | PingInfo{..} <- Map.elems $ pings s, piTime >= cutoff, piAlive]
 
 addPing :: UTCTime -> Ping -> Server -> Server
 addPing now ping s = s{pings = Map.insert (pClient ping) (PingInfo now ping True) $ pings s}
