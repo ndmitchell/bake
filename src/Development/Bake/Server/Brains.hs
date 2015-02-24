@@ -39,6 +39,8 @@ brains info server@Server{..} Ping{..}
     | (pt,t):_ <- [(pt,t) | pt <- points, Just t <- [isRejected pt]] = Reject (last $ snd pt) t
     | (c,t):_ <- filter (uncurry suitableTest) $ if isNothing failure then todoPass else todoFail
         = Task $ Question c t (threadsForTest t) pClient
+    | isJust failure && all (isJust . thd3) history = error $ show
+        ("FATAL ERROR", failure, todoFail, filter (uncurry suitableTest) todoFail, Ping{..})
     | otherwise = Sleep
     where
         points = map (fst target,) $ reverse $ tail $ inits $ snd target
