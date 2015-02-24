@@ -33,7 +33,7 @@ runUpdate s ps = runAll "update" (state s : map patch ps) [] State
 runTest :: State -> [Patch] -> Maybe Test -> IO Answer
 runTest s ps t = do
     (ex, ans) <- runAll "test" (state s : map patch ps) (map test $ maybeToList t) (both (map Test) . read)
-    return $ maybe ans (\ex -> ans{aTestsSuitable=ex}) ex
+    return $ maybe ans (\ex -> ans{aTestsSuitable=ex}) (if t == Nothing then ex else Nothing)
 
 runExtra :: State -> Maybe Patch -> IO (Maybe (Str, Str), Answer)
 runExtra s ps = runAll "extra" (state s : map patch (maybeToList ps)) [] (both strPack . read)
