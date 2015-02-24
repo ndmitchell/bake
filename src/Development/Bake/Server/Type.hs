@@ -66,7 +66,7 @@ instance Monoid PointInfo where
 data PatchInfo = PatchInfo
     {paReject :: Map (Maybe Test) [(UTCTime, Question, Answer)]
     ,paPass :: Set (Maybe Test)
-    }
+    } deriving Show
 
 instance Monoid PatchInfo where
     mempty = PatchInfo mempty mempty
@@ -98,7 +98,7 @@ data Server = Server
         -- ^ Extra information that was computed for each string (cached forever)
     ,fatal :: [String]
         -- ^ A list of fatal error messages that have been raised by the server
-    }
+    } deriving Show
 
 sFailure :: State
 sFailure = State ""

@@ -93,7 +93,8 @@ pagedLookup i p@Paged{..}
 data Str = StrPinned Text.Text
          | StrPaged Int
 
-instance Show Str where show = strUnpack
+instance Show Str where
+    show _ = "Str" -- useful for debugging, and we don't look inside strings
 instance Eq Str where
     StrPinned x == StrPinned y = x == y
     StrPaged x == StrPaged y = x == y

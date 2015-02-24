@@ -16,6 +16,8 @@ data DelayCache k v = DelayCache
     ,info :: Var (Map.Map k v)
     }
 
+instance Show (DelayCache k v) where
+    show _ = "DelayCache"
 
 newDelayCache :: IO (DelayCache k v)
 newDelayCache = do

@@ -77,6 +77,10 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
             stats
             return "stats"
 
+         else if argsRaw then do
+            str_ $ show server
+            return "raw"
+
          else if isJust argsServer then do
             let s = fromJust argsServer
             table "No server operations" ["Time","Job","Status"] $
@@ -120,6 +124,7 @@ data Args = Args
     ,argsServer :: Maybe (Maybe Int)
     ,argsAdmin :: Bool
     ,argsStats :: Bool
+    ,argsRaw :: Bool
     }
     deriving (Show,Eq)
 
@@ -135,6 +140,7 @@ args xs = Args
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ read x) $ ask "server")
     (not $ null $ ask "admin")
     (not $ null $ ask "stats")
+    (not $ null $ ask "raw")
     where ask x = map snd $ filter ((==) x . fst) xs
 
 argsFilter :: Args -> Question -> Bool
