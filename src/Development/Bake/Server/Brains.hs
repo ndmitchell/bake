@@ -40,7 +40,7 @@ brains info server@Server{..} Ping{..}
     | (c,t):_ <- filter (uncurry suitableTest) $ if isNothing failure then todoPass else todoFail
         = Task $ Question c t (threadsForTest t) pClient
     | isJust failure && all (isJust . thd3) history = error $ show
-        ("FATAL ERROR", failure, todoFail, filter (uncurry suitableTest) todoFail, Ping{..})
+        ("FATAL ERROR", failure, todoFail, map (uncurry suitableTest2) todoFail, Ping{..})
     | otherwise = Sleep
     where
         points = map (fst target,) $ reverse $ tail $ inits $ snd target
@@ -104,6 +104,23 @@ brains info server@Server{..} Ping{..}
             , all (`elem` clientDone) $ map Just $ testRequire $ info tt -- I have done all the dependencies
             = True
         suitableTest _ _ = False
+
+        suitableTest2 c t
+            | threadsForTest t > pNowThreads = "not enough threads" -- not enough threads
+        suitableTest2 c Nothing
+            | null $ asked server [self', test' Nothing, candidateExact' c] -- I am not already running it
+            = "not already running it and prepare"
+        suitableTest2 c t@(Just tt)
+            | [] <- map (fst . aTestsSuitable . snd) $ answered server [self', success', test' Nothing, candidateExact' c]
+            = "no suitable tests for this client"
+        suitableTest2 c t@(Just tt)
+            | clientTests:_ <- map (fst . aTestsSuitable . snd) $ answered server [self', success', test' Nothing, candidateExact' c]
+            , clientDone <- map (qTest . fst) $ answered server [success', self', candidateExact' c]
+            , tt `elem` clientTests -- it is one of the tests this client is suitable for
+            , null $ asked server [test' t, self', candidateExact' c] -- I am not running it or have run it
+            , all (`elem` clientDone) $ map Just $ testRequire $ info tt -- I have done all the dependencies
+            = show (tt `elem` clientTests, null $ asked server [test' t, self', candidateExact' c], all (`elem` clientDone) $ map Just $ testRequire $ info tt, clientDone, testRequire $ info tt, tt, clientTests)
+        suitableTest2 _ _ = "fallthrough"
 
         self' = client' pClient
 
