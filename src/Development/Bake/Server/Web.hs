@@ -51,8 +51,9 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
             failures shower server
             let toPoint p | ps@(_:_) <- dropWhileEnd (/= p) (snd target) = Just $ newPoint server (fst target, ps)
                           | otherwise = Nothing
+            let active = [fmap snd $ unsnoc $ snd $ qCandidate q | (t,q,Nothing) <- history]
             table "No patches submitted" ["Time","Job","Status"]
-                (map (\p -> rowPatch shower server argsAdmin (maybe Nothing toPoint p) p) $
+                (map (\p -> rowPatch shower server argsAdmin (p `elem` active) (maybe Nothing toPoint p) p) $
                     nubOrd (map (Just . snd) submitted) ++ [Nothing])
             h2_ $ str_ "Clients"
             table "No clients available" ["Name","Running"]
@@ -282,14 +283,15 @@ rowUpdate Shower{..} Server{..} (i,UpdateInfo{..}) = [showTime uiTime, body, sho
             str_ "To " <> showState uiState
 
 
-rowPatch :: Shower -> Server -> Bool -> Maybe Point -> Maybe Patch -> (String, [HTML])
-rowPatch Shower{..} server@Server{..} argsAdmin point patch = second (\x -> [time,state,x <> special]) $
+rowPatch :: Shower -> Server -> Bool -> Bool -> Maybe Point -> Maybe Patch -> (String, [HTML])
+rowPatch Shower{..} server@Server{..} argsAdmin active point patch = second (\x -> [time,state,x <> special]) $
     case () of
         _ | Just p <- point
           , me <- Map.findWithDefault mempty p pointInfo
           , root <- Map.findWithDefault mempty (newPoint server target) pointInfo
             -> ((if not $ Set.null $ Map.keysSet (poFail me) `Set.intersection` Map.keysSet (poFail root) then "fail"
-                 else if not $ Set.null $ Map.keysSet (poPass me) `Set.intersection` Map.keysSet (poFail root) then "pass" else "")
+                 else if not $ Set.null $ Map.keysSet (poPass me) `Set.intersection` Map.keysSet (poFail root) then "pass"
+                 else if active then "active" else "")
                ,span__ [class_ "nobr"] $ str_ $
                     "Testing (passed " ++ show (maybe (Map.size $ poPass me) (\p -> Set.size $ paPass $ Map.findWithDefault mempty p patchInfo) patch) ++
                     " of " ++ maybe "?" (show . Set.size) (poTests root) ++ ")")
