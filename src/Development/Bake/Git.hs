@@ -118,7 +118,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
                 "git diff --stat" [s ++ "..." ++ p]
             Stdout log <- cmd (Cwd mirror)
                 "git log --no-merges -n1 --pretty=format:%s" [p]
-            return (renderHTML $ do str_ $ reduceStat stat; br_; str_ $ takeWhile (/= '\n') log
+            return (renderHTML $ do str_ $ reduceStat stat; br_; str_ $ take 120 $ takeWhile (/= '\n') log
                    ,renderHTML $ pre_ $ do prettyStat stat; str_ "\n"; prettyDiff diff)
 
 
