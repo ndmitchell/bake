@@ -19,6 +19,7 @@ import Data.Tuple.Extra
 import System.Time.Extra
 import Data.Version
 import Data.Maybe
+import Control.Applicative
 import Control.Monad.Extra
 import Data.Monoid
 import Paths_bake
@@ -286,9 +287,9 @@ rowUpdate Shower{..} Server{..} (i,UpdateInfo{..}) = [showTime uiTime, body, sho
 rowPatch :: Shower -> Server -> Bool -> Bool -> Maybe Point -> Maybe Patch -> (String, [HTML])
 rowPatch Shower{..} server@Server{..} argsAdmin active point patch = second (\x -> [time,state,x <> special]) $
     case () of
-        _ | Just p <- point
-          , me <- Map.findWithDefault mempty p pointInfo
-          , root <- Map.findWithDefault mempty (newPoint server target) pointInfo
+        _ | root <- Map.findWithDefault mempty (newPoint server target) pointInfo
+          , Just me <- if patch == Nothing && target == (state0 server, []) && Map.null (poFail root) && maybe False (\x -> Set.size x + 1 == Map.size (poPass root)) (poTests root) then Just root
+                       else (\p -> Map.findWithDefault mempty p pointInfo) <$> point
             -> ((if not $ Set.null $ Map.keysSet (poFail me) `Set.intersection` Map.keysSet (poFail root) then "fail"
                  else if not $ Set.null $ Map.keysSet (poPass me) `Set.intersection` Map.keysSet (poFail root) then "pass"
                  else if active then "active" else "")
