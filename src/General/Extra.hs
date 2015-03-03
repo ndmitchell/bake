@@ -77,11 +77,18 @@ timed msg act = do
     return r
 
 
+withTempTemplate :: FilePath -> (FilePath -> IO a) -> IO a
+withTempTemplate file act = bracket
+    (uncurry openTempFile $ splitFileName file)
+    (\(file, hndl) -> do hClose hndl; ignore $ removeFile file)
+    (\(file, hndl) -> do hClose hndl; act file)
+
+
 withFileLock :: FilePath -> IO a -> IO a
 withFileLock file act = do
     createDirectoryIfMissing True $ takeDirectory file
     active <- newVar True
-    withTempFile $ \tmp ->
+    withTempTemplate file $ \tmp ->
         whileM $ do
             writeFile tmp ""
             mtime <- try_ $ getModificationTime file
