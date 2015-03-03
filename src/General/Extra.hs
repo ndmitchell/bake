@@ -105,6 +105,9 @@ withFileLock file act = do
                     b <- try_ $ renameFile tmp file
                     hPutStrLn stderr $ show b
                     if isRight b then return False else sleep 10 >> return True
+
+    -- important to canonicalize as the act might change the current directory
+    file <- canonicalizePath file
     thread <- forkSlave $ forever $ do
         sleep 30
         withVar active $ \b -> when b $ do
