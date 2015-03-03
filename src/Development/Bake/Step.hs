@@ -17,8 +17,8 @@ import Data.List.Extra
 import System.IO.Extra
 
 
-ovenStepGit :: String -> String -> Maybe FilePath -> IO [FilePath] -> Oven () () test -> Oven SHA1 SHA1 test
-ovenStepGit repo branch (fromMaybe "repo" -> path) act o = o
+ovenStepGit :: IO [FilePath] -> String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SHA1 test
+ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
     {ovenUpdateState = ovenUpdateState $ ovenGit repo branch (Just path) o
     ,ovenPrepare = \s ps -> do stepPrepare s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenPatchExtra = stepExtra
