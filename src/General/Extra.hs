@@ -3,6 +3,7 @@
 module General.Extra(
     UTCTime, getCurrentTime, addSeconds, showRelativeTime, relativeTime,
     createDir,
+    withFileLock,
     pick,
     timed,
     newCVar, readCVar, modifyCVar, modifyCVar_,
@@ -16,15 +17,17 @@ import Data.Time.Clock
 import Data.Time.Calendar
 import System.Time.Extra
 import System.IO.Unsafe
+import System.IO.Extra
 import Data.IORef
 import Data.List.Extra
-import System.Directory
+import System.Directory.Extra
 import Data.Hashable
 import System.FilePath
-import Control.Exception
+import Control.Exception.Extra
 import Control.Monad.Extra
 import Control.Concurrent.Extra
 import System.Random
+import Data.Either
 import qualified Data.Set as Set
 
 
@@ -72,6 +75,29 @@ timed msg act = do
     (t,r) <- duration act
     putStrLn $ "Spent " ++ showDuration t ++ " on " ++ msg
     return r
+
+
+withFileLock :: FilePath -> IO a -> IO a
+withFileLock file act = do
+    createDirectoryIfMissing True $ takeDirectory file
+    active <- newVar True
+    withTempFile $ \tmp ->
+        whileM $ do
+            writeFile tmp ""
+            mtime <- try_ $ getModificationTime file
+            now <- getCurrentTime
+            case mtime of
+                Right x | addSeconds 60 x < now -> sleep 10 >> return True
+                _ -> do
+                    b <- try_ $ renameFile tmp file
+                    if isRight b then return False else sleep 10 >> return True
+    thread <- forkSlave $ forever $ do
+        sleep 30
+        withVar active $ \b -> when b $ writeFile file ""
+    act `finally` do
+        modifyVar_ active $ const $ return False
+        killThread thread
+        ignore $ removeFile file
 
 
 ---------------------------------------------------------------------
