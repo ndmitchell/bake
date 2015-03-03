@@ -1,7 +1,7 @@
-{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, TupleSections #-}
+{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, TupleSections, CPP #-}
 
 module General.Extra(
-    UTCTime, getCurrentTime, addSeconds, showRelativeTime, relativeTime,
+    UTCTime, getCurrentTime, addSeconds, showRelativeTime, relativeTime, showUTCTime,
     createDir,
     withFileLock,
     pick,
@@ -28,6 +28,10 @@ import Control.Monad.Extra
 import Control.Concurrent.Extra
 import System.Random
 import Data.Either.Extra
+import Data.Time.Format
+#if __GLASGOW_HASKELL__< 710
+import System.Locale
+#endif
 import qualified Data.Set as Set
 
 
@@ -52,6 +56,9 @@ showRelativeTime = do
                    ]
             (i,s) = head $ dropWhile ((==) 0 . fst) poss
         in show i ++ " " ++ s ++ ['s' | i /= 1] ++ " ago"
+
+showUTCTime :: String -> UTCTime -> String
+showUTCTime = formatTime defaultTimeLocale
 
 
 {-# NOINLINE createDirLock #-}
