@@ -90,17 +90,25 @@ withFileLock file act = do
     active <- newVar True
     withTempTemplate file $ \tmp ->
         whileM $ do
+            hPutStrLn stderr "writing out temp file"
             writeFile tmp ""
+            hPutStrLn stderr "done writing out temp file"
             mtime <- try_ $ getModificationTime file
+            hPutStrLn stderr $ show mtime
             now <- getCurrentTime
             case mtime of
                 Right x | addSeconds 60 x < now -> sleep 10 >> return True
                 _ -> do
+                    hPutStrLn stderr "trying to rename"
                     b <- try_ $ renameFile tmp file
+                    hPutStrLn stderr $ show b
                     if isRight b then return False else sleep 10 >> return True
     thread <- forkSlave $ forever $ do
         sleep 30
-        withVar active $ \b -> when b $ writeFile file ""
+        withVar active $ \b -> when b $ do
+            hPutStrLn stderr "tickling temp file"
+            writeFile file ""
+            hPutStrLn stderr "done tickling temp file"
     act `finally` do
         modifyVar_ active $ const $ return False
         killThread thread
