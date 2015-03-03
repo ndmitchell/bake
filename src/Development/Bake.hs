@@ -8,7 +8,7 @@ module Development.Bake(
     Oven(..), defaultOven,
     Stringy(..), readShowStringy,
     -- ** Oven modifiers
-    ovenTest, ovenGit, ovenNotifyStdout, ovenNotifyEmail, ovenPretty,
+    ovenTest, ovenGit, SHA1, ovenNotifyStdout, ovenNotifyEmail, ovenPretty,
     ovenIncremental, incrementalStart, incrementalDone,
     -- ** TestInfo members
     TestInfo, run, threads, threadsAll, require, suitable, priority,
