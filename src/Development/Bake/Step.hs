@@ -16,6 +16,7 @@ import General.Extra
 import Data.Maybe
 import Data.List.Extra
 import System.IO.Extra
+import System.IO.Unsafe
 
 
 ovenStepGit :: IO [FilePath] -> String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SHA1 test
@@ -27,6 +28,10 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
     ,ovenStringyPatch = stringySHA1
     }
     where
+        -- use a different failure name each run, so failures don't get persisted
+        failure = unsafePerformIO $ do
+            t <- getCurrentTime
+            return $ "failure-" ++ showUTCTime "%Y-%m-%dT%H-%M-%S%Q" t <.> "txt"
         root = createDir "../bake-step-git" [repo,branch]
 
         gitEnsure = do
@@ -69,11 +74,11 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
                             unit $ cmd (Cwd git) "git merge" (fromSHA1 $ last ps)
                         dir <- createDir (root </> ".bake-point") $ map fromSHA1 $ s : ps
                         unlessM (doesFileExist $ dir </> "result.txt") $ do
-                            whenM (doesFileExist $ dir </> "failure.txt") $ do
+                            whenM (doesFileExist $ dir </> failure) $ do
                                 hPutStrLn stderr "failure found"
-                                fail =<< readFile' (dir </> "failure.txt")
+                                fail =<< readFile' (dir </> failure)
                             res <- withCurrentDirectory git act `catch_` \e -> do
-                                writeFile (dir </> "failure.txt") =<< showException e
+                                writeFile (dir </> failure) =<< showException e
                                 throwIO e
                             xs <- forM (zip [0..] res) $ \(i,out) -> do
                                 dir <- canonicalizePath dir
