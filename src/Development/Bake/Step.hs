@@ -72,7 +72,7 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
                             whenM (doesFileExist $ dir </> "failure.txt") $ do
                                 hPutStrLn stderr "failure found"
                                 fail =<< readFile' (dir </> "failure.txt")
-                            res <- withCurrentDirectory git $ act `catch_` \e -> do
+                            res <- withCurrentDirectory git act `catch_` \e -> do
                                 writeFile (dir </> "failure.txt") =<< showException e
                                 throwIO e
                             xs <- forM (zip [0..] res) $ \(i,out) -> do
