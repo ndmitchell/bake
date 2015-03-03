@@ -69,8 +69,14 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
                             unit $ cmd (Cwd git) "git merge" (fromSHA1 $ last ps)
                         dir <- createDir (root </> ".bake-point") $ map fromSHA1 $ s : ps
                         unlessM (doesFileExist $ dir </> "result.txt") $ do
-                            whenM (doesFileExist $ dir </> "failure.txt") $
+                            hPutStrLn stderr "before checking for failure"
+                            hPutStrLn stderr dir
+                            hPutStrLn stderr . show =<< doesDirectoryExist dir
+                            hPutStrLn stderr . show =<< doesFileExist (dir </> "failure.txt")
+                            whenM (doesFileExist $ dir </> "failure.txt") $ do
+                                hPutStrLn stderr "failure found"
                                 fail =<< readFile' (dir </> "failure.txt")
+                            hPutStrLn stderr "after checking for failure"
                             res <- withCurrentDirectory git $ act `catch_` \e -> do
                                 writeFile (dir </> "failure.txt") =<< showException e
                                 throwIO e
