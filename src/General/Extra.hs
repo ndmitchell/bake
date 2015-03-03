@@ -88,7 +88,9 @@ withFileLock :: FilePath -> IO a -> IO a
 withFileLock file act = do
     createDirectoryIfMissing True $ takeDirectory file
     active <- newVar True
-    withTempTemplate file $ \tmp ->
+    dir <- getCurrentDirectory
+    withTempTemplate file $ \tmp -> do
+        hPutStrLn stderr $ show (dir, file, tmp)
         whileM $ do
             hPutStrLn stderr "writing out temp file"
             writeFile tmp ""
