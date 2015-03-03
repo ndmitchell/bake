@@ -27,7 +27,7 @@ import Control.Exception.Extra
 import Control.Monad.Extra
 import Control.Concurrent.Extra
 import System.Random
-import Data.Either
+import Data.Either.Extra
 import qualified Data.Set as Set
 
 
