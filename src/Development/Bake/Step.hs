@@ -8,6 +8,7 @@ import Development.Bake.Core.Type
 import Development.Bake.Git
 import Development.Shake.Command
 import Development.Shake.FilePath
+import Control.Exception.Extra
 import Control.Monad.Extra
 import Control.Applicative
 import System.Directory.Extra
@@ -68,7 +69,11 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
                             unit $ cmd (Cwd git) "git merge" (fromSHA1 $ last ps)
                         dir <- createDir (root </> ".bake-point") $ map fromSHA1 $ s : ps
                         unlessM (doesFileExist $ dir </> "result.txt") $ do
-                            res <- withCurrentDirectory git act
+                            whenM (doesFileExist $ dir </> "failure.txt") $
+                                fail =<< readFile' (dir </> "failure.txt")
+                            res <- withCurrentDirectory git $ act `catch_` \e -> do
+                                writeFile (dir </> "failure.txt") =<< showException e
+                                throwIO e
                             xs <- forM (zip [0..] res) $ \(i,out) -> do
                                 dir <- canonicalizePath dir
                                 let tar = dir </> show i <.> "tar"
