@@ -8,7 +8,7 @@ import System.FilePath
 import Data.List.Extra
 import System.Directory
 import Control.Arrow
-import Control.Monad
+import Control.Monad.Extra
 import Data.Maybe
 import System.Time.Extra
 
