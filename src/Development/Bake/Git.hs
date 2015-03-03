@@ -43,7 +43,7 @@ ovenGit :: String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SH
 ovenGit repo branch (fromMaybe "." -> path) o = o
     {ovenUpdateState = gitUpdateState
     ,ovenPrepare = \s ps -> do gitCheckout s ps; ovenPrepare o () $ map (const ()) ps
-    ,ovenPatchExtra = gitPatchExtra
+    ,ovenPatchExtra = \s p -> gitPatchExtra s p =<< gitInitMirror
     ,ovenStringyState = stringySHA1
     ,ovenStringyPatch = stringySHA1
     }
@@ -102,28 +102,28 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             forM_ ps $ \p ->
                 timed "git merge" $ unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
 
-        gitPatchExtra s Nothing = traced "gitPatchExtra Nothing" $ do
-            mirror <- gitInitMirror
-            Stdout full <- cmd (Cwd mirror) "git log --no-merges -n10 --pretty=format:%s" [fromSHA1 s]
-            Stdout count <- cmd (Cwd mirror) "git rev-list --count" [fromSHA1 s]
-            let summary = takeWhile (/= '\n') full
-            return (renderHTML $ do str_ $ count ++ " patches"; br_; str_ summary
-                   ,renderHTML $ pre_ $ str_ full)
-
-        gitPatchExtra (SHA1 s) (Just (SHA1 p)) = traced "gitPatchExtra Just" $ do
-            mirror <- gitInitMirror
-            Stdout diff <- cmd (Cwd mirror)
-                "git diff" [s ++ "..." ++ p]
-            Stdout stat <- cmd (Cwd mirror)
-                "git diff --stat" [s ++ "..." ++ p]
-            Stdout log <- cmd (Cwd mirror)
-                "git log --no-merges -n1 --pretty=format:%s" [p]
-            return (renderHTML $ do str_ $ reduceStat stat; br_; str_ $ take 120 $ takeWhile (/= '\n') log
-                   ,renderHTML $ pre_ $ do prettyStat stat; str_ "\n"; prettyDiff diff)
-
 
 ---------------------------------------------------------------------
 -- DIFF UTILITIES
+
+gitPatchExtra :: SHA1 -> Maybe SHA1 -> FilePath -> IO (String, String)
+gitPatchExtra s Nothing dir = do
+    Stdout full <- cmd (Cwd dir) "git log --no-merges -n10 --pretty=format:%s" [fromSHA1 s]
+    Stdout count <- cmd (Cwd dir) "git rev-list --count" [fromSHA1 s]
+    let summary = takeWhile (/= '\n') full
+    return (renderHTML $ do str_ $ count ++ " patches"; br_; str_ summary
+           ,renderHTML $ pre_ $ str_ full)
+
+gitPatchExtra (SHA1 s) (Just (SHA1 p)) dir = do
+    Stdout diff <- cmd (Cwd dir)
+        "git diff" [s ++ "..." ++ p]
+    Stdout stat <- cmd (Cwd dir)
+        "git diff --stat" [s ++ "..." ++ p]
+    Stdout log <- cmd (Cwd dir)
+        "git log --no-merges -n1 --pretty=format:%s" [p]
+    return (renderHTML $ do str_ $ reduceStat stat; br_; str_ $ take 120 $ takeWhile (/= '\n') log
+           ,renderHTML $ pre_ $ do prettyStat stat; str_ "\n"; prettyDiff diff)
+
 
 reduceStat :: String -> String
 reduceStat = commasLimit 3 . map trim . map (takeWhile (/= '|')) . dropEnd 1 . lines
