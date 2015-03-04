@@ -116,7 +116,7 @@ withFileLock lock act = do
     let touch = do t <- show <$> getCurrentTime; ignore $ writeFile stamp t; return t
     unlessM (doesFileExist stamp) $ void touch
 
-    whileM $ do
+    (t,_) <- duration $ whileM $ do
         b <- try_ $ createDirectory lock
         if isRight b then do
             return False
@@ -132,6 +132,7 @@ withFileLock lock act = do
                     sleep 10 -- wait for the stamp to settle down
                     src <- try_ $ readFile' stamp
                     return $ either (const True) (/= me) src
+    putStrLn $ "Waited " ++ showDuration t ++ " to acquire the file lock " ++ lock
 
     active <- newVar True
     touch
