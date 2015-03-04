@@ -56,11 +56,14 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
             gitPatchExtra s p $ root </> path
 
         stepPrepare s ps = do
+            logEntry "stepPrepare"
             root <- root
             dir <- createDir (root </> ".bake-point") $ map fromSHA1 $ s : ps
             unlessM (doesFileExist $ dir </> "result.txt") $ do
                 git <- gitEnsure
+                logEntry "stepPrepare after gitEnsure"
                 withFileLock (root </> ".bake-lock") $ do
+                    logEntry "stepPrepare git initialise"
                     unit $ cmd (Cwd git) "git checkout" [branch]
                     unit $ cmd (Cwd git) "git reset --hard" ["origin/" ++ branch]
                     Stdout x <- cmd (Cwd git) "git rev-parse HEAD"
@@ -71,15 +74,17 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
                     forM_ (inits ps) $ \ps -> do
                         when (ps /= []) $ do
                             unit $ cmd (Cwd git) "git merge" (fromSHA1 $ last ps)
+                        logEntry "stepPrepare after merge"
                         dir <- createDir (root </> ".bake-point") $ map fromSHA1 $ s : ps
                         unlessM (doesFileExist $ dir </> "result.txt") $ do
                             whenM (doesFileExist $ dir </> failure) $ do
                                 hPutStrLn stderr "failure found"
                                 fail =<< readFile' (dir </> failure)
-                            res <- withCurrentDirectory git act `catch_` \e -> do
+                            res <- withCurrentDirectory git (timed "stepPrepare user action" act) `catch_` \e -> do
                                 writeFile (dir </> failure) =<< showException e
                                 throwIO e
                             xs <- forM (zip [0..] res) $ \(i,out) -> do
+                                logEntry "stepPrepare before tar"
                                 let tar = dir </> show i <.> "tar"
                                 tarrel <- makeRelativeEx (git </> out) tar
                                 print ("running tar", dir, tar, git </> out, tarrel)
@@ -87,12 +92,15 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
                                 md5 <- timed "running md5" $ fst . word1 . fromStdout <$> cmd "md5sum" [toStandard tar]
                                 let out = root </> ".bake-" ++ show i ++ "-" ++ md5 <.> "tar"
                                 ifM (doesFileExist out) (removeFile tar) (renameFile tar out)
+                                logEntry "stepPrepare after tar"
                                 return out
                             writeFile (dir </> "result.txt") $ unlines xs
             src <- lines <$> readFile' (dir </> "result.txt")
+            logEntry "stepPrepare before extract"
             dirs <- forM src $ \src -> do
                 createDirectoryIfMissing True $ dropExtension src
-                unit $ cmd "tar -xf" [src] "-C" [dropExtension src]
+                timed "tar extract" $ unit $ cmd "tar -xf" [src] "-C" [dropExtension src]
+            logEntry "stepPrepare after extract"
             writeFile ".bake-step" $ unlines $ map (toNative . dropExtension) src
 
 
