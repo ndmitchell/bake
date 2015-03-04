@@ -24,6 +24,7 @@ import System.Directory.Extra
 import Data.Hashable
 import System.FilePath
 import Control.Exception.Extra
+import Control.Applicative
 import Control.Monad.Extra
 import Control.Concurrent.Extra
 import System.Random
@@ -84,48 +85,53 @@ timed msg act = do
     return r
 
 
-withTempTemplate :: FilePath -> (FilePath -> IO a) -> IO a
-withTempTemplate file act = bracket
-    (uncurry openTempFile $ splitFileName file)
-    (\(file, hndl) -> do hClose hndl; ignore $ removeFile file)
-    (\(file, hndl) -> do hClose hndl; act file)
-
-
 withFileLock :: FilePath -> IO a -> IO a
-withFileLock file act = do
-    createDirectoryIfMissing True $ takeDirectory file
-    active <- newVar True
-    dir <- getCurrentDirectory
-    withTempTemplate file $ \tmp -> do
-        hPutStrLn stderr $ show (dir, file, tmp)
-        whileM $ do
-            hPutStrLn stderr "writing out temp file"
-            writeFile tmp ""
-            hPutStrLn stderr "done writing out temp file"
-            mtime <- try_ $ getModificationTime file
-            hPutStrLn stderr $ show mtime
-            now <- getCurrentTime
-            case mtime of
-                Right x | addSeconds 60 x < now -> sleep 10 >> return True
-                _ -> do
-                    hPutStrLn stderr "trying to rename"
-                    b <- try_ $ renameFile tmp file
-                    hPutStrLn stderr $ show b
-                    if isRight b then return False else sleep 10 >> return True
+withFileLock lock act = do
+    -- important to canonicalize everything as the act might change the current directory
+    createDirectoryIfMissing True $ takeDirectory lock
+    lock <- (</> takeFileName lock) <$> canonicalizePath (takeDirectory lock)
 
-    -- important to canonicalize as the act might change the current directory
-    file <- canonicalizePath file
+    let stamp = lock <.> "stamp"
+    let touch = do t <- show <$> getCurrentTime; ignore $ writeFile stamp t; return t
+    unlessM (doesFileExist stamp) $ void touch
+
+    whileM $ do
+        b <- try_ $ createDirectory lock
+        if isRight b then do
+            return False
+         else do
+            sleep 10
+            now <- getCurrentTime
+            mtime <- try_ $ getModificationTime stamp
+            case mtime of
+                Right x | addSeconds 30 x > now -> return True
+                _ -> do
+                    -- try and take ownership of the stamp
+                    me <- touch
+                    sleep 10 -- wait for the stamp to settle down
+                    src <- try_ $ readFile' stamp
+                    return $ either (const True) (/= me) src
+
+    active <- newVar True
+    touch
     thread <- forkSlave $ forever $ do
-        sleep 30
-        withVar active $ \b -> when b $ do
-            hPutStrLn stderr "tickling temp file"
-            writeFile file ""
-            hPutStrLn stderr "done tickling temp file"
+        sleep 10
+        withVar active $ \b -> when b $ void touch
     act `finally` do
         modifyVar_ active $ const $ return False
         killThread thread
-        ignore $ removeFile file
+        ignore $ removeDirectory lock
 
+{-
+tester :: IO ()
+tester = do
+    forM_ [1..2] $ \i -> do
+        forkIO $ withFileLock "mylock" $ do
+                print ("start", i)
+                sleep 60
+                print ("stop",i)
+    sleep 1000
+-}
 
 ---------------------------------------------------------------------
 -- CVAR
