@@ -83,8 +83,8 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
                                 let tar = dir </> show i <.> "tar"
                                 tarrel <- makeRelativeEx (git </> out) tar
                                 print ("running tar", dir, tar, git </> out, tarrel)
-                                unit $ cmd (Cwd $ git </> out) "tar -cf" [toStandard tarrel] ["."]
-                                md5 <- fst . word1 . fromStdout <$> cmd "md5sum" [toStandard tar]
+                                timed "tar create" $ unit $ cmd "tar -cf" [toStandard tar] "-C" [git </> out] "."
+                                md5 <- timed "running md5" $ fst . word1 . fromStdout <$> cmd "md5sum" [toStandard tar]
                                 let out = root </> ".bake-" ++ show i ++ "-" ++ md5 <.> "tar"
                                 ifM (doesFileExist out) (removeFile tar) (renameFile tar out)
                                 return out
