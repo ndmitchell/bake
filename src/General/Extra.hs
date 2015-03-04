@@ -8,6 +8,7 @@ module General.Extra(
     timed,
     newCVar, readCVar, modifyCVar, modifyCVar_,
     registerMaster, forkSlave,
+    makeRelativeEx,
     transitiveClosure, findCycle,
     putBlock,
     commas, commasLimit, unwordsLimit
@@ -83,6 +84,18 @@ timed msg act = do
     (t,r) <- duration act
     putStrLn $ "Spent " ++ showDuration t ++ " on " ++ msg
     return r
+
+
+makeRelativeEx :: FilePath -> FilePath -> IO FilePath
+makeRelativeEx x y = do
+    x <- splitDirectories <$> canonicalizePath x
+    y <- splitDirectories <$> canonicalizePath y
+    return $ joinPath $ if take 1 x /= take 1 y then y else f x y
+    where
+        f (x:xs) (y:ys)
+            | x == y = f xs ys
+            | otherwise = ".." : f xs (y:ys)
+        f _ ys = ys
 
 
 withFileLock :: FilePath -> IO a -> IO a
