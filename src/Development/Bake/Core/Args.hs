@@ -99,12 +99,15 @@ bake oven@Oven{..} = do
                 "Deleted " ++ show (length xs) ++ " items, " ++ show (length failed) ++ " failed"
 
         RunInit -> do
+            logEntry "start init"
             s <- ovenUpdateState Nothing
             writeFile ".bake.result" $ stringyTo ovenStringyState s
         RunUpdate{..} -> do
+            logEntry "start update"
             s <- ovenUpdateState $ Just (stringyFrom ovenStringyState state, map (stringyFrom ovenStringyPatch) patch)
             writeFile ".bake.result" $ stringyTo ovenStringyState s
         RunTest{..} -> do
+            logEntry "start test"
             case test of
                 Nothing -> do
                     let str = stringyTo ovenStringyTest
