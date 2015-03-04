@@ -6,6 +6,7 @@ module General.Extra(
     withFileLock,
     pick,
     timed,
+    logEntry,
     newCVar, readCVar, modifyCVar, modifyCVar_,
     registerMaster, forkSlave,
     makeRelativeEx,
@@ -61,6 +62,13 @@ showRelativeTime = do
 
 showUTCTime :: String -> UTCTime -> String
 showUTCTime = formatTime defaultTimeLocale
+
+{-# NOINLINE logTime #-}
+logTime :: IO Seconds
+logTime = unsafePerformIO offsetTime
+
+logEntry :: String -> IO ()
+logEntry msg = do t <- logTime; putStrLn $ "# BAKE LOG after " ++ showDuration t ++ ", " ++ msg
 
 
 {-# NOINLINE createDirLock #-}
