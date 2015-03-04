@@ -61,7 +61,6 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
             unlessM (doesFileExist $ dir </> "result.txt") $ do
                 git <- gitEnsure
                 withFileLock (root </> ".bake-lock") $ do
-                    unit $ cmd (Cwd git) "git reset --hard" ["origin/" ++ branch]
                     unit $ cmd (Cwd git) "git checkout" [branch]
                     unit $ cmd (Cwd git) "git reset --hard" ["origin/" ++ branch]
                     Stdout x <- cmd (Cwd git) "git rev-parse HEAD"
