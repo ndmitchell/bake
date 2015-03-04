@@ -84,7 +84,8 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
                                 dir <- canonicalizePath dir
                                 let tar = dir </> show i <.> "tar"
                                 tarrel <- (`makeRelative` tar) <$> canonicalizePath (git </> out)
-                                print ("running tar", dir, tar, git </> out, makeRelative (git </> out) tar, tarrel)
+                                can <- canonicalizePath (git </> out)
+                                print ("running tar", dir, tar, git </> out, makeRelative (git </> out) tar, can, tarrel)
                                 unit $ cmd (Cwd $ git </> out) "tar -cf" [toStandard tarrel] ["."]
                                 md5 <- fst . word1 . fromStdout <$> cmd "md5sum" [toStandard tar]
                                 let out = root </> ".bake-" ++ show i ++ "-" ++ md5 <.> "tar"
