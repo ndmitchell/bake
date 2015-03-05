@@ -56,7 +56,7 @@ execute (p,Compile) = matchOS p $ run $ unless useStep $ do
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $
     if useStep then do
         [dist] <- stepGet
-        cmd (dist </> "Main") (show i)
+        cmd (dist </> "dist" </> "Main") (show i)
     else
         cmd ("." </> "Main") (show i)
 
