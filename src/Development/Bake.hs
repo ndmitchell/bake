@@ -10,7 +10,7 @@ module Development.Bake(
     -- ** Oven modifiers
     ovenTest, ovenGit, SHA1, ovenNotifyStdout, ovenNotifyEmail, ovenPretty,
     ovenIncremental, incrementalStart, incrementalDone,
-    ovenStepGit, stepGet,
+    ovenStepGit,
     -- ** TestInfo members
     TestInfo, run, threads, threadsAll, require, suitable, priority,
     -- * Operations

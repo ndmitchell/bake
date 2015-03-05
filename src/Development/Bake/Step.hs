@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns #-}
 
 module Development.Bake.Step(
-    ovenStepGit, stepGet
+    ovenStepGit
     ) where
 
 import Development.Bake.Core.Type
@@ -10,7 +10,6 @@ import Development.Shake.Command
 import Development.Shake.FilePath
 import Control.Exception.Extra
 import Control.Monad.Extra
-import Control.Applicative
 import System.Directory.Extra
 import General.Extra
 import Data.Maybe
@@ -59,7 +58,7 @@ ovenStepGit act repo branch path o = o
             logEntry "stepPrepare"
             root <- root
             dir <- createDir (root </> ".bake-point") $ map fromSHA1 $ s : ps
-            unlessM (doesFileExist $ dir </> "result.txt") $ do
+            unlessM (doesFileExist $ dir </> "result.tar") $ do
                 git <- gitEnsure
                 logEntry "stepPrepare after gitEnsure"
                 withFileLock (root </> ".bake-lock") $ do
@@ -77,33 +76,18 @@ ovenStepGit act repo branch path o = o
                             unit $ cmd (Cwd git) "git merge" (fromSHA1 $ last ps)
                         logEntry "stepPrepare after merge"
                         dir <- createDir (root </> ".bake-point") $ map fromSHA1 $ s : ps
-                        unlessM (doesFileExist $ dir </> "result.txt") $ do
+                        unlessM (doesFileExist $ dir </> "result.tar") $ do
                             whenM (doesFileExist $ dir </> failure) $ do
                                 hPutStrLn stderr "failure found"
                                 fail =<< readFile' (dir </> failure)
                             res <- withCurrentDirectory git (timed "stepPrepare user action" act) `catch_` \e -> do
                                 writeFile (dir </> failure) =<< showException e
                                 throwIO e
-                            xs <- forM (zip [0..] res) $ \(i,out) -> do
-                                logEntry "stepPrepare before tar"
-                                let tar = dir </> show i <.> "tar"
-                                timed "tar create" $ unit $ cmd "tar -cf" [toStandard tar] "-C" [git, out]
-                                md5 <- timed "running md5" $ fst . word1 . fromStdout <$> cmd "md5sum" [toStandard tar]
-                                let out = root </> ".bake-" ++ show i ++ "-" ++ md5 <.> "tar"
-                                ifM (doesFileExist out) (removeFile tar) (renameFile tar out)
-                                logEntry "stepPrepare after tar"
-                                return $ toStandard out
-                            writeFile (dir </> "result.txt") $ unlines xs
-            src <- lines <$> readFile' (dir </> "result.txt")
+                            logEntry "stepPrepare before tar"
+                            timed "tar create" $ unit $ cmd "tar -cf" [toStandard $ dir </> "result.tar"] "-C" [git] res
+                            logEntry "stepPrepare after tar"
+
             logEntry "stepPrepare before extract"
-            dirs <- forM src $ \src -> do
-                let dest = case path of Nothing -> dropExtension src; Just x -> dropExtension src </> x
-                createDirectoryIfMissing True $ dest
-                timed "tar extract" $ unit $ cmd "tar -xf" [toStandard src] "-C" [toStandard dest]
-                return dest
+            createDirectoryIfMissing True $ fromMaybe "." path
+            timed "tar extract" $ unit $ cmd "tar -xf" [toStandard $ dir </> "result.tar"] "-C" [fromMaybe "." path]
             logEntry "stepPrepare after extract"
-            writeFile ".bake-step" $ unlines $ map toNative dirs
-
-
-stepGet :: IO [FilePath]
-stepGet = lines <$> readFile' ".bake-step"
