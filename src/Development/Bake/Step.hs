@@ -93,7 +93,7 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
                                 let out = root </> ".bake-" ++ show i ++ "-" ++ md5 <.> "tar"
                                 ifM (doesFileExist out) (removeFile tar) (renameFile tar out)
                                 logEntry "stepPrepare after tar"
-                                return out
+                                return $ toStandard out
                             writeFile (dir </> "result.txt") $ unlines xs
             src <- lines <$> readFile' (dir </> "result.txt")
             logEntry "stepPrepare before extract"
