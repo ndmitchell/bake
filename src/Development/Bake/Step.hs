@@ -64,6 +64,7 @@ ovenStepGit act repo branch path o = o
                 logEntry "stepPrepare after gitEnsure"
                 withFileLock (root </> ".bake-lock") $ do
                     logEntry "stepPrepare git initialise"
+                    unit $ cmd (Cwd git) "git reset --merge"
                     unit $ cmd (Cwd git) "git checkout" [branch]
                     unit $ cmd (Cwd git) "git reset --hard" ["origin/" ++ branch]
                     Stdout x <- cmd (Cwd git) "git rev-parse HEAD"
