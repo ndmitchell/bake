@@ -86,8 +86,8 @@ ovenStepGit act repo branch (fromMaybe "repo" -> path) o = o
                             xs <- forM (zip [0..] res) $ \(i,out) -> do
                                 logEntry "stepPrepare before tar"
                                 let tar = dir </> show i <.> "tar"
-                                tarrel <- makeRelativeEx (git </> out) tar
-                                print ("running tar", dir, tar, git </> out, tarrel)
+                                --tarrel <- makeRelativeEx (git </> out) tar
+                                --print ("running tar", dir, tar, git </> out, tarrel)
                                 timed "tar create" $ unit $ cmd "tar -cf" [toStandard tar] "-C" [git </> out] "."
                                 md5 <- timed "running md5" $ fst . word1 . fromStdout <$> cmd "md5sum" [toStandard tar]
                                 let out = root </> ".bake-" ++ show i ++ "-" ++ md5 <.> "tar"
