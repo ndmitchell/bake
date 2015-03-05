@@ -99,7 +99,7 @@ ovenStepGit act repo branch path o = o
             dirs <- forM src $ \src -> do
                 let dest = case path of Nothing -> dropExtension src; Just x -> dropExtension src </> x
                 createDirectoryIfMissing True $ dest
-                timed "tar extract" $ unit $ cmd "tar -xf" [src] "-C" [dest]
+                timed "tar extract" $ unit $ cmd "tar -xf" [toStandard src] "-C" [toStandard dest]
                 return dest
             logEntry "stepPrepare after extract"
             writeFile ".bake-step" $ unlines $ map toNative dirs
