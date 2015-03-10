@@ -13,6 +13,7 @@ import Control.DeepSeq
 import Data.Aeson hiding (Success)
 import General.Str
 import qualified Data.ByteString.Lazy.Char8 as LBS
+import Prelude
 
 
 data Message
