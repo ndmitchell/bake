@@ -22,6 +22,7 @@ import Data.Tuple.Extra
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import qualified General.MRU as MRU
+import Prelude
 
 
 data Paged = Paged

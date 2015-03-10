@@ -36,6 +36,7 @@ import Data.Time.Format
 import System.Locale
 #endif
 import qualified Data.Set as Set
+import Prelude
 
 
 addSeconds :: Double -> UTCTime -> UTCTime
