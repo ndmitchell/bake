@@ -24,6 +24,7 @@ import Data.List.Extra
 import Data.Tuple.Extra
 import System.Time.Extra
 import Paths_bake
+import Prelude
 
 
 data Bake
