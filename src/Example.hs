@@ -54,11 +54,7 @@ execute (p,Compile) = matchOS p $ run $ unless useStep $ do
     sleep 1
     incrementalDone
 execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $
-    if useStep then do
-        [dist] <- stepGet
-        cmd (dist </> "Main") (show i)
-    else
-        cmd ("." </> "Main") (show i)
+    cmd ("dist" </> "Main") (show i)
 
 -- So we can run both clients on one platform we use an environment variable
 -- to fake changing OS
