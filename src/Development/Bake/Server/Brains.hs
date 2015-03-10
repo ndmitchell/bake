@@ -17,6 +17,19 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Prelude
 
+{-
+Revised algorithm:
+
+Take a set of patches PS, and stop accepting any more
+Run all tests TS on PS
+while there are failures
+    bisect to identify a failing patch P for each failing test
+    remove all failing patches from PS
+    run all previously failing tests on PS'
+optional final step:
+    run all tests not in the last batch on the latest PS'
+-}
+
 
 data Neuron
     = Sleep -- nothing useful to do
