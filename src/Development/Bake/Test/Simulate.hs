@@ -30,7 +30,7 @@ simulate = withBuffering stdout NoBuffering $ do
         (t,_) <- duration $ performance 200
         putStrLn $ "Performance test took " ++ showDuration t
     bisect
-    quickPlausible
+    when False quickPlausible
     replicateM_ 20 randomSimple
 
 ---------------------------------------------------------------------

@@ -116,7 +116,7 @@ operate oven message server = case message of
     Pinged ping -> do
         now <- getCurrentTime
         server <- return $ addPing now ping server
-        flip loopM server $ \(ensurePauseInvariants -> server) -> do
+        flip loopM server $ \server -> do
             let neuronName x = ["brains", lower $ takeWhile (not . isSpace) $ show x]
             case record ((neuronName &&& id) . brains (ovenTestInfo oven) server) ping of
                 Sleep ->

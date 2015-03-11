@@ -47,7 +47,7 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
             str_ "Bake Continuous Integration"
 
         if noargs then do
-            when (isJust paused) $
+            when paused $
                 p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
             failures shower server
             let toPoint p | ps@(_:_) <- dropWhileEnd (/= p) (snd target) = Just $ newPoint server (fst target, ps)
@@ -63,16 +63,12 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
             when argsAdmin $ do
                 h2_ $ str_ "Admin"
                 ul_ $ do
-                    li_ $ if null (snd target) && isNothing paused
+                    li_ $ if null (snd target) && null queued
                         then str_ "Cannot delete all patches, no patches queued"
                         else admin (DelAllPatches "admin") $ str_ "Delete all patches"
-                    li_ $ if null (snd target)
-                        then str_ "Cannot pause, no active targets"
-                        else if isJust paused then str_ "Cannot pause, already paused"
+                    li_ $ if paused
+                        then admin (Unpause "admin") $ str_ "Unpause"
                         else admin (Pause "admin") $ str_ "Pause"
-                    li_ $ if isNothing paused
-                        then str_ "Cannot unpause, not paused"
-                        else admin (Unpause "admin") $ str_ "Unpause"
             return "home"
 
          else if argsStats then do
@@ -298,8 +294,8 @@ rowPatch Shower{..} server@Server{..} argsAdmin active point patch = second (\x 
                     " of " ++ maybe "?" (show . Set.size) (poTests root) ++ ")")
         _ | Just p <- patch, p `elem` concatMap (maybe [] snd . uiPrevious) updates
             -> ("dull", span__ [class_ "good"] $ str_ "Success")
-        _ | Just p <- patch, p `elem` fromMaybe [] paused
-            -> ("dull", str_ "Paused")
+        _ | Just p <- patch, p `elem` queued
+            -> ("dull", str_ "Queued")
         _ | Just p <- patch, xs <- concatMap (map snd3 . take 1) $ Map.elems $ paReject $ Map.findWithDefault mempty p patchInfo
             -> ("dull",) $ do
                 span__ [class_ "bad"] $ str_ "Rejected"
@@ -322,7 +318,7 @@ rowPatch Shower{..} server@Server{..} argsAdmin active point patch = second (\x 
         s0 = state0 server
 
         special | argsAdmin, Just p <- patch =
-            if p `elem` snd target || p `elem` fromMaybe [] paused then
+            if p `elem` snd target || p `elem` queued then
                 do br_; admin (DelPatch "admin" p) $ str_ "Delete"
             else if p `notElem` concatMap (maybe [] snd . uiPrevious) updates then
                 do br_; admin (AddPatch "admin" p) $ str_ "Retry"

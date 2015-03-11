@@ -5,7 +5,7 @@ module Development.Bake.Server.Type(
     Point, newPoint,
     PointInfo(..), PatchInfo(..),
     PingInfo(..), addPing, sFailure,
-    UpdateInfo(..), addUpdate, ensurePauseInvariants,
+    UpdateInfo(..), addUpdate,
     Server(..), server0, state0,
     Question(..), Answer(..), Ping(..),
     serverConsistent, serverPrune,
@@ -89,8 +89,10 @@ data Server = Server
         -- ^ Latest time of a ping sent by each client
     ,target :: (State, [Patch])
         -- ^ The candidate we are currently aiming to prove
-    ,paused :: Maybe [Patch]
-        -- ^ 'Just' if we are paused, and the number of people queued up (reset when target becomes Nothing)
+    ,queued :: [Patch]
+        -- ^ People who are queued up
+    ,paused :: Bool
+        -- ^ Pretend the queued is empty
     ,submitted :: [(UTCTime, Patch)]
         -- ^ List of all patches that have been submitted over time
     ,authors :: Map (Maybe Patch) [Author]
@@ -107,7 +109,7 @@ sFailure = State ""
 
 -- | Warning: target and extra are undefined, either define them or don't ever use them
 server0 :: Server
-server0 = Server [] Map.empty Map.empty Map.empty [] Map.empty Map.empty (error "server0: target") Nothing [] Map.empty (error "server0: extra") []
+server0 = Server [] Map.empty Map.empty Map.empty [] Map.empty Map.empty (error "server0: target") [] False [] Map.empty (error "server0: extra") []
 
 state0 :: Server -> State
 state0 Server{..} = uiState $ last updates
@@ -130,6 +132,7 @@ addAnswer q@Question{..} a@Answer{..} server
          else _patchInfo . atm (last $ snd qCandidate) . _paPass %~ Set.insert qTest) $
         -- update rejectables
         (\s -> case rewindPoint pt of
+            -- FIXME: need to update patch if the previous is no patches point
             Just (prev, patch)
                 | not aSuccess, _:_ <- s ^. _pointInfo . atm prev . _poPass . atm qTest
                     -> s & (_pointInfo . atm pt . _poReject . atm qTest %~ (:) (t, q, a)) .
@@ -157,30 +160,32 @@ addQuestion :: UTCTime -> Question -> Server -> Server
 addQuestion now q server = server{history = (now,q,Nothing) : history server}
 
 addUpdate :: UTCTime -> Answer -> Maybe State -> (State, [Patch]) -> Server -> Server
-addUpdate now answer (Just snew) (sold,ps) server@Server{..} | aSuccess answer = ensurePauseInvariants
-    server{target=(snew, snd target \\ ps)
+addUpdate now answer (Just snew) (sold,ps) server@Server{..} | aSuccess answer = requeue $
+    server{target=(snew, if null new && not paused then queued else new)
+          ,queued=if null new && not paused then [] else queued
           ,updates=UpdateInfo now answer snew (Just (sold,ps)):updates
           ,updatesIdx=Map.insert snew ((updatesIdx Map.! sold) ++ ps) updatesIdx}
+    where new = snd target \\ ps
 addUpdate now answer _ (sold,ps) server@Server{..} =
     server{fatal = "Failed to update" : fatal
           ,updates=UpdateInfo now answer sFailure (Just (sold,ps)):updates
           ,updatesIdx=Map.insert sFailure [] updatesIdx}
 
-ensurePauseInvariants :: Server -> Server
-ensurePauseInvariants server
-    | null $ snd $ target server = server
-        {paused = Nothing
-        ,target = second (++ fromMaybe [] (paused server)) $ target server}
-    | otherwise = server
-
 clearPatches :: Server -> Server
-clearPatches server = server{paused = Nothing, target = (fst $ target server, [])}
+clearPatches server = server{queued = [], target = (fst $ target server, [])}
 
 deletePatch :: Patch -> Server -> Server
-deletePatch p server = ensurePauseInvariants $ server
+deletePatch p server = requeue $ server
     {target = second (delete p) $ target server
-    ,paused = delete p <$> paused server
+    ,queued = delete p $ queued server
     }
+
+requeue :: Server -> Server
+requeue server@Server{..} | null (snd target) && not paused =
+    server{queued = []
+          ,target = (fst target, queued)}
+requeue s = s
+
 
 addPatch :: UTCTime -> Author -> Patch -> Server -> Server
 addPatch now author p server
@@ -190,22 +195,21 @@ addPatch now author p server
     | p `elem` snd (target server)
         -- moving a promotion requires retrying every previous promotion
         = server
-    | otherwise = server
-        {target = second (if isJust (paused server) then id else add) $ target server
-        ,paused = add <$> paused server
+    | otherwise = requeue $ server
+        {target = second (if run then (`snoc` p) else id) $ target server
+        ,queued = if run then queued server else filter (/= p) (queued server) `snoc` p
         ,authors = Map.insertWith (++) (Just p) [author] $ authors server
         ,submitted = (now,p) : submitted server}
-        where add ps = filter (/= p) ps `snoc` p
+        where run = not (paused server) && null (snd $ target server)
 
 rejectPatch :: Patch -> Server -> Server
-rejectPatch p server = server{target=second (delete p) $ target server}
+rejectPatch p server = requeue $ server{target=second (delete p) $ target server}
 
 startPause :: Server -> Server
-startPause server = ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $ paused server}
+startPause server = server{paused = True}
 
 stopPause :: Server -> Server
-stopPause server = ensurePauseInvariants $ server{paused = Just $ fromMaybe [] $ paused server}
-
+stopPause server = requeue $ server{paused = False}
 
 ---------------------------------------------------------------------
 -- CHECKS ON THE SERVER
