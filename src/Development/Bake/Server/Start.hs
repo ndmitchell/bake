@@ -100,8 +100,10 @@ operate oven message server = case message of
     DelAllPatches author ->
         dull $ clearPatches server
     Pause author ->
-        -- cannot pause if there is no work outstanding, unpause may immediately undo
-        dull $ startPause server
+        if paused server then
+            error "already paused"
+        else
+            dull $ startPause server
     Unpause author ->
         dull $ stopPause server
     Finished q a -> do
