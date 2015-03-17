@@ -26,6 +26,7 @@ import System.Directory
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
 import qualified Data.Map as Map
+import Prelude
 
 
 startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
