@@ -6,8 +6,7 @@ module Development.Bake.Test.Simulate(
 
 import Development.Bake.Core.Message
 import Development.Bake.Core.Type
-import Development.Bake.Server.Type
-import Development.Bake.Server.Brains
+import Development.Bake.Server.Brain
 import Control.Monad.Extra
 import Data.List.Extra
 import Data.Tuple.Extra
@@ -43,11 +42,10 @@ simulate = withBuffering stdout NoBuffering $ do
 
 data S s = S
     {user :: s
-    ,server :: Server
+    ,memory :: Memory
     ,wait :: Int
-    ,active :: [Question]
     ,asked :: Set.Set Question
-    ,patches :: [(Patch, (Bool, Maybe Test -> Bool))]
+    ,patch :: [(Patch, Bool, Maybe Test -> Bool)]
     }
 
 unstate :: State -> [Patch]
@@ -68,63 +66,58 @@ simulation
     -> IO s
 simulation testInfo clients u step = do
     t <- getCurrentTime
-    let ss0 = server0
-            {target = (State "", [])
-            ,updates=[UpdateInfo t (Answer (strPack "") 0 mempty True) (State "") Nothing]
-            ,updatesIdx=Map.singleton (State "") []}
-    let s = S u ss0 20 [] Set.empty []
+    let mem = new
+            {active = (restate [], [])
+            ,simulated = True
+            ,updates = [Update t (Answer (strPack "") 0 mempty True) (restate []) []]}
+    let s = S u mem 20 Set.empty []
 
-    let count s c = sum [qThreads | Question{..} <- active s, qClient == c]
-
-    let ping s c = brains testInfo (server s) $
-            let Just mx = lookup c clients
-            in Ping c (fromClient c) mx $ mx - count s c
-
-    let dropPatches ps s = s{patches = filter (flip notElem ps . fst) $ patches s}
-
+    let count s c = sum [qThreads | (_, Question{..}) <- running $ memory s, qClient == c]
+    let oven = defaultOven
+            {ovenUpdateState = \(Just (s, ps)) -> return $ restate $ unstate s ++ ps
+            ,ovenPrepare = undefined
+            ,ovenTestInfo = testInfo
+            ,ovenPatchExtra = undefined
+            ,ovenStringyState = undefined
+            ,ovenStringyPatch = undefined
+            ,ovenStringyTest = undefined
+            }
     s@S{..} <- flip loopM s $ \s -> do
         putChar '.'
-
-        t <- getCurrentTime
-        (u, cont, res) <- step (active s) (user s)
+        (u, cont, res) <- step (map snd $ running $ memory s) (user s)
         s <- return s{user = u}
-        s <- case res of
-            Submit p pass fail -> do
-                return s{server = addPatch t "" p $ server s, patches = (p,(pass,fail)) : patches s}
-
-            Reply q good tests -> do
+        (msg,s) <- return $ case res of
+            Submit p pass fail -> (AddPatch "" p, s{patch = (p,pass,fail) : patch s})
+            Reply q good tests ->
                 let ans = Answer (strPack "") 0 (if good && isNothing (qTest q) then tests else mempty) good
-                return s{active = delete q $ active s, server = addAnswer q ans $ server s}
-
-            Request c -> case ping s c of
-                Sleep -> return $ if cont then s else s{wait = wait s - 1}
-                Task q -> do
-                    when (q `Set.member` asked s) $ error "asking a duplicate question"
-                    return s{active = active s ++ [q]
-                            ,asked = Set.insert q $ asked s
-                            ,server = addQuestion t q $ server s}
-                Update (ss, ps) -> do
-                    let nss = restate $ unstate ss ++ ps
-                    forM_ ps $ \p -> unless (fst $ fromJust $ lookup p $ patches s) $ error "incorrect test pass"
-                    let ans = Answer (strPack "") 0 mempty True
-                    return $ dropPatches ps $ s{server = addUpdate t ans (Just nss) (ss,ps) $ server s}
-
-                Reject p t -> do
-                    unless (snd (fromJust $ lookup p $ patches s) t) $ error "incorrect test failure"
-                    return $ dropPatches [p] $ s{server = rejectPatch p $ server s}
-
-        forM_ clients $ \(c,mx) ->
-            when (count s c > mx) $ error "threads exceeded"
-
+                in (Finished q ans, s)
+            Request c ->
+                let Just mx = lookup c clients
+                in (Pinged $ Ping c (fromClient c) mx $ mx - count s c, s)
+        (mem, q) <- prod oven (memory s) msg
+        when (fatal mem /= []) $ error $ "Fatal error, " ++ unlines (fatal mem)
+        s <- return s{memory = mem}
+        s <- return $ case q of
+            Just q | q `Set.member` asked s -> error "asking a duplicate question"
+                   | otherwise -> s{asked = Set.insert q $ asked s}
+            Nothing | not cont -> s{wait = wait s - 1}
+            _ -> s
         return $ if wait s == 0 then Right s else Left s
+
     putStrLn ""
+    let S{memory=Memory{..},..} = s
 
-    unless (null active) $ error "Active should have been empty"
-    unless (null patches) $ error "Patches should have been empty"
-    forM_ clients $ \(c,_) ->
-        when (ping s c /= Sleep) $ error $ "Brains should have returned sleep,  but returned " ++ show (ping s c)
-    when (snd (target server) /= []) $ error $ "Target is not blank: " ++ show (target server)
+    unless (null running) $ error "Active should have been empty"
+    forM_ clients $ \(c,_) -> do
+        (_, q) <- prod oven Memory{..} $ Pinged $ Ping c (fromClient c) maxBound maxBound
+        when (isJust q) $ error "Brains should have returned sleep"
+    when (snd active /= []) $ error $ "Target is not blank: active = " ++ show active ++ ", rejected = " ++ show (Map.keys rejected)
 
+    forM_ patch $ \(p, pass, fail) ->
+        case () of
+            _ | pass -> unless (p `elem` unstate (fst active)) $ error "expected pass but not"
+              | Just t <- Map.lookup p rejected -> unless (all fail $ Set.toList t) $ error "incorrect test failure"
+              | otherwise -> error "missing patch"
     return user
 
 

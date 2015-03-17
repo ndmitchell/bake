@@ -9,7 +9,7 @@ import Control.DeepSeq
 import Control.Applicative
 import Control.Monad
 import Development.Bake.Core.Type
-import Development.Bake.Server.Type
+import Development.Bake.Server.Brain
 import Data.IORef
 import Data.Monoid
 import Data.List.Extra
@@ -51,8 +51,8 @@ mean :: [Double] -> Double
 mean xs = sum xs / intToDouble (length xs)
 
 
-stats :: Server -> IO HTML
-stats Server{..} = do
+stats :: Memory -> IO HTML
+stats Memory{..} = do
     recorded <- readIORef recorded
 #if __GLASGOW_HASKELL__ < 706
     getGCStatsEnabled <- return True
@@ -75,7 +75,7 @@ stats Server{..} = do
 
         h2_ $ str_ "Slowest 25 tests"
         table ["Test","Count","Mean","Sum","Max","Last 10"] $
-            let xs = [(qTest, aDuration) | (_,Question{..}, Just Answer{..}) <- history]
+            let xs = [(qTest, aDuration) | (_,Question{..}, Answer{..}) <- history]
                 f name xs = name : map str_ [show (length xs), showDuration (mean xs), showDuration (sum xs)
                                             ,showDuration (maximum xs), unwords $ map showDuration $ take 10 xs]
             in [f (i_ $ str_ "All") (map snd xs) | not $ null xs] ++
@@ -83,11 +83,12 @@ stats Server{..} = do
                | (test,dur) <- take 25 $ sortOn (negate . mean . snd) $ groupSort xs]
 
         h2_ $ str_ "Requests per client"
+        let historyRunning = map (\(t,q,a) -> (t,q,Just a)) history ++ map (\(t,q) -> (t,q,Nothing)) running
         table ["Client","Requests","Utilisation (last hour)","Utilisation"]
             [ map str_ [fromClient c, show $ length xs, f $ 60*60, f $ maximum $ map fst3 xs]
             | c <- Map.keys pings
               -- how long ago you started, duration
-            , let xs = [(rel t, maybe (rel t) aDuration a, qThreads q) | (t,q,a) <- history, qClient q == c]
+            , let xs = [(rel t, maybe (rel t) aDuration a, qThreads q) | (t,q,a) <- historyRunning, qClient q == c]
             , not $ null xs
             , let f z = show (floor $ sum [ max 0 $ intToDouble threads * (dur - max 0 (start - z))
                                           | (start,dur,threads) <- xs] * 100 / z) ++ "%"]

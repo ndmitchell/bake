@@ -12,18 +12,16 @@ import General.HTML
 import Development.Bake.Core.Message
 import Development.Bake.Core.Run
 import General.Extra
-import Development.Bake.Server.Type
+import Development.Bake.Server.Brain
 import Development.Bake.Server.Web
-import Development.Bake.Server.Brains
 import Development.Bake.Server.Stats
 import General.DelayCache
+import Control.Applicative
 import Control.DeepSeq
 import Control.Exception.Extra
 import Data.List.Extra
 import Data.Maybe
-import Data.Char
 import Control.Monad.Extra
-import Data.Tuple.Extra
 import System.Directory
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
@@ -35,21 +33,20 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
     do
         dir <- getCurrentDirectory
         strInit (dir </> "bake-string") (25 * 1024 * 1024) -- use at most 25Mb for strings
+    extra <- newDelayCache
     var <- do
         now <- getCurrentTime
-        extra <- newDelayCache
         putStrLn "Initialising server, computing initial state..."
         (res, answer) <- runInit
         when (isNothing res) $
             ovenNotify oven [author] "Failed to initialise, pretty serious"
-        let state0 = fromMaybe sFailure res
+        let state0 = fromMaybe stateFailure res
         putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
         when (isJust res) $ addDelayCache extra (Left state0) $ patchExtra state0 Nothing
-        newCVar $ server0
-            {target=(state0,[]), authors=Map.fromList [(Nothing,[author])]
-            ,updates=[UpdateInfo now answer state0 Nothing]
-            ,updatesIdx=Map.singleton state0 []
-            ,extra=extra
+        newCVar $ new
+            {active=(state0,[])
+            ,authors=Map.fromList [(Nothing,[author])]
+            ,updates=[Update now answer state0 []]
             ,fatal=["Failed to initialise" | isNothing res]
             }
 
@@ -57,11 +54,11 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
             now <- getCurrentTime
-            let prune = id -- serverPrune (addSeconds (negate timeout) now)
+            let prune = id -- expire (addSeconds (negate timeout) now)
             res <-
                 if null inputURL then do
                     -- prune but don't save, will reprune on the next ping
-                    fmap OutputHTML $ web oven inputArgs . prune =<< readCVar var
+                    fmap OutputHTML $ web oven extra inputArgs . prune =<< readCVar var
                 else if ["html"] `isPrefixOf` inputURL then
                     return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if ["api"] `isPrefixOf` inputURL then
@@ -71,9 +68,9 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
                             evaluate $ rnf v
                             fmap questionToOutput $ modifyCVar var $ \s -> do
                                 case v of
-                                    AddPatch _ p -> addDelayCache (extra s) (Right p) $ patchExtra (fst $ target s) $ Just p
+                                    AddPatch _ p -> addDelayCache extra (Right p) $ patchExtra (fst $ active s) $ Just p
                                     _ -> return ()
-                                operate oven v $ prune s
+                                recordIO $ (["brain"],) <$> prod oven (prune s) v
                     )
                 else
                     return OutputMissing
@@ -87,61 +84,3 @@ patchExtra s p = do
     let failSummary = renderHTML $ i_ $ str_ "Error when computing patch information"
     let failDetail = renderHTML $ pre_ $ str_ $ strUnpack $ aStdout ans
     return $ fromMaybe (strPack failSummary, strPack failDetail) ex
-
-
-operate :: Oven State Patch Test -> Message -> Server -> IO (Server, Maybe Question)
-operate oven message server = case message of
-    _ | not $ null $ fatal server -> dull server
-    AddPatch author p -> do
-        now <- getCurrentTime
-        dull $ addPatch now author p server
-    DelPatch author p -> do
-        dull $ deletePatch p server
-    DelAllPatches author ->
-        dull $ clearPatches server
-    Pause author ->
-        if paused server then
-            error "already paused"
-        else
-            dull $ startPause server
-    Unpause author ->
-        dull $ stopPause server
-    Finished q a -> do
-        when (not $ aSuccess a) $ do
-            putStrLn $ replicate 70 '#'
-            print (target server, q, a{aStdout=strPack ""})
-            putStrLn $ strUnpack $ aStdout a
-            putStrLn $ replicate 70 '#'
-        server <- return $ addAnswer q a server
-        serverConsistent server
-        dull server 
-    Pinged ping -> do
-        now <- getCurrentTime
-        server <- return $ addPing now ping server
-        flip loopM server $ \server -> do
-            let neuronName x = ["brains", lower $ takeWhile (not . isSpace) $ show x]
-            case record ((neuronName &&& id) . brains (ovenTestInfo oven) server) ping of
-                Sleep ->
-                    return $ Right (server, Nothing)
-                Task q -> do
-                    when (qClient q /= pClient ping) $ error "client doesn't match the ping"
-                    server <- return $ addQuestion now q server
-                    return $ Right (server, Just q)
-                Update (s,ps) -> do
-                    (s2, answer) <- runUpdate s ps
-                    case s2 of
-                        Nothing -> do
-                            ovenNotify oven [a | p <- Nothing : map Just (snd $ target server), a <- Map.findWithDefault [] p $ authors server]
-                                "Failed to update, pretty serious"
-                            return $ Right (addUpdate now answer Nothing (s,ps) server, Nothing)
-                        Just s2 -> do
-                            ovenNotify oven [a | p <- ps, a <- Map.findWithDefault [] (Just p) $ authors server]
-                                "Your patch just made it in"
-                            addDelayCache (extra server) (Left s2) $ patchExtra s2 Nothing
-                            return $ Left $ addUpdate now answer (Just s2) (s,ps) server
-                Reject p t -> do
-                    ovenNotify oven (Map.findWithDefault [] (Just p) (authors server)) $ unlines
-                        ["Your patch " ++ show p ++ " got rejected","Failure in test " ++ show t]
-                    return $ Left $ rejectPatch p server
-    where
-        dull s = return (s,Nothing)

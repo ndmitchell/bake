@@ -5,7 +5,7 @@ module Development.Bake.Server.Web(
     web
     ) where
 
-import Development.Bake.Server.Type
+import Development.Bake.Server.Brain
 import Development.Bake.Server.Stats
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
@@ -16,6 +16,7 @@ import General.DelayCache
 import General.Str
 import Data.List.Extra
 import Data.Tuple.Extra
+import Data.Either
 import System.Time.Extra
 import Data.Version
 import Data.Maybe
@@ -28,11 +29,11 @@ import qualified Data.Set as Set
 import Prelude
 
 
-web :: Oven State Patch Test -> [(String, String)] -> Server -> IO String
-web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
+web :: Oven State Patch Test -> DelayCache (Either State Patch) (Str,Str) -> [(String, String)] -> Memory -> IO String
+web oven@Oven{..} extra (args -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
     extra <- askDelayCache extra
     shower <- shower extra oven argsAdmin
-    stats <- if argsStats then stats server else return mempty
+    stats <- if argsStats then stats mem else return mempty
     return $ (valueHTML &&& renderHTML . void) $ template $ do
         let noargs = argsEmpty a
 
@@ -49,26 +50,34 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
         if noargs then do
             when paused $
                 p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
-            failures shower server
-            let toPoint p | ps@(_:_) <- dropWhileEnd (/= p) (snd target) = Just $ newPoint server (fst target, ps)
-                          | otherwise = Nothing
-            let active = [fmap snd $ unsnoc $ snd $ qCandidate q | (t,q,Nothing) <- history]
+            failures shower mem
+            let s0 = upState $ last updates
+            let passes = Map.map Set.size $ Map.fromListWith Set.union
+                    [ (k, Set.singleton t)
+                    | (_,Question{qTest=t,qCandidate=(s,ps)},Answer{aSuccess=True}) <- history
+                    , let k = if null ps then Left s else Right $ last ps
+                    , either (== s0) (const True) k]
             table "No patches submitted" ["Time","Job","Status"]
-                (map (\p -> rowPatch shower server argsAdmin (p `elem` active) (maybe Nothing toPoint p) p) $
-                    nubOrd (map (Just . snd) submitted) ++ [Nothing])
+                $ map (\p -> rowPatch shower mem argsAdmin (Map.findWithDefault 0 p passes) p) $
+                    nubOrd (map (Right . snd) patches) ++ [Left s0]
             h2_ $ str_ "Clients"
             table "No clients available" ["Name","Running"]
-                (map (rowClient shower server) $ Nothing : map Just (Map.keys pings))
+                (map (rowClient shower mem) $ Nothing : map Just (Map.keys pings))
 
             when argsAdmin $ do
                 h2_ $ str_ "Admin"
                 ul_ $ do
-                    li_ $ if null (snd target) && null queued
-                        then str_ "Cannot delete all patches, no patches queued"
+                    li_ $ if null (snd active) && null queued
+                        then str_ "Cannot delete all patches, no patches available"
                         else admin (DelAllPatches "admin") $ str_ "Delete all patches"
                     li_ $ if paused
                         then admin (Unpause "admin") $ str_ "Unpause"
                         else admin (Pause "admin") $ str_ "Pause"
+                    {-
+                    li_ $ if null queued
+                        then str_ "Cannot force all queued patches, no patches running"
+                        else admin (Force "admin") $ str_ "Force queue"
+                    -}
             return "home"
 
          else if argsStats then do
@@ -76,24 +85,25 @@ web oven@Oven{..} (args -> a@Args{..}) server@Server{..} = recordIO $ fmap (firs
             return "stats"
 
          else if argsRaw then do
-            str_ $ show server
+            str_ $ show mem
             return "raw"
 
          else if isJust argsServer then do
             let s = fromJust argsServer
             table "No server operations" ["Time","Job","Status"] $
-                map (("",) . rowUpdate shower server) $
+                map (("",) . rowUpdate shower mem) $
                     filter (maybe (const True) (==) s . fst) $
                     reverse $ zip [0..] $ reverse updates
             whenJust s $ \s -> do
                 h2_ $ str_ "Output"
-                pre_ $ str_ $ strUnpack $ aStdout $ uiAnswer $ reverse updates !! s
+                pre_ $ str_ $ strUnpack $ aStdout $ upAnswer $ reverse updates !! s
             return "server"
 
          else do
-            let xs = filter (argsFilter a . snd3) history
+            let xs = filter (argsFilter a . snd3) $ map (\(t,q,a) -> (t,q,Just a)) history ++
+                                                    map (\(t,q) -> (t,q,Nothing) ) running
             table "No runs" ["Time","Job","Status"] $
-                map (("",) . rowHistory shower server) xs
+                map (("",) . rowHistory shower mem) xs
 
             case xs of
                 _ | Just s <- argsState, argsEmpty a{argsState=Nothing} ->
@@ -246,11 +256,14 @@ template inner = do
     return $ valueHTML inner
 
 
-failures :: Shower -> Server -> HTML
-failures Shower{..} server = when (xs /= []) $ do
+failures :: Shower -> Memory -> HTML
+failures Shower{..} Memory{..} = when (ts /= []) $ do
     p_ $ str_ "Tracking down failures in:"
-    ul_ $ mconcat $ map (li_ . showTest) xs
-    where xs = Map.keys $ poFail $ Map.findWithDefault mempty (newPoint server (target server)) $ pointInfo server
+    ul_ $ mconcat $ map (li_ . showTest) ts
+    where
+        ts = Set.toList $ failed `Set.difference` reject
+        failed = Set.fromList [qTest q | (_,q,a) <- history, qCandidate q == active, aSuccess a == False]
+        reject = Set.unions [t | (p,t) <- Map.toList rejected, p `elem` snd active]
 
 
 showAnswer :: Maybe Answer -> HTML
@@ -260,8 +273,8 @@ showAnswer (Just Answer{..}) =
                 else span__ [class_ "bad" ] $ str_ $ "Failed in "    ++ showDuration aDuration
 
 
-rowHistory :: Shower -> Server -> (UTCTime, Question, Maybe Answer) -> [HTML]
-rowHistory Shower{..} Server{..} (t, q@Question{..}, a) = [showTime t, body, showAnswer a]
+rowHistory :: Shower -> Memory -> (UTCTime, Question, Maybe Answer) -> [HTML]
+rowHistory Shower{..} Memory{..} (t, q@Question{..}, a) = [showTime t, body, showAnswer a]
     where
         body = do
             str_ "With " <> showCandidate qCandidate
@@ -270,70 +283,67 @@ rowHistory Shower{..} Server{..} (t, q@Question{..}, a) = [showTime t, body, sho
             str_ " with " <> showThreads qThreads
 
 
-rowUpdate :: Shower -> Server -> (Int,UpdateInfo) -> [HTML]
-rowUpdate Shower{..} Server{..} (i,UpdateInfo{..}) = [showTime uiTime, body, showAnswer $ Just uiAnswer]
+rowUpdate :: Shower -> Memory -> (Int,Update) -> [HTML]
+rowUpdate Shower{..} Memory{..} (i,Update{..}) = [showTime upTime, body, showAnswer $ Just upAnswer]
     where
         body = do
-            showLink ("server=" ++ show i) $ str_ $ if isNothing uiPrevious then "Initialised" else "Updated"
+            showLink ("server=" ++ show i) $ str_ $ if null upPrevious then "Initialised" else "Updated"
             br_
-            whenJust uiPrevious $ \c -> str_ "From " <> showCandidate c <> br_
-            str_ "To " <> showState uiState
+            unless (null upPrevious) $ str_ "With " <> commas_ (map showPatch upPrevious)
+            str_ "To " <> showState upState
 
 
-rowPatch :: Shower -> Server -> Bool -> Bool -> Maybe Point -> Maybe Patch -> (String, [HTML])
-rowPatch Shower{..} server@Server{..} argsAdmin active point patch = second (\x -> [time,state,x <> special]) $
-    case () of
-        _ | root <- Map.findWithDefault mempty (newPoint server target) pointInfo
-          , Just me <- if patch == Nothing && target == (state0 server, []) && Map.null (poFail root) && maybe False (\x -> Set.size x + 1 == Map.size (poPass root)) (poTests root) then Just root
-                       else (\p -> Map.findWithDefault mempty p pointInfo) <$> point
-            -> ((if not $ Set.null $ Map.keysSet (poFail me) `Set.intersection` Map.keysSet (poFail root) then "fail"
-                 else if not $ Set.null $ Map.keysSet (poPass me) `Set.intersection` Map.keysSet (poFail root) then "pass"
-                 else if active then "active" else "")
-               ,span__ [class_ "nobr"] $ str_ $
-                    "Testing (passed " ++ show (maybe (Map.size $ poPass me) (\p -> Set.size $ paPass $ Map.findWithDefault mempty p patchInfo) patch) ++
-                    " of " ++ maybe "?" (show . Set.size) (poTests root) ++ ")")
-        _ | Just p <- patch, p `elem` concatMap (maybe [] snd . uiPrevious) updates
-            -> ("dull", span__ [class_ "good"] $ str_ "Success")
-        _ | Just p <- patch, p `elem` queued
-            -> ("dull", str_ "Queued")
-        _ | Just p <- patch, xs <- concatMap (map snd3 . take 1) $ Map.elems $ paReject $ Map.findWithDefault mempty p patchInfo
-            -> ("dull",) $ do
-                span__ [class_ "bad"] $ str_ "Rejected"
-                when (xs /= []) br_
-                span__ [class_ "info"] $ commasLimit_ 3 $ map showQuestion xs
-        _ | xs@(_:_) <- concatMap (map snd3 . take 1) $ Map.elems $ poReject $ Map.findWithDefault mempty (newPoint server (state0 server,[])) pointInfo
-            -> ("dull",) $ do
-                span__ [class_ "bad"] $ str_ "Failed"
-        _ -> ("dull", span__ [class_ "good"] $ str_ "Success")
+rowPatch :: Shower -> Memory -> Bool -> Int -> Either State Patch -> (String, [HTML])
+rowPatch Shower{..} mem@Memory{..} argsAdmin passed patch = (code, [maybe mempty showTime time, state, body <> special])
     where
-        time | Just p <- patch = maybe mempty (showTime . fst) $ find ((==) p . snd) submitted
-             | otherwise = showTime $ uiTime $ last updates
+        failed | Right p <- patch = Map.lookup p rejected
+               | Left s <- patch = let xs = [qTest q | (_,q,a) <- history, not $ aSuccess a, qCandidate q == (s,[])]
+                                   in if null xs then Nothing else Just $ Set.fromList xs
+
+        code | isJust failed = "fail"
+             | Right p <- patch, any (isSuffixOf [p] . snd . qCandidate . snd) running = "active"
+             | Left s <- patch, (s,[]) `elem` map (qCandidate . snd) running = "active"
+             | Right p <- patch, p `notElem` snd active = "dull"
+             | Left s <- patch, length updates > 1 = "dull"
+             | otherwise = ""
+
+        body
+            | Just (Set.toList -> xs) <- failed = do
+                span__ [class_ "bad"] $ str_ $ if isLeft patch then "Failed" else "Rejected"
+                when (xs /= []) br_
+                span__ [class_ "info"] $ commasLimit_ 3 $ map showTest xs
+            | Right p <- patch, p `elem` queued = str_ "Queued"
+            | Right p <- patch, p `elem` concatMap upPrevious updates = span__ [class_ "good"] $ str_ "Success"
+            | Left s <- patch, length updates > 1 = span__ [class_ "good"] $ str_ "Success"
+            | otherwise = str_ $ "Passed " ++ show passed
+
+        special
+            | argsAdmin, Right p <- patch =
+                if p `elem` snd active || p `elem` queued then
+                    do br_; admin (DelPatch "admin" p) $ str_ "Delete"
+                else if p `notElem` concatMap upPrevious updates then
+                    do br_; admin (AddPatch "admin" p) $ str_ "Retry"
+                else
+                    mempty
+            | otherwise = mempty
 
         state = do
-            maybe (str_ "Initial state " <> showState s0) ((str_ "Patch " <>) . showPatch) patch
-            str_ $ " by " ++ commasLimit 3 (nubOrd $ Map.findWithDefault [] patch authors)
+            either ((str_ "Initial state " <>) . showState) ((str_ "Patch " <>) . showPatch) patch
+            str_ $ " by " ++ commasLimit 3 (nubOrd $ Map.findWithDefault [] (either (const Nothing) Just patch) authors)
             br_
-            span__ [class_ "info"] $ showExtra $ maybe (Left s0) Right patch
+            span__ [class_ "info"] $ showExtra patch
 
-        s0 = state0 server
-
-        special | argsAdmin, Just p <- patch =
-            if p `elem` snd target || p `elem` queued then
-                do br_; admin (DelPatch "admin" p) $ str_ "Delete"
-            else if p `notElem` concatMap (maybe [] snd . uiPrevious) updates then
-                do br_; admin (AddPatch "admin" p) $ str_ "Retry"
-            else
-                mempty
-                | otherwise = mempty
+        time | Right p <- patch = fst <$> find ((==) p . snd) patches
+             | Left s <- patch = upTime <$> find ((==) s . upState) updates
 
 
-rowClient :: Shower -> Server -> Maybe Client -> (String, [HTML])
-rowClient Shower{..} server (Just c) = ((if maybe False piAlive $ Map.lookup c $ pings server then "" else "dull"),) $
+rowClient :: Shower -> Memory -> Maybe Client -> (String, [HTML])
+rowClient Shower{..} Memory{..} (Just c) = ((if maybe False piAlive $ Map.lookup c pings then "" else "dull"),) $
     [showLink ("client=" ++ fromClient c) $ str_ $ fromClient c
     ,if null xs then i_ $ str_ "None" else mconcat $ intersperse br_ xs]
-    where xs = reverse [showQuestion q <> str_ " started " <> showTime t | (t,q,Nothing) <- history server, qClient q == c]
-rowClient Shower{..} Server{..} Nothing = ("",) $
+    where xs = reverse [showQuestion q <> str_ " started " <> showTime t | (t,q) <- running, qClient q == c]
+rowClient Shower{..} Memory{..} Nothing = ("",) $
     [showLink "server=" $ i_ $ str_ "Server"
     ,showLink ("server=" ++ show (length updates - 1))
         (str_ $ if length updates == 1 then "Initialised" else "Updated") <>
-     str_ " finished " <> showTime (uiTime $ head updates)]
+     str_ " finished " <> showTime (upTime $ head updates)]
