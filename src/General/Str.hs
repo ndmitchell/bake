@@ -12,6 +12,7 @@ import Control.Monad
 import Control.DeepSeq
 import Control.Concurrent.Extra
 import Data.Aeson
+import Data.Monoid
 import Data.IORef
 import System.IO.Unsafe
 import System.FilePath
@@ -103,6 +104,9 @@ instance Eq Str where
 instance NFData Str where
     rnf (StrPinned x) = rnf x
     rnf (StrPaged x) = rnf x
+instance Monoid Str where
+    mempty = strPack ""
+    mappend x y = strPack $ strUnpack x <> strUnpack y
 
 
 {-# NOINLINE txtPack #-}
