@@ -16,7 +16,7 @@ import General.DelayCache
 import General.Str
 import Data.List.Extra
 import Data.Tuple.Extra
-import Data.Either
+import Data.Either.Extra
 import System.Time.Extra
 import Data.Version
 import Data.Maybe
