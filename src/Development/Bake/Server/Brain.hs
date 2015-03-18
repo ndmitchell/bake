@@ -240,7 +240,7 @@ reinput oven now mem@Memory{..} (AddPatch author p) =
     if p `elem` map snd patches then
         error "patch has already been submitted"
      else mem
-        {queued = filter (/= p) queued `snoc` p
+        {queued = filter (\old -> not $ old == p || ovenSupersede oven old p) queued `snoc` p
         ,authors = Map.insertWith (++) (Just p) [author] authors
         ,patches = (now,p) : patches}
 
