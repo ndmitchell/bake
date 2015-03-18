@@ -298,7 +298,9 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $ l
         tests = Set.fromList $ Nothing : concat (take 1 [map Just $ aTests a | (q, a) <- self, qTest q == Nothing, aSuccess a])
         doneSelf = Set.fromList [qTest q | (q, a) <- self]
         passSuper = Set.fromList [qTest q | (_,q,a) <- history, rb (qCandidate q) == Just Superset, aSuccess a]
-        good = let (pri2,pri1) = partition (`Set.member` passSuper) $ Set.toList $ tests `Set.difference` doneSelf
+        good = let (pri2,pri1) = partition (`Set.member` passSuper) $
+                                 sortOn (maybe 0 $ negate . testPriority . info) $ Set.toList $
+                                 tests `Set.difference` doneSelf
                in map (length $ snd active,) $ pri1 ++ pri2
 
         dependencies :: (Int, Maybe Test) -> [(Int, Maybe Test)]
