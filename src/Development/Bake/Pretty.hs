@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns #-}
 
-module Development.Bake.Pretty(ovenPretty, Pretty(..)) where
+module Development.Bake.Pretty(ovenPretty, ovenPrettyMerge, Pretty(..)) where
 
 import Development.Bake.Core.Type
 import Data.List.Extra
@@ -28,3 +28,8 @@ ovenPretty sep oven@Oven{..} = oven
     where
         unpretty :: Pretty a -> a
         unpretty (Pretty _ x) = x
+
+ovenPrettyMerge :: Oven state (Pretty patch) test -> Oven state (Pretty patch) test
+ovenPrettyMerge oven = oven
+    {ovenSupersede = \(Pretty p1 _) (Pretty p2 _) -> p1 == p2
+    }
