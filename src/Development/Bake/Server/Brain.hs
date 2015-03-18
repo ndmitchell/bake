@@ -253,6 +253,10 @@ reinput now mem@Memory{..} (DelAllPatches _) = mem
     {queued = []
     ,active = (fst active, [])}
 
+reinput now mem@Memory{..} (Requeue _) = mem
+    {queued = []
+    ,active = second (++ queued) active}
+
 reinput now mem@Memory{..} (Pause _)
     | paused = error "already paused"
     | otherwise = mem{paused = True}

@@ -2,7 +2,7 @@
 
 module Development.Bake.Core.Send(
     sendPause, sendUnpause,
-    sendAddPatch, sendDelPatch, sendDelAllPatches
+    sendAddPatch, sendDelPatch, sendDelAllPatches, sendRequeue
     ) where
 
 import Control.Monad
@@ -23,3 +23,6 @@ sendDelPatch hp author x = void $ sendMessage hp $ DelPatch author $ Patch x
 
 sendDelAllPatches :: (Host,Port) -> Author -> IO ()
 sendDelAllPatches hp author = void $ sendMessage hp $ DelAllPatches author
+
+sendRequeue :: (Host,Port) -> Author -> IO ()
+sendRequeue hp author = void $ sendMessage hp $ Requeue author
