@@ -54,6 +54,8 @@ data Oven state patch test = Oven
         --   and a longer chunk (HTML block)
     ,ovenServer :: (Host, Port)
         -- ^ Default server to use
+    ,ovenSupersede :: patch -> patch -> Bool
+        -- ^ Given two patches (first on submitted first) is the first now redundant
     ,ovenStringyState :: Stringy state
     ,ovenStringyPatch :: Stringy patch
     ,ovenStringyTest :: Stringy test
@@ -95,6 +97,7 @@ defaultOven = Oven
     ,ovenTestInfo = \_ -> mempty
     ,ovenPatchExtra = \_ _ -> return ("","")
     ,ovenServer = ("127.0.0.1",80)
+    ,ovenSupersede = \_ _ -> False
     ,ovenStringyState = readShowStringy
     ,ovenStringyPatch = readShowStringy
     ,ovenStringyTest = readShowStringy
@@ -160,6 +163,7 @@ concrete o@Oven{..} = o
     ,ovenPrepare = \s ps -> fmap (map retest) $ ovenPrepare (unstate s) (map unpatch ps)
     ,ovenTestInfo = fmap retest . ovenTestInfo . untest
     ,ovenPatchExtra = \s p -> ovenPatchExtra (unstate s) (fmap unpatch p)
+    ,ovenSupersede = \p1 p2 -> ovenSupersede (unpatch p1) (unpatch p2) 
     ,ovenStringyState = state
     ,ovenStringyPatch = patch
     ,ovenStringyTest  = test

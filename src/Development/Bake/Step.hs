@@ -22,6 +22,7 @@ ovenStepGit :: IO [FilePath] -> String -> String -> Maybe FilePath -> Oven () ()
 ovenStepGit act repo branch path o = o
     {ovenUpdateState = ovenUpdateState $ ovenGit repo branch path o
     ,ovenPrepare = \s ps -> do stepPrepare s ps; ovenPrepare o () $ map (const ()) ps
+    ,ovenSupersede = \_ _ -> False
     ,ovenPatchExtra = stepExtra
     ,ovenStringyState = stringySHA1
     ,ovenStringyPatch = stringySHA1

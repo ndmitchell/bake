@@ -22,6 +22,7 @@ ovenPretty sep oven@Oven{..} = oven
     {ovenUpdateState = ovenUpdateState . fmap (second $ map unpretty)
     ,ovenPrepare = \s ps -> ovenPrepare s (map unpretty ps)
     ,ovenPatchExtra = \s p -> ovenPatchExtra s (fmap unpretty p)
+    ,ovenSupersede = \p1 p2 -> ovenSupersede (unpretty p1) (unpretty p2)
     ,ovenStringyPatch = prettyStringy sep ovenStringyPatch
     }
     where

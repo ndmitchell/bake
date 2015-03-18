@@ -44,6 +44,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
     {ovenUpdateState = gitUpdateState
     ,ovenPrepare = \s ps -> do gitCheckout s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenPatchExtra = \s p -> gitPatchExtra s p =<< gitInitMirror
+    ,ovenSupersede = \_ _ -> False
     ,ovenStringyState = stringySHA1
     ,ovenStringyPatch = stringySHA1
     }
