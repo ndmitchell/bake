@@ -100,8 +100,8 @@ web oven@Oven{..} extra (args -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (f
             return "server"
 
          else do
-            let xs = filter (argsFilter a . snd3) $ map (\(t,q,a) -> (t,q,Just a)) history ++
-                                                    map (\(t,q) -> (t,q,Nothing) ) running
+            let xs = filter (argsFilter a . snd3) $
+                    map (\(t,q) -> (t,q,Nothing)) running ++ map (\(t,q,a) -> (t,q,Just a)) history
             table "No runs" ["Time","Job","Status"] $
                 map (("",) . rowHistory shower mem) xs
 
