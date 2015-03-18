@@ -143,7 +143,7 @@ input :: Oven State Patch Test -> Memory -> Message -> IO Memory
 input oven mem msg | fatal mem /= [] = return mem
 input oven mem msg = do
     now <- getCurrentTime
-    mem <- return $ reject $ reinput now mem msg
+    mem <- return $ reject $ reinput oven now mem msg
     let f mem | fatal mem == [], Just mem <- reactive oven mem = f . reject =<< mem
               | otherwise = return mem
     mem <- f mem
@@ -235,8 +235,8 @@ reactive oven mem@Memory{..}
         reject = [(p, ts) | p <- snd active, Just ts <- [Map.lookup p rejected]]
 
 
-reinput :: UTCTime -> Memory -> Message -> Memory
-reinput now mem@Memory{..} (AddPatch author p) =
+reinput :: Oven State Patch Test -> UTCTime -> Memory -> Message -> Memory
+reinput oven now mem@Memory{..} (AddPatch author p) =
     if p `elem` map snd patches then
         error "patch has already been submitted"
      else mem
@@ -244,30 +244,30 @@ reinput now mem@Memory{..} (AddPatch author p) =
         ,authors = Map.insertWith (++) (Just p) [author] authors
         ,patches = (now,p) : patches}
 
-reinput now mem@Memory{..} (DelPatch _ p) = mem
+reinput oven now mem@Memory{..} (DelPatch _ p) = mem
     {queued = filter (/= p) queued
     ,active = second (delete p) active}
 
-reinput now mem@Memory{..} (DelAllPatches _) = mem
+reinput oven now mem@Memory{..} (DelAllPatches _) = mem
     {queued = []
     ,active = (fst active, [])}
 
-reinput now mem@Memory{..} (Requeue _) = mem
+reinput oven now mem@Memory{..} (Requeue _) = mem
     {queued = []
     ,active = second (++ queued) active}
 
-reinput now mem@Memory{..} (Pause _)
+reinput oven now mem@Memory{..} (Pause _)
     | paused = error "already paused"
     | otherwise = mem{paused = True}
 
-reinput now mem@Memory{..} (Unpause _)
+reinput oven now mem@Memory{..} (Unpause _)
     | not paused = error "already unpaused"
     | otherwise = mem{paused = False}
 
-reinput now mem@Memory{..} (Pinged ping) =
+reinput oven now mem@Memory{..} (Pinged ping) =
     mem{pings = Map.insert (pClient ping) (PingEx now ping True) pings}
 
-reinput now mem (Finished q a) =
+reinput oven now mem (Finished q a) =
     mem{running = other, history = (head $ map fst this `snoc` now, q, a) : history mem}
     where (this,other) = partition ((==) q . snd) $ running mem
 
