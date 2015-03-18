@@ -70,14 +70,12 @@ web oven@Oven{..} extra (args -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (f
                     li_ $ if null (snd active) && null queued
                         then str_ "Cannot delete all patches, no patches available"
                         else admin (DelAllPatches "admin") $ str_ "Delete all patches"
+                    li_ $ if null queued
+                        then str_ "Cannot requeue, no queued patches"
+                        else admin (Requeue "admin") $ str_ "Reqeue"
                     li_ $ if paused
                         then admin (Unpause "admin") $ str_ "Unpause"
                         else admin (Pause "admin") $ str_ "Pause"
-                    {-
-                    li_ $ if null queued
-                        then str_ "Cannot force all queued patches, no patches running"
-                        else admin (Force "admin") $ str_ "Force queue"
-                    -}
             return "home"
 
          else if argsStats then do
