@@ -52,14 +52,13 @@ showRelativeTime = do
     now <- getCurrentTime
     return $ \old ->
         let secs = subtractTime now old
-            days = toModifiedJulianDay . utctDay
-            poss = [(days now - days old, "day")
-                   ,(floor $ secs / (60*60), "hour")
-                   ,(floor $ secs / 60, "min")
-                   ,(max 1 $ floor secs, "sec")
-                   ]
-            (i,s) = head $ dropWhile ((==) 0 . fst) poss
-        in show i ++ " " ++ s ++ ['s' | i /= 1] ++ " ago"
+            mins = secs / 60
+            hours = mins / 60
+            days = toModifiedJulianDay (utctDay now) - toModifiedJulianDay (utctDay old) in
+        if days > 3 then show days ++ " days ago"
+        else if hours > 5 then show (round hours) ++ " hours ago"
+        else if mins > 2 then show (round mins) ++ " mins ago"
+        else show (min 2 $ round secs) ++ " secs ago"
 
 showUTCTime :: String -> UTCTime -> String
 showUTCTime = formatTime defaultTimeLocale
