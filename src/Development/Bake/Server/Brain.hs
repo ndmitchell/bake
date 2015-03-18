@@ -286,7 +286,11 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $ l
                 [(qTest q, if aSuccess a then ([i],[]) else ([],[i]))
                     | (_,q,a) <- history, qTest q `Set.member` failedSelf, Just (Prefix i) <- [rb (qCandidate q)]] ++
                 map (,mempty) (Set.toList failedSelf)
-        bad = trace ("bisecting: " ++ show failedSelf) $ [(i, t) | (t,(pass,fail)) <- Map.toList failedPrefix, i <- bisect (0:pass) (length (snd active):fail)]
+        bad = trace ("bisecting: " ++ show failedSelf) $
+            [(i, t) | (t,(pass,fail)) <- Map.toList failedPrefix
+                      -- assume 0 passed, so add to pass and delete from fail,
+                      -- ensures we never try and "blame" 0 (which we can't reject)
+                    , i <- bisect (0:pass) $ filter (/= 0) $ length (snd active):fail]
 
         tests = Set.fromList $ Nothing : concat (take 1 [map Just $ aTests a | (q, a) <- self, qTest q == Nothing, aSuccess a])
         doneSelf = Set.fromList [qTest q | (q, a) <- self]
@@ -324,8 +328,9 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $ l
 
 -- | Given the passes, and the fails, suggest what you would like to try next
 bisect :: [Int] -> [Int] -> [Int]
-bisect pass fail =
-  let res = sort $ nubOrd [mid
-            | p <- pass, let gt = filter (> p) fail, gt /= []
-            , let nxt = minimum gt, let mid = (p + nxt) `div` 2, mid `notElem` (pass ++ fail)]
-  in trace (show ("bisect",pass,fail,res)) res
+bisect pass fail
+    | Just fail <- if null fail then Nothing else Just $ minimum fail
+    , pass <- filter (< fail) pass
+    , Just pass <- if null pass then Nothing else Just $ maximum pass
+    = if fail - pass <= 3 then [pass+1 .. fail-1] else [(pass + fail) `div` 2]
+bisect _ _ = []
