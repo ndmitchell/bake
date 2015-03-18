@@ -195,7 +195,6 @@ reactive oven mem@Memory{..}
                     "Your patch just made it in"
                 return mem
                     {updates = Update now answer s (snd active) : updates
-                    ,paused = False
                     ,active = (s, [])
                     }
 
