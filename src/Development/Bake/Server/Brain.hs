@@ -337,5 +337,7 @@ bisect pass fail
     | Just fail <- if null fail then Nothing else Just $ minimum fail
     , pass <- filter (< fail) pass
     , Just pass <- if null pass then Nothing else Just $ maximum pass
-    = if fail - pass <= 3 then [pass+1 .. fail-1] else [(pass + fail) `div` 2]
+    = if fail - pass == 4 then [pass+2, pass+1, pass+3]
+      else if fail - pass <= 3 then [pass+1 .. fail-1]
+      else [(pass + fail) `div` 2]
 bisect _ _ = []
