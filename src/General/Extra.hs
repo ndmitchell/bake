@@ -58,7 +58,7 @@ showRelativeTime = do
         if days > 3 then show days ++ " days ago"
         else if hours > 5 then show (round hours) ++ " hours ago"
         else if mins > 2 then show (round mins) ++ " mins ago"
-        else show (min 2 $ round secs) ++ " secs ago"
+        else show (max 2 $ round secs) ++ " secs ago"
 
 showUTCTime :: String -> UTCTime -> String
 showUTCTime = formatTime defaultTimeLocale
