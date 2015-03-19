@@ -112,6 +112,16 @@ data Rebase = Active -- exactly equal to 'active' (s,ps)
             | Superset -- a superset of 'active', (s,?p?s?) - all patches in order, plus others
               deriving (Eq,Show)
 
+-- Active gets mapped to Prefix, Superset becomes Nothing
+rebasePrefix :: Memory -> ((State, [Patch]) -> Maybe Int)
+rebasePrefix mem = \x -> case rb x of
+        Just Active -> Just n
+        Just (Prefix i) -> Just i
+        _ -> Nothing
+    where
+        n = length $ snd $ active mem
+        rb = rebase mem
+
 rebase :: Memory -> ((State, [Patch]) -> Maybe Rebase)
 rebase Memory{..} = \(s,ps) -> case Map.lookup s mp of
     Just pre
@@ -282,6 +292,7 @@ output :: (Test -> TestInfo Test) -> Memory -> Ping -> Maybe Question
 output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $ listToMaybe $ map question $ filter suitable $ nubOrd $ concatMap dependencies $ bad ++ good
     where
         rb = rebase mem
+        rbPrefix = rebasePrefix mem
         self = [(q, a) | (_,q,a) <- history, rb (qCandidate q) == Just Active]
 
         failedSelf = Set.fromList [qTest q | (q, a) <- self, not $ aSuccess a]
@@ -310,9 +321,7 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $ l
 
         hist = Map.fromListWith (++) [((i,qTest q),[a])
             | (q,a) <- map (snd3 &&& Just . thd3) history ++ map ((,Nothing) . snd) running
-            , qClient q == pClient, Just (Prefix i) <- [fmap toPrefix $ rb $ qCandidate q]]
-        toPrefix = \x -> case x of Active -> act; _ -> x
-            where act = Prefix $ length $ snd active
+            , qClient q == pClient, Just i <- [rbPrefix $ qCandidate q]]
         threadsForTest = fromMaybe pMaxThreads . testThreads . info
 
         suitable :: (Int, Maybe Test) -> Bool
