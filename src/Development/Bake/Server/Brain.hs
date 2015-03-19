@@ -9,7 +9,6 @@ module Development.Bake.Server.Brain(
     ) where
 
 import Control.DeepSeq
-import Control.Applicative
 import Development.Bake.Core.Run
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
@@ -162,18 +161,17 @@ input oven mem msg = do
 
 
 reject :: Memory -> Memory
--- find tests which have a passed/failed one apart in Prefix, assume 0 is implicitly passing
--- Map is ([pass], [fail])
-reject mem@Memory{..} = foldl' use mem $ concatMap bad $ Map.toList $ Map.fromListWith mappend $ mapMaybe acc history
+-- find tests which have a passed/failed one apart in Prefix,
+-- assume 0 is implicitly passing
+reject mem@Memory{..} = foldl' use mem $ concatMap bad results
     where
-        rb = rebase mem
-        toPrefix = \x -> case x of Active -> act; _ -> x
-            where act = Prefix $ length $ snd active
+        rbPrefix = rebasePrefix mem
 
-        acc (_,Question{..},Answer{..})
-            | Just (Prefix i) <- toPrefix <$> rb qCandidate
-            = Just (qTest, if aSuccess then ([i],[]) else ([],[i]))
-        acc _ = Nothing
+        -- [(test, ([pass], [fail]))]
+        results = Map.toList $ Map.fromListWith mappend
+            [ (qTest, if aSuccess then ([i],[]) else ([],[i]))
+            | (_,Question{..},Answer{..}) <- history
+            , Just i <- [rbPrefix qCandidate]]
 
         -- 0: makes the assumption the base state passes all tests
         bad :: (Maybe Test, ([Int], [Int])) -> [(Patch, Maybe Test)]
