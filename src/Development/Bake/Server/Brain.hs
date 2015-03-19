@@ -163,6 +163,7 @@ input oven mem msg = do
 reject :: Memory -> Memory
 -- find tests which have a passed/failed one apart in Prefix,
 -- assume 0 is implicitly passing
+-- and anywhere the test isn't available
 reject mem@Memory{..} = foldl' use mem $ concatMap bad results
     where
         rbPrefix = rebasePrefix mem
@@ -173,9 +174,18 @@ reject mem@Memory{..} = foldl' use mem $ concatMap bad results
             | (_,Question{..},Answer{..}) <- history
             , Just i <- [rbPrefix qCandidate]]
 
+        -- Map prefix (Set test)
+        prepare = Map.fromList
+            [ (i, Set.fromList $ aTests a)
+            | (_,Question{..},a@Answer{..}) <- history
+            , aSuccess, qTest == Nothing
+            , Just i <- [rbPrefix qCandidate]]
+
         -- 0: makes the assumption the base state passes all tests
         bad :: (Maybe Test, ([Int], [Int])) -> [(Patch, Maybe Test)]
-        bad (t, (pass, fail)) = [(snd active !! (i-1), t) | i <- fail, (i-1) `elem` (0:pass)]
+        bad (t, (pass, fail)) = [(snd active !! (i-1), t) | i <- fail,
+            (i-1) `elem` (0:pass) ||
+            Just False == (do t <- t; ts <- Map.lookup (i-1) prepare; return $ t `Set.member` ts)]
 
         use mem@Memory{..} (p, t) = mem{rejected = Map.insertWith Set.union p (Set.singleton t) rejected}
 
