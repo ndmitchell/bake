@@ -1,6 +1,8 @@
+{-# LANGUAGE ViewPatterns #-}
 
 module General.HTML(
     -- * Library
+    url_,
     HTML, HTML_, renderHTML, valueHTML, str_, raw_,
     Attribute, attribute_,
     tag_, tag__,
@@ -19,6 +21,7 @@ import Data.Monoid
 import Data.List
 import Control.Monad
 import Data.Char
+import Numeric
 import Prelude
 
 
@@ -41,6 +44,13 @@ instance Monoid Rope where
     mempty = Branch []
     mappend a b = Branch [a,b]
     mconcat = Branch
+
+
+url_ :: String -> String
+url_ = concatMap f
+    where
+        f x | (x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z') || (x >= '0' && x <= '9') || x `elem` "-_.~" = [x]
+        f (ord -> x) = "%" ++ ['0' | x < 16] ++ showHex x ""
 
 
 data HTML_ a = HTML_ Rope a
