@@ -18,6 +18,7 @@ import Data.Maybe
 import Data.Monoid
 -- import Debug.Trace
 import Control.Monad
+import Control.Exception.Extra
 import Data.List.Extra
 import Data.Map(Map)
 import qualified Data.Map as Map
@@ -156,8 +157,12 @@ input oven mem msg = do
     let f mem | fatal mem == [], Just mem <- reactive oven mem = f . reject =<< mem
               | otherwise = return mem
     mem <- f mem
-    consistent mem
-    return mem
+    res <- try_ $ consistent mem
+    case res of
+        Right () -> return mem
+        Left e -> do
+            e <- showException e
+            return mem{fatal = ("Consistency check failed: " ++ e) : fatal mem}
 
 
 reject :: Memory -> Memory
