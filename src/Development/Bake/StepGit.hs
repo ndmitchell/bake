@@ -51,6 +51,19 @@ ovenStepGit act repo branch path o = o
                     unit $ cmd (Cwd git) "git config user.name" ["Bake Continuous Integration"]
             return git
 
+        gitSetState git s = do
+            unit $ cmd (Cwd git) "git reset --merge"
+            unit $ cmd (Cwd git) "git checkout" [branch]
+            unit $ cmd (Cwd git) "git reset --hard" ["origin/" ++ branch]
+            Stdout x <- cmd (Cwd git) "git rev-parse HEAD"
+            when (trim x /= fromSHA1 s) $ error $
+                "The branch " ++ branch ++ " changed SHA1 independently of bake.\n" ++
+                "Expected value: " ++ fromSHA1 s ++ "\n" ++
+                "But has become: " ++ trim x
+
+        gitApplyPatch git p = do
+            unit $ cmd (Cwd git) "git merge" $ fromSHA1 p
+
         stepExtra s p = do
             root <- root
             let (sh,a1) = splitAt 2 $ fromSHA1 $ fromMaybe s p
@@ -67,17 +80,10 @@ ovenStepGit act repo branch path o = o
                 logEntry "stepPrepare after gitEnsure"
                 withFileLock (root </> ".bake-lock") $ do
                     logEntry "stepPrepare git initialise"
-                    unit $ cmd (Cwd git) "git reset --merge"
-                    unit $ cmd (Cwd git) "git checkout" [branch]
-                    unit $ cmd (Cwd git) "git reset --hard" ["origin/" ++ branch]
-                    Stdout x <- cmd (Cwd git) "git rev-parse HEAD"
-                    when (trim x /= fromSHA1 s) $ error $
-                        "The branch " ++ branch ++ " changed SHA1 independently of bake.\n" ++
-                        "Expected value: " ++ fromSHA1 s ++ "\n" ++
-                        "But has become: " ++ trim x
+                    gitSetState git s
                     forM_ (inits ps) $ \ps -> do
                         when (ps /= []) $ do
-                            unit $ cmd (Cwd git) "git merge" (fromSHA1 $ last ps)
+                            gitApplyPatch git $ last ps
                         logEntry "stepPrepare after merge"
                         dir <- createDir (root </> ".bake-point") $ map fromSHA1 $ s : ps
                         unlessM (doesFileExist $ dir </> "result.tar") $ do
