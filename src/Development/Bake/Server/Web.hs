@@ -161,7 +161,7 @@ argsFilter Args{..} Question{..} =
 
 admin :: Message -> HTML -> HTML
 admin (messageToInput -> Input parts args _) body = a__ [href_ url, class_ "admin"] body
-    where url = intercalate "/" parts ++ "?" ++ intercalate "&" [a ++ "=" ++ b | (a,b) <- args]
+    where url = intercalate "/" parts ++ "?" ++ intercalate "&" [url_ a ++ "=" ++ url_ b | (a,b) <- args]
 
 table :: String -> [String] -> [(String, [HTML])] -> HTML
 table zero cols [] = p_ $ str_ zero
@@ -197,7 +197,7 @@ shower extra Oven{..} argsAdmin = do
             shwState s
             when (not $ null ps) $ str_ " plus " <> commas_ (map shwPatch ps)
         ,showExtra = \e -> raw_ $ maybe "" (strUnpack . fst) $ extra e
-        ,showClient = \c -> shwLink ("client=" ++ fromClient c) $ str_ $ fromClient c
+        ,showClient = \c -> shwLink ("client=" ++ url_ (fromClient c)) $ str_ $ fromClient c
         ,showTest = f Nothing Nothing []
         ,showQuestion = \Question{..} -> f (Just qClient) (Just $ fst qCandidate) (snd qCandidate) qTest
         ,showTime = span__ [class_ "nobr"] . str_ . showTime
@@ -209,10 +209,10 @@ shower extra Oven{..} argsAdmin = do
         f c s ps t =
             shwLink (intercalate "&" parts) $ str_ $
             maybe "Preparing" (stringyPretty ovenStringyTest) t
-            where parts = ["client=" ++ fromClient c | Just c <- [c]] ++
-                          ["state=" ++ fromState s | Just s <- [s]] ++
-                          ["patch=" ++ fromPatch p | p <- ps] ++
-                          ["test=" ++ maybe "" fromTest t]
+            where parts = ["client=" ++ url_ (fromClient c) | Just c <- [c]] ++
+                          ["state=" ++ url_ (fromState s) | Just s <- [s]] ++
+                          ["patch=" ++ url_ (fromPatch p) | p <- ps] ++
+                          ["test=" ++ url_ (maybe "" fromTest t)]
 
 
 template :: HTML_ a -> HTML_ a
@@ -337,7 +337,7 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin passed patch = (code, [maybe mempty
 
 rowClient :: Shower -> Memory -> Maybe Client -> (String, [HTML])
 rowClient Shower{..} Memory{..} (Just c) = ((if maybe False piAlive $ Map.lookup c pings then "" else "dull"),) $
-    [showLink ("client=" ++ fromClient c) $ str_ $ fromClient c
+    [showLink ("client=" ++ url_ (fromClient c)) $ str_ $ fromClient c
     ,if null xs then i_ $ str_ "None" else mconcat $ intersperse br_ xs]
     where xs = reverse [showQuestion q <> str_ " started " <> showTime t | (t,q) <- running, qClient q == c]
 rowClient Shower{..} Memory{..} Nothing = ("",) $
