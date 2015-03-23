@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns #-}
 
-module Development.Bake.Step(
+module Development.Bake.StepGit(
     ovenStepGit
     ) where
 

@@ -28,7 +28,7 @@ import Development.Bake.Core.Client
 import Development.Bake.Core.Args
 import Development.Bake.Core.Send
 import Development.Bake.Git
-import Development.Bake.Step
+import Development.Bake.StepGit
 import Development.Bake.Build
 import Development.Bake.Pretty
 import Development.Bake.Email
