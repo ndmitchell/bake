@@ -1,7 +1,8 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Development.Bake.Git(
-    SHA1(..), stringySHA1, ovenGit, gitPatchExtra,
+    SHA1(..), stringySHA1, ovenGit,
+    gitPatchExtra, gitInit
     ) where
 
 import Development.Bake.Core.Type
@@ -41,7 +42,7 @@ stringySHA1 = Stringy
 --   which is used to clone into.
 ovenGit :: String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SHA1 test
 ovenGit repo branch (fromMaybe "." -> path) o = o
-    {ovenInit = gitInit
+    {ovenInit = gitInit repo branch
     ,ovenUpdate = gitUpdate
     ,ovenPrepare = \s ps -> do gitCheckout s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenPatchExtra = \s p -> gitPatchExtra s p =<< gitInitMirror
@@ -50,12 +51,6 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
     ,ovenStringyPatch = stringySHA1
     }
     where
-        traced msg act = do
-            putStrLn $ "% GIT: Begin " ++ msg
-            res <- act
-            putStrLn $ "% GIT: Finish " ++ msg
-            return res
-
         gitSafe dir = do
             unit $ cmd (Cwd dir) "git config user.email" ["https://github.com/ndmitchell/bake"]
             unit $ cmd (Cwd dir) "git config user.name" ["Bake Continuous Integration"]
@@ -73,12 +68,6 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
                 timed "git clone for mirror" $ unit $ cmd (Cwd mirror) "git clone --mirror" [repo] "."
                 gitSafe mirror
             return mirror
-
-        gitInit = traced "gitInit" $ do
-            Stdout hash <- timed "git ls-remote" $ cmd "git ls-remote" [repo] [branch]
-            case words $ concat $ takeEnd 1 $ lines hash of
-                [] -> error "Couldn't find branch"
-                x:xs -> return $ sha1 $ trim x
 
         gitUpdate s ps = traced "gitUpdate" $ do
             gitCheckout s ps
@@ -103,6 +92,22 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
                 "But has become: " ++ trim x
             forM_ ps $ \p ->
                 timed "git merge" $ unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
+
+
+gitInit :: String -> String -> IO SHA1
+gitInit repo branch = traced "gitInit" $ do
+    Stdout hash <- timed "git ls-remote" $ cmd "git ls-remote" [repo] [branch]
+    case words $ concat $ takeEnd 1 $ lines hash of
+        [] -> error "Couldn't find branch"
+        x:xs -> return $ sha1 $ trim x
+
+
+traced :: String -> IO a -> IO a
+traced msg act = do
+    putStrLn $ "% GIT: Begin " ++ msg
+    res <- act
+    putStrLn $ "% GIT: Finish " ++ msg
+    return res
 
 
 ---------------------------------------------------------------------
