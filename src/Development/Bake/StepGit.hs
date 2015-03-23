@@ -68,7 +68,7 @@ ovenStepGit act repo branch path o = o
             root <- root
             let (sh,a1) = splitAt 2 $ fromSHA1 $ fromMaybe s p
             unlessM (doesFileExist $ root </> fromMaybe "repo" path </> ".git/objects" </> sh </> a1) $ do
-                void $ gitEnsure
+                void gitEnsure
             gitPatchExtra s p $ root </> fromMaybe "repo" path
 
         stepPrepare s ps = do
