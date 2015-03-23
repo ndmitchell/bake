@@ -6,8 +6,8 @@ import Development.Shake.Command
 import System.Environment.Extra
 import System.FilePath
 import Data.List.Extra
+import Data.Tuple.Extra
 import System.Directory
-import Control.Arrow
 import Control.Monad.Extra
 import Data.Maybe
 import System.Time.Extra
