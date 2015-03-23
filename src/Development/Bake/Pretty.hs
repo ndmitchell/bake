@@ -4,7 +4,6 @@ module Development.Bake.Pretty(ovenPretty, ovenPrettyMerge, Pretty(..)) where
 
 import Development.Bake.Core.Type
 import Data.List.Extra
-import Control.Arrow
 
 
 data Pretty a = Pretty String a deriving (Read,Show,Eq)
@@ -19,7 +18,7 @@ prettyStringy sep Stringy{..} = Stringy
 
 ovenPretty :: String -> Oven state patch test -> Oven state (Pretty patch) test
 ovenPretty sep oven@Oven{..} = oven
-    {ovenUpdateState = ovenUpdateState . fmap (second $ map unpretty)
+    {ovenUpdate = \s ps -> ovenUpdate s (map unpretty ps)
     ,ovenPrepare = \s ps -> ovenPrepare s (map unpretty ps)
     ,ovenPatchExtra = \s p -> ovenPatchExtra s (fmap unpretty p)
     ,ovenSupersede = \p1 p2 -> ovenSupersede (unpretty p1) (unpretty p2)

@@ -20,7 +20,8 @@ import System.IO.Unsafe
 
 ovenStepGit :: IO [FilePath] -> String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SHA1 test
 ovenStepGit act repo branch path o = o
-    {ovenUpdateState = ovenUpdateState $ ovenGit repo branch path o
+    {ovenInit = ovenInit git
+    ,ovenUpdate = ovenUpdate git
     ,ovenPrepare = \s ps -> do stepPrepare s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenSupersede = \_ _ -> False
     ,ovenPatchExtra = stepExtra
@@ -28,6 +29,8 @@ ovenStepGit act repo branch path o = o
     ,ovenStringyPatch = stringySHA1
     }
     where
+        git = ovenGit repo branch path o
+
         -- use a different failure name each run, so failures don't get persisted
         failure = unsafePerformIO $ do
             t <- getCurrentTime

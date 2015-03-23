@@ -41,7 +41,8 @@ stringySHA1 = Stringy
 --   which is used to clone into.
 ovenGit :: String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SHA1 test
 ovenGit repo branch (fromMaybe "." -> path) o = o
-    {ovenUpdateState = gitUpdateState
+    {ovenInit = gitInit
+    ,ovenUpdate = gitUpdate
     ,ovenPrepare = \s ps -> do gitCheckout s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenPatchExtra = \s p -> gitPatchExtra s p =<< gitInitMirror
     ,ovenSupersede = \_ _ -> False
@@ -73,13 +74,13 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
                 gitSafe mirror
             return mirror
 
-        gitUpdateState Nothing = traced "gitUpdateState Nothing" $ do
+        gitInit = traced "gitInit" $ do
             Stdout hash <- timed "git ls-remote" $ cmd "git ls-remote" [repo] [branch]
             case words $ concat $ takeEnd 1 $ lines hash of
                 [] -> error "Couldn't find branch"
                 x:xs -> return $ sha1 $ trim x
 
-        gitUpdateState (Just (s, ps)) = traced "gitUpdateState Just" $ do
+        gitUpdate s ps = traced "gitUpdate" $ do
             gitCheckout s ps
             Stdout x <- cmd (Cwd path) "git rev-parse" [branch]
             unit $ cmd (Cwd path) "git push" [repo] [branch ++ ":" ++ branch]

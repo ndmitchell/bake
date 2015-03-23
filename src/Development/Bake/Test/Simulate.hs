@@ -74,9 +74,10 @@ simulation testInfo clients u step = do
 
     let count s c = sum [qThreads | (_, Question{..}) <- running $ memory s, qClient == c]
     let oven = defaultOven
-            {ovenUpdateState = \(Just (s, ps)) -> return $ restate $ unstate s ++ ps
+            {ovenUpdate = \s ps -> return $ restate $ unstate s ++ ps
             ,ovenTestInfo = testInfo
             ,ovenSupersede = \_ _ -> False
+            ,ovenInit = undefined
             ,ovenPrepare = undefined
             ,ovenPatchExtra = undefined
             ,ovenStringyState = undefined

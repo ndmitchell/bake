@@ -16,7 +16,6 @@ import Control.DeepSeq
 import Data.Monoid
 import Data.Aeson
 import Data.Hashable
-import Control.Arrow
 import Prelude
 
 
@@ -36,13 +35,16 @@ type Port = Int
 --
 --   All IO operations will be called in a direct subdirectory of the directory you start
 --   'bake' from. In particular:
---   'ovenUpdateState' will always be called single-threaded from either @bake-init@ or @bake-update@;
+--   'ovenInit' will always be called single-threaded from @bake-init@;
+--   'ovenUpdate' will always be called from @bake-update@;
 --   'ovenPatchExtra' will always be called from @bake-extra-/hash/@;
 --   'ovenPrepare' and 'run' will always be called from @bake-test-/hash/@.
 data Oven state patch test = Oven
-    {ovenUpdateState :: Maybe (state, [patch]) -> IO state
+    {ovenInit :: IO state
+        -- ^ Get an initial state
+    ,ovenUpdate :: state -> [patch] -> IO state
         -- ^ Given a state, and a set of candiates that have passed,
-        --   merge to create a new state.
+        --   merge to create a new state
     ,ovenPrepare :: state -> [patch] -> IO [test]
         -- ^ Prepare a candidate to be run, produces the tests that must pass
     ,ovenTestInfo :: test -> TestInfo test
@@ -91,7 +93,8 @@ readShowStringy = Stringy show read show
 -- | The default oven, which doesn't do anything interesting. Usually the starting point.
 defaultOven :: Oven () () ()
 defaultOven = Oven
-    {ovenUpdateState = \_ -> return ()
+    {ovenInit = return ()
+    ,ovenUpdate = \_ _ -> return ()
     ,ovenNotify = \_ _ -> return ()
     ,ovenPrepare = \_ _ -> return []
     ,ovenTestInfo = \_ -> mempty
@@ -159,7 +162,8 @@ newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,From
 
 concrete :: Oven state patch test -> Oven State Patch Test
 concrete o@Oven{..} = o
-    {ovenUpdateState = fmap restate . ovenUpdateState . fmap (unstate *** map unpatch)
+    {ovenInit = fmap restate ovenInit
+    ,ovenUpdate = \s ps -> fmap restate $ ovenUpdate (unstate s) (map unpatch ps)
     ,ovenPrepare = \s ps -> fmap (map retest) $ ovenPrepare (unstate s) (map unpatch ps)
     ,ovenTestInfo = fmap retest . ovenTestInfo . untest
     ,ovenPatchExtra = \s p -> ovenPatchExtra (unstate s) (fmap unpatch p)

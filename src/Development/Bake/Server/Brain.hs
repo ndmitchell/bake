@@ -204,7 +204,7 @@ reactive oven mem@Memory{..}
         now <- getCurrentTime
         (s, answer) <-
             if not simulated then uncurry runUpdate active
-            else do s <- ovenUpdateState oven $ Just active; return (Just s, Answer mempty 0 mempty True)
+            else do s <- ovenUpdate oven (fst active) (snd active); return (Just s, Answer mempty 0 mempty True)
 
         case s of
             Nothing -> do

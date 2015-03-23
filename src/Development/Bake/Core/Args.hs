@@ -104,11 +104,11 @@ bake oven@Oven{..} = do
 
         RunInit -> do
             logEntry "start init"
-            s <- ovenUpdateState Nothing
+            s <- ovenInit
             writeFile ".bake.result" $ stringyTo ovenStringyState s
         RunUpdate{..} -> do
             logEntry "start update"
-            s <- ovenUpdateState $ Just (stringyFrom ovenStringyState state, map (stringyFrom ovenStringyPatch) patch)
+            s <- ovenUpdate (stringyFrom ovenStringyState state) $ map (stringyFrom ovenStringyPatch) patch
             writeFile ".bake.result" $ stringyTo ovenStringyState s
         RunTest{..} -> do
             logEntry "start test"
