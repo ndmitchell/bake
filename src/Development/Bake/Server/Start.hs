@@ -55,7 +55,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
             now <- getCurrentTime
-            let prune = id -- expire (addSeconds (negate timeout) now)
+            let prune = expire (addSeconds (negate timeout) now)
             res <-
                 if null inputURL then do
                     -- prune but don't save, will reprune on the next ping
