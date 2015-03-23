@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Development.Bake.Git(
-    SHA1(..), stringySHA1, ovenGit,
+    SHA1(..), sha1, stringySHA1, ovenGit,
     gitPatchExtra, gitInit
     ) where
 
