@@ -21,7 +21,7 @@ import System.IO.Unsafe
 ovenStepGit :: IO [FilePath] -> String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SHA1 test
 ovenStepGit act repo branch path o = o
     {ovenInit = gitInit repo branch
-    ,ovenUpdate = ovenUpdate git
+    ,ovenUpdate = stepUpdate
     ,ovenPrepare = \s ps -> do stepPrepare s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenSupersede = \_ _ -> False
     ,ovenPatchExtra = stepExtra
@@ -29,8 +29,6 @@ ovenStepGit act repo branch path o = o
     ,ovenStringyPatch = stringySHA1
     }
     where
-        git = ovenGit repo branch path o
-
         -- use a different failure name each run, so failures don't get persisted
         failure = unsafePerformIO $ do
             t <- getCurrentTime
@@ -70,6 +68,16 @@ ovenStepGit act repo branch path o = o
             unlessM (doesFileExist $ root </> fromMaybe "repo" path </> ".git/objects" </> sh </> a1) $ do
                 void gitEnsure
             gitPatchExtra s p $ root </> fromMaybe "repo" path
+
+        stepUpdate s ps = do
+            root <- root
+            withFileLock (root </> ".bake-lock") $ do
+                git <- gitEnsure
+                gitSetState git s
+                forM_ ps $ gitApplyPatch git
+                Stdout x <- cmd (Cwd git) "git rev-parse" [branch]
+                unit $ cmd (Cwd git) "git push" [repo] [branch ++ ":" ++ branch]
+                return $ sha1 $ trim x
 
         stepPrepare s ps = do
             logEntry "stepPrepare"
