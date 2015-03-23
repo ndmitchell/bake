@@ -28,7 +28,7 @@ runInit :: IO (Maybe State, Answer)
 runInit = runAll "init" [] [] State
 
 runUpdate :: State -> [Patch] -> IO (Maybe State, Answer)
-runUpdate s ps = runAll "update" (state s : map patch ps) [] State
+runUpdate s ps = runAll "test" (state s : map patch ps) [] State
 
 runTest :: State -> [Patch] -> Maybe Test -> IO Answer
 runTest s ps t = do
