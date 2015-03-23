@@ -157,7 +157,7 @@ input oven mem msg = do
     let f mem | fatal mem == [], Just mem <- reactive oven mem = f . reject =<< mem
               | otherwise = return mem
     mem <- f mem
-    res <- try_ $ consistent mem
+    res <- try_ $ when (fatal mem == []) $ consistent mem
     case res of
         Right () -> return mem
         Left e -> do
