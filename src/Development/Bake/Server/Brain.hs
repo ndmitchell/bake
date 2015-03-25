@@ -143,7 +143,7 @@ prod oven mem msg = do
     mem <- input oven mem msg
     now <- getCurrentTime
     return $ case msg of
-        Pinged p | Just q <- output (ovenTestInfo oven) mem p -> (mem{running = (now,q) : running mem}, Just q)
+        Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p -> (mem{running = (now,q) : running mem}, Just q)
         _ -> (mem, Nothing)
 
 
