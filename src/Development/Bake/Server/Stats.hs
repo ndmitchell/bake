@@ -51,8 +51,8 @@ mean :: [Double] -> Double
 mean xs = sum xs / intToDouble (length xs)
 
 
-stats :: Memory -> IO HTML
-stats Memory{..} = do
+stats :: Oven State Patch Test -> Memory -> IO HTML
+stats Oven{..} Memory{..} = do
     recorded <- readIORef recorded
 #if __GLASGOW_HASKELL__ < 706
     getGCStatsEnabled <- return True
@@ -75,12 +75,12 @@ stats Memory{..} = do
 
         h2_ $ str_ "Slowest 25 tests"
         table ["Test","Count","Mean","Sum","Max","Last 10"] $
-            let xs = [(qTest, aDuration) | (_,Question{..}, Answer{..}) <- history]
+            -- deliberately group by Pretty string, not by raw string, so we group similar looking tests
+            let xs = [(maybe "Preparing " (stringyPretty ovenStringyTest) qTest, aDuration) | (_,Question{..}, Answer{..}) <- history]
                 f name xs = name : map str_ [show (length xs), showDuration (mean xs), showDuration (sum xs)
                                             ,showDuration (maximum xs), unwords $ map showDuration $ take 10 xs]
             in [f (i_ $ str_ "All") (map snd xs) | not $ null xs] ++
-               [ f (str_ $ maybe "Preparing" fromTest test) dur
-               | (test,dur) <- take 25 $ sortOn (negate . mean . snd) $ groupSort xs]
+               [f (str_ test) dur | (test,dur) <- take 25 $ sortOn (negate . mean . snd) $ groupSort xs]
 
         h2_ $ str_ "Requests per client"
         let historyRunning = map (\(t,q,a) -> (t,q,Just a)) history ++ map (\(t,q) -> (t,q,Nothing)) running

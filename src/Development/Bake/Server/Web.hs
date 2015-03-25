@@ -33,7 +33,7 @@ web :: Oven State Patch Test -> DelayCache (Either State Patch) (Str,Str) -> [(S
 web oven@Oven{..} extra (args -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
     extra <- askDelayCache extra
     shower <- shower extra oven argsAdmin
-    stats <- if argsStats then stats mem else return mempty
+    stats <- if argsStats then stats oven mem else return mempty
     return $ (valueHTML &&& renderHTML . void) $ template $ do
         let noargs = argsEmpty a
 
