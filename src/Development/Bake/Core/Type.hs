@@ -36,8 +36,9 @@ type Port = Int
 --   All IO operations will be called in a direct subdirectory of the directory you start
 --   'bake' from. In particular:
 --   'ovenInit' will always be called single-threaded from @bake-init@;
+--   'ovenUpdate' will always be called single-threaded from @bake-update-/hash/@;
 --   'ovenPatchExtra' will always be called from @bake-extra-/hash/@;
---   'ovenPrepare', 'run' and 'ovenUpdate' will always be called from @bake-test-/hash/@.
+--   'ovenPrepare' and 'run' will always be called from @bake-test-/hash/@.
 data Oven state patch test = Oven
     {ovenInit :: IO state
         -- ^ Get an initial state
