@@ -80,9 +80,6 @@ simulation testInfo clients u step = do
             ,ovenInit = undefined
             ,ovenPrepare = undefined
             ,ovenPatchExtra = undefined
-            ,ovenStringyState = undefined
-            ,ovenStringyPatch = undefined
-            ,ovenStringyTest = undefined
             }
     s@S{..} <- flip loopM s $ \s -> do
         putChar '.'

@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, DeriveDataTypeable #-}
+{-# LANGUAGE RecordWildCards, DeriveDataTypeable, ScopedTypeVariables #-}
 {-# OPTIONS_GHC -fno-warn-missing-fields #-}
 
 -- | Define a continuous integration system.
@@ -67,8 +67,11 @@ bakeMode = cmdArgsMode $ modes
 --
 --   Where @myOven@ defines details about the server. The program
 --   deals with command line arguments, run @--help@ for details.
-bake :: Oven state patch test -> IO ()
-bake oven@Oven{..} = do
+bake :: (Stringy state, Stringy patch, Stringy test) => Oven state patch test -> IO ()
+bake = bake_ -- so the forall's don't show up in Haddock
+
+bake_ :: forall state patch test . (Stringy state, Stringy patch, Stringy test) => Oven state patch test -> IO ()
+bake_ oven@Oven{..} = do
     registerMaster
     x <- cmdArgsRun bakeMode
     case x of
@@ -78,8 +81,8 @@ bake oven@Oven{..} = do
         Client{..} -> do
             name <- if name /= "" then return name else pick defaultNames
             startClient (getHostPort host port) author name threads ping oven
-        AddPatch{..} -> sendAddPatch (getHostPort host port) author =<< check "patch" ovenStringyPatch name
-        DelPatch{..} -> sendDelPatch (getHostPort host port) author =<< check "patch" ovenStringyPatch name
+        AddPatch{..} -> sendAddPatch (getHostPort host port) author =<< check "patch" (undefined :: patch) name
+        DelPatch{..} -> sendDelPatch (getHostPort host port) author =<< check "patch" (undefined :: patch) name
         DelPatches{..} -> sendDelAllPatches (getHostPort host port) author
         Requeue{..} -> sendRequeue (getHostPort host port) author
         Pause{..} -> sendPause (getHostPort host port) author
@@ -105,45 +108,44 @@ bake oven@Oven{..} = do
         RunInit -> do
             logEntry "start init"
             s <- ovenInit
-            writeFile ".bake.result" $ stringyTo ovenStringyState s
+            writeFile ".bake.result" $ stringyTo s
         RunUpdate{..} -> do
             logEntry "start update"
-            s <- ovenUpdate (stringyFrom ovenStringyState state) $ map (stringyFrom ovenStringyPatch) patch
-            writeFile ".bake.result" $ stringyTo ovenStringyState s
+            s <- ovenUpdate (stringyFrom state) $ map stringyFrom patch
+            writeFile ".bake.result" $ stringyTo s
         RunTest{..} -> do
             logEntry "start test"
             case test of
                 Nothing -> do
-                    let str = stringyTo ovenStringyTest
-                    res <- nubOn str <$> ovenPrepare
-                        (stringyFrom ovenStringyState state)
-                        (map (stringyFrom ovenStringyPatch) patch)
+                    res <- nubOn stringyTo <$> ovenPrepare
+                        (stringyFrom state)
+                        (map stringyFrom patch)
 
                     -- check the patches all make sense
-                    let follow t = map str $ testRequire $ ovenTestInfo $ stringyFrom ovenStringyTest t
-                    whenJust (findCycle follow $ map str res) $ \xs ->
+                    let follow t = map stringyTo $ testRequire $ ovenTestInfo $ stringyFrom t
+                    whenJust (findCycle follow $ map stringyTo res) $ \xs ->
                         error $ unlines $ "Tests form a cycle:" : xs
-                    let missing = transitiveClosure follow (map str res) \\ map str res
+                    let missing = transitiveClosure follow (map stringyTo res) \\ map stringyTo res
                     when (missing /= []) $
                         error $ unlines $ "Test is a dependency that cannot be reached:" : missing
 
                     xs <- partitionM (testSuitable . ovenTestInfo) res
-                    writeFile ".bake.result" $ show $ both (map str) xs
+                    writeFile ".bake.result" $ show $ both (map stringyTo) xs
                 Just test -> do
-                    testAction $ ovenTestInfo $ stringyFrom ovenStringyTest test
+                    testAction $ ovenTestInfo $ stringyFrom test
         RunExtra{..} -> do
             res <- ovenPatchExtra
-                (stringyFrom ovenStringyState state)
-                (fmap (stringyFrom ovenStringyPatch) $ listToMaybe patch)
+                (stringyFrom state)
+                (fmap stringyFrom $ listToMaybe patch)
             writeFile ".bake.result" $ show res
     where
         getPort p = if p == 0 then snd ovenServer else p
         getHostPort h p = (if h == "" then fst ovenServer else h, getPort p)
 
 
-check :: String -> Stringy s -> String -> IO String
-check typ Stringy{..} x = do
-    res <- try_ $ evaluate $ force $ stringyTo $ stringyFrom x
+check :: Stringy s => String -> s -> String -> IO String
+check typ _ x = do
+    res <- try_ $ evaluate $ force $ stringyTo $ asTypeOf (stringyFrom x) x
     case res of
         Left err -> error $ "Couldn't stringify the " ++ typ ++ " " ++ show x ++ ", got " ++ show err
         Right v -> return v

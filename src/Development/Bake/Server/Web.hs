@@ -29,11 +29,11 @@ import qualified Data.Set as Set
 import Prelude
 
 
-web :: Oven State Patch Test -> DelayCache (Either State Patch) (Str,Str) -> [(String, String)] -> Memory -> IO String
-web oven@Oven{..} extra (args -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
+web :: DelayCache (Either State Patch) (Str,Str) -> Prettys -> [(String, String)] -> Memory -> IO String
+web extra prettys (args -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
     extra <- askDelayCache extra
-    shower <- shower extra oven argsAdmin
-    stats <- if argsStats then stats oven mem else return mempty
+    shower <- shower extra prettys argsAdmin
+    stats <- if argsStats then stats prettys mem else return mempty
     return $ (valueHTML &&& renderHTML . void) $ template $ do
         let noargs = argsEmpty a
 
@@ -183,12 +183,12 @@ data Shower = Shower
     ,showThreads :: Int -> HTML
     }
 
-shower :: (Either State Patch -> Maybe (Str, Str)) -> Oven State Patch Test -> Bool -> IO Shower
-shower extra Oven{..} argsAdmin = do
+shower :: (Either State Patch -> Maybe (Str, Str)) -> Prettys -> Bool -> IO Shower
+shower extra Prettys{..} argsAdmin = do
     showTime <- showRelativeTime
     let shwState (State "") = span__ [class_ "bad" ] $ str_ $ "invalid state"
-        shwState s = shwLink ("state=" ++ fromState s) $ str_ $ stringyPretty ovenStringyState s
-    let shwPatch p = shwLink ("patch=" ++ fromPatch p) $ str_ $ stringyPretty ovenStringyPatch p
+        shwState s = shwLink ("state=" ++ fromState s) $ str_ $ prettyState s
+    let shwPatch p = shwLink ("patch=" ++ fromPatch p) $ str_ $ prettyPatch p
     return $ Shower
         {showLink = shwLink
         ,showPatch = shwPatch
@@ -208,7 +208,7 @@ shower extra Oven{..} argsAdmin = do
 
         f c s ps t =
             shwLink (intercalate "&" parts) $ str_ $
-            maybe "Preparing" (stringyPretty ovenStringyTest) t
+            maybe "Preparing" prettyTest t
             where parts = ["client=" ++ url_ (fromClient c) | Just c <- [c]] ++
                           ["state=" ++ url_ (fromState s) | Just s <- [s]] ++
                           ["patch=" ++ url_ (fromPatch p) | p <- ps] ++

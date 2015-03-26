@@ -1,12 +1,13 @@
-{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Core.Type(
     Host, Port,
-    Stringy(..), readShowStringy,
+    Stringy(..),
     Oven(..), TestInfo(..), defaultOven, ovenTest, ovenNotifyStdout,
     threads, threadsAll, require, run, suitable, priority,
-    State(..), Patch(..), Test(..), Client(..), concrete, validate,
+    State(..), Patch(..), Test(..), Client(..), concrete, Prettys(..),
     Author
     ) where
 
@@ -58,17 +59,14 @@ data Oven state patch test = Oven
         -- ^ Default server to use
     ,ovenSupersede :: patch -> patch -> Bool
         -- ^ Given two patches (first on submitted first) is the first now redundant
-    ,ovenStringyState :: Stringy state
-    ,ovenStringyPatch :: Stringy patch
-    ,ovenStringyTest :: Stringy test
     }
 
 -- | Given a 'Stringy' for @test@, and a function that when run on a code base
 --   returns the list of tests that need running, and a function to populate
 --   a 'TestInfo', modify the 'Oven' with a test type.
-ovenTest :: Stringy test -> IO [test] -> (test -> TestInfo test)
+ovenTest :: IO [test] -> (test -> TestInfo test)
          -> Oven state patch () -> Oven state patch test
-ovenTest stringy prepare info o = o{ovenStringyTest=stringy, ovenPrepare= \_ _ -> prepare, ovenTestInfo=info}
+ovenTest prepare info o = o{ovenPrepare= \_ _ -> prepare, ovenTestInfo=info}
 
 -- | Produce notifications on 'stdout' when users should be notified about success/failure.
 ovenNotifyStdout :: Oven state patch test -> Oven state patch test
@@ -80,15 +78,20 @@ ovenNotifyStdout o = o{ovenNotify = \a s -> f a s >> ovenNotify o a s}
 --   The functions 'stringyTo' and 'stringyFrom' should be inverses of each other.
 --   The function 'stringyPretty' shows a value in a way suitable for humans, and can
 --   discard uninteresting information.
-data Stringy s = Stringy
-    {stringyTo :: s -> String
-    ,stringyFrom :: String -> s
-    ,stringyPretty :: s -> String
-    }
+class Stringy s where
+    stringyTo :: s -> String
+    stringyFrom :: String -> s
+    stringyPretty :: s -> String
+    stringyPretty = stringyTo
 
--- | Produce a 'Stringy' for a type with 'Read' and 'Show'.
-readShowStringy :: (Show s, Read s) => Stringy s
-readShowStringy = Stringy show read show
+instance Stringy () where
+    stringyTo () = "_"
+    stringyFrom "_" = ()
+    stringyFrom x = error $ "Invalid stringyFrom on (), expected \"_\", got " ++ show x
+
+instance Stringy String where
+    stringyTo = id
+    stringyFrom = id
 
 -- | The default oven, which doesn't do anything interesting. Usually the starting point.
 defaultOven :: Oven () () ()
@@ -101,9 +104,6 @@ defaultOven = Oven
     ,ovenPatchExtra = \_ _ -> return ("","")
     ,ovenServer = ("127.0.0.1",80)
     ,ovenSupersede = \_ _ -> False
-    ,ovenStringyState = readShowStringy
-    ,ovenStringyPatch = readShowStringy
-    ,ovenStringyTest = readShowStringy
     }
 
 -- | Information about a test.
@@ -160,41 +160,33 @@ newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSO
 newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData)
 newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData)
 
-concrete :: Oven state patch test -> Oven State Patch Test
-concrete o@Oven{..} = o
+data Prettys = Prettys
+    {prettyState :: State -> String
+    ,prettyPatch :: Patch -> String
+    ,prettyTest  :: Test  -> String
+    }
+
+concrete :: (Stringy state, Stringy patch, Stringy test) => Oven state patch test -> (Prettys, Oven State Patch Test)
+concrete o@Oven{..} = (Prettys prestate prepatch pretest, o
     {ovenInit = fmap restate ovenInit
     ,ovenUpdate = \s ps -> fmap restate $ ovenUpdate (unstate s) (map unpatch ps)
     ,ovenPrepare = \s ps -> fmap (map retest) $ ovenPrepare (unstate s) (map unpatch ps)
     ,ovenTestInfo = fmap retest . ovenTestInfo . untest
     ,ovenPatchExtra = \s p -> ovenPatchExtra (unstate s) (fmap unpatch p)
     ,ovenSupersede = \p1 p2 -> ovenSupersede (unpatch p1) (unpatch p2) 
-    ,ovenStringyState = state
-    ,ovenStringyPatch = patch
-    ,ovenStringyTest  = test
-    }
+    })
     where
-        (patch,unpatch,_      ) = f Patch fromPatch ovenStringyPatch
-        (state,unstate,restate) = f State fromState ovenStringyState
-        (test ,untest ,retest ) = f Test  fromTest  ovenStringyTest
+        (unstate,restate,prestate) = f State fromState
+        (unpatch,_      ,prepatch) = f Patch fromPatch
+        (untest ,retest ,pretest ) = f Test  fromTest
 
-        f :: (String -> s) -> (s -> String) -> Stringy o -> (Stringy s, s -> o, o -> s)
-        f inj proj Stringy{..} =
-            (Stringy proj inj (stringyPretty . stringyFrom . proj)
-            ,stringyFrom . proj
-            ,inj . stringyTo)
+        f :: Stringy o => (String -> s) -> (s -> String) -> (s -> o, o -> s, s -> String)
+        f inj proj =
+            (check . stringyFrom . proj
+            ,inj . stringyTo . check
+            ,check . stringyFrom . proj)
 
-validate :: Oven state patch test -> Oven state patch test
-validate o@Oven{..} = o
-    {ovenStringyState = f ovenStringyState
-    ,ovenStringyPatch = f ovenStringyPatch
-    ,ovenStringyTest = f ovenStringyTest
-    }
-    where
-        f :: Stringy a -> Stringy a
-        f s@Stringy{..} = s
-            {stringyTo = check . stringyTo
-            ,stringyFrom = stringyFrom . check
-            }
-            where check s | null s = error "Problem with stringyTo/stringyFrom, generated blank string"
-                          | s == stringyTo (stringyFrom s) = s
-                          | otherwise = error $ "Problem with stringyTo/stringyFrom on " ++ show s
+        check :: forall o . Stringy o => o -> o
+        check s | null $ stringyTo s = error "Problem with stringyTo/stringyFrom, generated blank string"
+                | stringyTo s == stringyTo (stringyFrom (stringyTo s) :: o) = s
+                | otherwise = error $ "Problem with stringyTo/stringyFrom on " ++ stringyTo s

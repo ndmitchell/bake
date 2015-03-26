@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 
 module Example(main, platforms) where
 
@@ -19,6 +20,11 @@ useStep = True
 data Platform = Linux | Windows deriving (Show,Read)
 data Action = Compile | Run Int deriving (Show,Read)
 
+instance Stringy (Platform, Action) where
+    stringyTo (a,b) = show a ++ " " ++ show b
+    stringyFrom = (read *** read) . word1
+
+
 platforms = [Linux,Windows]
 
 main :: IO ()
@@ -30,12 +36,8 @@ main = do
         ovenPretty "=" $
         ((if useStep then ovenStepGit compile else ovenGit) repo "master" Nothing) $
         ovenNotifyStdout $
-        ovenTest testStringy (return allTests) execute
+        ovenTest (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
-
-testStringy = Stringy shw rd shw
-    where shw (a,b) = show a ++ " " ++ show b
-          rd x = (read *** read) $ word1 x
 
 allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1,10,0]]
 

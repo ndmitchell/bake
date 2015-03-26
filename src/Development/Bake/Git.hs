@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Development.Bake.Git(
-    SHA1(..), sha1, stringySHA1, ovenGit,
+    SHA1(..), sha1, ovenGit,
     gitPatchExtra, gitInit
     ) where
 
@@ -28,12 +28,10 @@ sha1 x | length x /= 40 = error $ "SHA1 for Git must be 40 characters long, got 
        | not $ all (`elem` "0123456789abcdef") x = error $ "SHA1 for Git must be all lower case hex, got " ++ show x 
        | otherwise = SHA1 x
 
-stringySHA1 :: Stringy SHA1
-stringySHA1 = Stringy
-    {stringyTo = fromSHA1
-    ,stringyFrom = sha1
-    ,stringyPretty = take 7 . fromSHA1
-    }
+instance Stringy SHA1 where
+    stringyTo = fromSHA1
+    stringyPretty = take 7 . fromSHA1
+    stringyFrom = sha1
 
 
 -- | Modify an 'Oven' to work with the Git version control system.
@@ -47,8 +45,6 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
     ,ovenPrepare = \s ps -> do gitCheckout s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenPatchExtra = \s p -> gitPatchExtra s p =<< gitInitMirror
     ,ovenSupersede = \_ _ -> False
-    ,ovenStringyState = stringySHA1
-    ,ovenStringyPatch = stringySHA1
     }
     where
         gitSafe dir = do

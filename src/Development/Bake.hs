@@ -6,7 +6,7 @@ module Development.Bake(
     bake,
     -- * Central types
     Oven(..), defaultOven,
-    Stringy(..), readShowStringy,
+    Stringy(..),
     -- ** Oven modifiers
     ovenTest,
     SHA1, ovenGit, ovenStepGit,

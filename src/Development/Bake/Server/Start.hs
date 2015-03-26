@@ -29,8 +29,9 @@ import qualified Data.Map as Map
 import Prelude
 
 
-startServer :: Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
-startServer port datadir author name timeout (validate . concrete -> oven) = do
+startServer :: (Stringy state, Stringy patch, Stringy test)
+            => Port -> FilePath -> Author -> String -> Double -> Oven state patch test -> IO ()
+startServer port datadir author name timeout (concrete -> (prettys, oven)) = do
     do
         dir <- getCurrentDirectory
         strInit (dir </> "bake-string") (25 * 1024 * 1024) -- use at most 25Mb for strings
@@ -59,7 +60,7 @@ startServer port datadir author name timeout (validate . concrete -> oven) = do
             res <-
                 if null inputURL then do
                     -- prune but don't save, will reprune on the next ping
-                    fmap OutputHTML $ web oven extra inputArgs . prune =<< readCVar var
+                    fmap OutputHTML $ web extra prettys inputArgs . prune =<< readCVar var
                 else if ["html"] `isPrefixOf` inputURL then
                     return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if ["api"] `isPrefixOf` inputURL then

@@ -25,8 +25,6 @@ ovenStepGit act repo branch path o = o
     ,ovenPrepare = \s ps -> do stepPrepare s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenSupersede = \_ _ -> False
     ,ovenPatchExtra = stepExtra
-    ,ovenStringyState = stringySHA1
-    ,ovenStringyPatch = stringySHA1
     }
     where
         -- use a different failure name each run, so failures don't get persisted

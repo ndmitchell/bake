@@ -51,8 +51,8 @@ mean :: [Double] -> Double
 mean xs = sum xs / intToDouble (length xs)
 
 
-stats :: Oven State Patch Test -> Memory -> IO HTML
-stats Oven{..} Memory{..} = do
+stats :: Prettys -> Memory -> IO HTML
+stats Prettys{..} Memory{..} = do
     recorded <- readIORef recorded
 #if __GLASGOW_HASKELL__ < 706
     getGCStatsEnabled <- return True
@@ -76,7 +76,7 @@ stats Oven{..} Memory{..} = do
         h2_ $ str_ "Slowest 25 tests"
         table ["Test","Count","Mean","Sum","Max","Last 10"] $
             -- deliberately group by Pretty string, not by raw string, so we group similar looking tests
-            let xs = [(maybe "Preparing " (stringyPretty ovenStringyTest) qTest, aDuration) | (_,Question{..}, Answer{..}) <- history]
+            let xs = [(maybe "Preparing " prettyTest qTest, aDuration) | (_,Question{..}, Answer{..}) <- history]
                 f name xs = name : map str_ [show (length xs), showDuration (mean xs), showDuration (sum xs)
                                             ,showDuration (maximum xs), unwords $ map showDuration $ take 10 xs]
             in [f (i_ $ str_ "All") (map snd xs) | not $ null xs] ++
