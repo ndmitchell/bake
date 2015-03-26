@@ -150,7 +150,8 @@ priority :: Int -> TestInfo test -> TestInfo test
 priority p t = t{testPriority = p + testPriority t}
 
 -- | Is a particular client capable of running a test.
---   Usually an OS check.
+--   Usually an OS check. To run a test must have all its requirements met.
+--   Clients can satisfy a requirement by passing @--provide=...@ on the command line.
 require :: [String] -> TestInfo test -> TestInfo test
 require xs t = t{testRequire = xs ++ testRequire t}
 
