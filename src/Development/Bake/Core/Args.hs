@@ -122,7 +122,7 @@ bake_ oven@Oven{..} = do
                         (map stringyFrom patch)
 
                     -- check the patches all make sense
-                    let follow t = map stringyTo $ testRequire $ ovenTestInfo $ stringyFrom t
+                    let follow t = map stringyTo $ testDepend $ ovenTestInfo $ stringyFrom t
                     whenJust (findCycle follow $ map stringyTo res) $ \xs ->
                         error $ unlines $ "Tests form a cycle:" : xs
                     let missing = transitiveClosure follow (map stringyTo res) \\ map stringyTo res

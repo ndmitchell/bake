@@ -6,7 +6,7 @@ module Development.Bake.Core.Type(
     Host, Port,
     Stringy(..),
     Oven(..), TestInfo(..), defaultOven, ovenTest, ovenNotifyStdout,
-    threads, threadsAll, require, run, suitable, priority,
+    threads, threadsAll, depend, run, suitable, priority,
     State(..), Patch(..), Test(..), Client(..), concrete, Prettys(..),
     Author
     ) where
@@ -111,12 +111,12 @@ data TestInfo test = TestInfo
     {testThreads :: Maybe Int -- number of threads, defaults to 1, Nothing for use all
     ,testAction :: IO ()
     ,testSuitable :: IO Bool -- can this test be run on this machine (e.g. Linux only tests)
-    ,testRequire :: [test]
+    ,testDepend :: [test]
     ,testPriority :: Int
     }
 
 instance Functor TestInfo where
-    fmap f t = t{testRequire = map f $ testRequire t}
+    fmap f t = t{testDepend = map f $ testDepend t}
 
 instance Monoid (TestInfo test) where
     mempty = TestInfo (Just 1) (return ()) (return True) [] 0
@@ -137,8 +137,8 @@ threadsAll t = t{testThreads=Nothing}
 -- | Require the following tests have been evaluated on this machine
 --   before this test is run. Typically used to require compilation
 --   before running most tests.
-require :: [test] -> TestInfo test -> TestInfo test
-require xs t = t{testRequire=testRequire t++xs}
+depend :: [test] -> TestInfo test -> TestInfo test
+depend xs t = t{testDepend=testDepend t++xs}
 
 -- | The action associated with a @test@.
 run :: IO () -> TestInfo test

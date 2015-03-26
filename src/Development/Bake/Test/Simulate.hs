@@ -125,7 +125,7 @@ simulation testInfo clients u step = do
 
 randomSimple :: IO ()
 randomSimple = do
-    let info t = mempty{testRequire = [Test "1" | t /= Test "1"]}
+    let info t = mempty{testDepend = [Test "1" | t /= Test "1"]}
 
     i <- randomRIO (0::Int,10)
     patches <- forM [0..i] $ \i -> do

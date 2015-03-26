@@ -237,7 +237,7 @@ reactive oven mem@Memory{..}
     , let tPass = passed $ self ++ superset
     , let tFail = Set.fromList $ catMaybes $ concatMap (Set.toList . snd) reject
     , flip all (Set.toList tests) $ \t ->
-        t `Set.member` tPass || any (`Set.member` tFail) (transitiveClosure (testRequire . ovenTestInfo oven) [t]) =
+        t `Set.member` tPass || any (`Set.member` tFail) (transitiveClosure (testDepend . ovenTestInfo oven) [t]) =
         -- exclude the rejected from active
         Just $ return mem{active = second (\\ map fst reject) active}
 
@@ -330,7 +330,7 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $ l
         dependencies :: (Int, Maybe Test) -> [(Int, Maybe Test)]
         dependencies (i, t) = map (i,) $ flip transitiveClosure [t] $ \t -> case t of
             Nothing -> []
-            Just t -> Nothing : map Just (testRequire $ info t)
+            Just t -> Nothing : map Just (testDepend $ info t)
 
         hist = Map.fromListWith (++) [((i,qTest q),[a])
             | (q,a) <- map (snd3 &&& Just . thd3) history ++ map ((,Nothing) . snd) running
@@ -347,7 +347,7 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $ l
             , (i,Just t) `Map.notMember` hist -- I have not done it
             , (poss,_):_ <- map aTestsSuitable $ filter aSuccess $ catMaybes $ Map.findWithDefault [] (i,Nothing) hist
             , t `elem` poss -- it is one of the test this client can do
-            , all (\t -> any (maybe False aSuccess) $ Map.findWithDefault [] (i,Just t) hist) $ testRequire $ info t -- I have done all the dependencies
+            , all (\t -> any (maybe False aSuccess) $ Map.findWithDefault [] (i,Just t) hist) $ testDepend $ info t -- I have done all the dependencies
             = True
         suitable _ = False
 

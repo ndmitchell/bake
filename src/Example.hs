@@ -55,7 +55,7 @@ execute (p,Compile) = matchOS p $ run $ unless useStep $ do
     -- so sleep for a second to make sure we work with incremental
     sleep 1
     incrementalDone
-execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $
+execute (p,Run i) = depend [(p,Compile)] $ matchOS p $ run $
     cmd ("dist" </> "Main") (show i)
 
 -- So we can run both clients on one platform we use an environment variable

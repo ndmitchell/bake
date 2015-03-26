@@ -14,7 +14,7 @@ module Development.Bake(
     ovenPretty, ovenPrettyMerge,
     ovenIncremental, incrementalStart, incrementalDone,
     -- ** TestInfo members
-    TestInfo, run, threads, threadsAll, require, suitable, priority,
+    TestInfo, run, threads, threadsAll, depend, suitable, priority,
     -- * Operations
     startServer, startClient,
     module Development.Bake.Core.Send,
