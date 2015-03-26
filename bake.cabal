@@ -72,16 +72,13 @@ library
         Development.Bake.StepGit
         Development.Bake.Pretty
         Development.Bake.Server.Brain
-        Development.Bake.Server.Brains
         Development.Bake.Server.Start
         Development.Bake.Server.Stats
-        Development.Bake.Server.Type
         Development.Bake.Server.Web
         General.DelayCache
         General.Equal
         General.Extra
         General.HTML
-        General.Lens
         General.MRU
         General.Str
         General.Web
