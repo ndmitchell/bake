@@ -71,8 +71,8 @@ ovenStepGit act repo branch path o = o
 
         stepUpdate s ps = do
             root <- root
+            git <- gitEnsure
             withFileLock (root </> ".bake-lock") $ do
-                git <- gitEnsure
                 gitSetState git s
                 forM_ ps $ gitApplyPatch git
                 Stdout x <- cmd (Cwd git) "git rev-parse" [branch]
