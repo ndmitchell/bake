@@ -29,7 +29,7 @@ main = do
     repo <- fromMaybe (error err) `fmap` lookupEnv "REPO"
     bake $
         ovenPretty "=" $
-        ovenStepGit compile repo "master" Nothing) $
+        ovenStepGit compile repo "master" Nothing $
         ovenNotifyStdout $
         ovenTest (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
@@ -44,11 +44,11 @@ compile = do
     return ["dist"]
 
 execute :: (Platform,Action) -> TestInfo (Platform,Action)
-execute (p,Compile) = require [show p] $ run $ unless useStep $ do
+execute (p,Compile) = require [show p] $ run $ when False $ do
     () <- cmd "ghc --make Main.hs"
     -- ghc --make only has 1 second timestamp resolution
     -- so sleep for a second to make sure we work with incremental
     sleep 1
-    incrementalDone
+--    incrementalDone
 execute (p,Run i) = depend [(p,Compile)] $ require [show p] $ run $
     cmd ("dist" </> "Main") (show i)
