@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
 module Development.Bake.Core.Message(
-    Message(..), Ping(..), Question(..), Answer(..), aTests,
+    Message(..), Ping(..), Question(..), Answer(..),
     sendMessage, messageToInput, messageFromInput, questionToOutput
     ) where
 
@@ -53,9 +53,7 @@ instance NFData Question where
 data Answer = Answer
     {aStdout :: Str
     ,aDuration :: Double
-    ,aTestsSuitable :: ([Test],[Test])
-        -- only filled in if qTest is Nothing
-        -- (those tests which are suitable, those which are unsuitable)
+    ,aTests :: [Test]
     ,aSuccess :: Bool
     }
     deriving (Show,Eq)
@@ -63,19 +61,17 @@ data Answer = Answer
 instance NFData Answer where
     rnf (Answer a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
-aTests :: Answer -> [Test]
-aTests = uncurry (++) . aTestsSuitable
-
 data Ping = Ping
     {pClient :: Client
     ,pAuthor :: Author
+    ,pProvide :: [String] -- matches with testRequire
     ,pMaxThreads :: Int
     ,pNowThreads :: Int
     }
     deriving (Show,Eq)
 
 instance NFData Ping where
-    rnf (Ping a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+    rnf (Ping a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
 
 -- JSON instance is only true for Finished
 instance ToJSON Message where
@@ -107,7 +103,7 @@ instance ToJSON Answer where
     toJSON Answer{..} = object
         ["stdout" .= aStdout
         ,"duration" .= aDuration
-        ,"tests" .= aTestsSuitable
+        ,"tests" .= aTests
         ,"success" .= aSuccess]
 
 instance FromJSON Answer where
@@ -123,9 +119,10 @@ messageToInput (DelAllPatches author) = Input ["api","delall"] [("author",author
 messageToInput (Requeue author) = Input ["api","requeue"] [("author",author)] ""
 messageToInput (Pause author) = Input ["api","pause"] [("author",author)] ""
 messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
-messageToInput (Pinged Ping{..}) = Input ["api","ping"]
-    [("client",fromClient pClient),("author",pAuthor)
-    ,("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)] ""
+messageToInput (Pinged Ping{..}) = Input ["api","ping"] 
+    ([("client",fromClient pClient),("author",pAuthor)] ++
+     [("provide",x) | x <- pProvide] ++
+     [("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)]) ""
 messageToInput x@Finished{} = Input ["api","finish"] [] $ encode x
 
 
@@ -139,9 +136,10 @@ messageFromInput (Input [msg] args body)
     | msg == "pause" = Pause <$> str "author"
     | msg == "unpause" = Unpause <$> str "author"
     | msg == "ping" = Pinged <$> (Ping <$> (Client <$> str "client") <*>
-        str "author" <*> int "maxthreads" <*> int "nowthreads")
+        str "author" <*> strs "provide" <*> int "maxthreads" <*> int "nowthreads")
     | msg == "finish" = eitherDecode body
-    where str x | Just v <- lookup x args = Right v
+    where strs x = Right $ map snd $ filter ((==) x . fst) args
+          str x | Just v <- lookup x args = Right v
                 | otherwise = Left $ "Missing field " ++ show x ++ " from " ++ show msg
           int x = read <$> str x
 messageFromInput (Input msg args body) = Left $ "Invalid API call, got " ++ show msg

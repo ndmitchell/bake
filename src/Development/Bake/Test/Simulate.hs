@@ -55,7 +55,7 @@ restate :: [Patch] -> State
 restate = State . unwords . map fromPatch
 
 data Step = Submit Patch Bool (Maybe Test -> Bool) -- are you OK for it to pass, are you OK for it to fail
-          | Reply Question Bool ([Test], [Test])
+          | Reply Question Bool [Test]
           | Request Client
 
 simulation
@@ -88,11 +88,11 @@ simulation testInfo clients u step = do
         (msg,s) <- return $ case res of
             Submit p pass fail -> (AddPatch "" p, s{patch = (p,pass,fail) : patch s})
             Reply q good tests ->
-                let ans = Answer (strPack "") 0 (if good && isNothing (qTest q) then tests else mempty) good
+                let ans = Answer (strPack "") 0 (if good && isNothing (qTest q) then tests else []) good
                 in (Finished q ans, s)
             Request c ->
                 let Just mx = lookup c clients
-                in (Pinged $ Ping c (fromClient c) mx $ mx - count s c, s)
+                in (Pinged $ Ping c (fromClient c) [] mx $ mx - count s c, s)
         (mem, q) <- prod oven (memory s) msg
         when (fatal mem /= []) $ error $ "Fatal error, " ++ unlines (fatal mem)
         s <- return s{memory = mem}
@@ -108,7 +108,7 @@ simulation testInfo clients u step = do
 
     unless (null running) $ error "Active should have been empty"
     forM_ clients $ \(c,_) -> do
-        (_, q) <- prod oven Memory{..} $ Pinged $ Ping c (fromClient c) maxBound maxBound
+        (_, q) <- prod oven Memory{..} $ Pinged $ Ping c (fromClient c) [] maxBound maxBound
         when (isJust q) $ error "Brains should have returned sleep"
     when (snd active /= []) $ error $ "Target is not blank: active = " ++ show active ++ ", rejected = " ++ show (Map.keys rejected)
 
@@ -146,8 +146,7 @@ randomSimple = do
                 i <- randomRIO (0, length active - 1)
                 let q = active !! i
                 let good = not $ any (failure $ qTest q) $ unstate (fst $ qCandidate q) ++ snd (qCandidate q)
-                let tests = (map Test ["1","2","3"], [])
-                return (patches, cont, Reply q good tests)
+                return (patches, cont, Reply q good $ map Test ["1","2","3"])
 
             _ -> return (patches, cont, Request client)
     putStrLn "Success at randomSimple"
@@ -157,7 +156,7 @@ quickPlausible :: IO ()
 quickPlausible = do
     let info t = mempty{testPriority = if t == Test "3" then 1 else if t == Test "1" then -1 else 0}
     let client = Client "c"
-    let tests = (map Test ["1","2","3","4","5"], [])
+    let tests = map Test ["1","2","3","4","5"]
     -- start, process 2 tests, add a patch, then process the rest
     -- expect to see 1, X, 1, rest, X
 
@@ -180,7 +179,7 @@ quickPlausible = do
 bisect :: IO ()
 bisect = do
     let info t = mempty
-    let tests = (map (Test . show) [1 .. 3 :: Int], [])
+    let tests = map (Test . show) [1 .. 3 :: Int]
     let client = Client "c"
     (done,_) <- simulation info [(client,1)] (0, map (Patch . show) [1 .. 1024 :: Int]) $ \active (done,patches) -> return $ case () of
         _ | p:patches <- patches -> ((done,patches), True, Submit p (p /= Patch "26") (\t -> p == Patch "26" && t == Just (Test "2")))
@@ -203,7 +202,7 @@ performance nTests = do
     let info t = mempty{testPriority = case compare (length $ fromTest t) npri of
                                             LT -> 1; GT -> 0; EQ -> if t < pri then 1 else 0}
     let client = Client "c"
-    let tests = (map (Test . show) [0 :: Int .. nTests - 1], [])
+    let tests = map (Test . show) [0 :: Int .. nTests - 1]
     simulation info [(client,3)] (0::Int, 0::Int) $ \active (patch,tick) -> return $ case () of
         _ | tick >= f 0.2, patch < nPatches ->
                 let pass = patch `notElem` map fst fails

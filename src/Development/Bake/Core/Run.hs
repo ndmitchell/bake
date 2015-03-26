@@ -32,8 +32,8 @@ runUpdate s ps = runAll "update" (state s : map patch ps) [] State
 
 runTest :: State -> [Patch] -> Maybe Test -> IO Answer
 runTest s ps t = do
-    (ex, ans) <- runAll "test" (state s : map patch ps) (map test $ maybeToList t) (both (map Test) . read)
-    return $ maybe ans (\ex -> ans{aTestsSuitable=ex}) (if t == Nothing then ex else Nothing)
+    (ex, ans) <- runAll "test" (state s : map patch ps) (map test $ maybeToList t) (map Test . read)
+    return $ maybe ans (\ex -> ans{aTests=ex}) (if t == Nothing then ex else Nothing)
 
 runExtra :: State -> Maybe Patch -> IO (Maybe (Str, Str), Answer)
 runExtra s ps = runAll "extra" (state s : map patch (maybeToList ps)) [] (both strPack . read)
@@ -51,9 +51,9 @@ runAll name args1 args2 parse = do
             ans <- fmap parse $ readFile' $ dir </> ".bake.result"
             evaluate $ rnf ans
             return $ Just ans
-        return (ex, Answer (strPack $ sout++serr) 0 ([],[]) (exit == ExitSuccess))
+        return (ex, Answer (strPack $ sout++serr) 0 [] (exit == ExitSuccess))
     case res of
         Left e -> do
             e <- showException e
-            return (Nothing, Answer (strPack e) time ([],[]) False)
+            return (Nothing, Answer (strPack e) time [] False)
         Right (ex,ans) -> return (ex, ans{aDuration=time})

@@ -19,8 +19,8 @@ import System.Environment.Extra
 
 -- given server, name, threads
 startClient :: (Stringy state, Stringy patch, Stringy test)
-            => (Host,Port) -> Author -> String -> Int -> Double -> Oven state patch test -> IO ()
-startClient hp author (Client -> client) maxThreads ping (concrete -> (prettys, oven)) = do
+            => (Host,Port) -> Author -> String -> Int -> [String] -> Double -> Oven state patch test -> IO ()
+startClient hp author (Client -> client) maxThreads provide ping (concrete -> (prettys, oven)) = do
     when (client == Client "") $ error "You must give a name to the client, typically with --name"
     queue <- newChan
     nowThreads <- newIORef maxThreads
@@ -31,7 +31,7 @@ startClient hp author (Client -> client) maxThreads ping (concrete -> (prettys, 
     forkSlave $ forever $ do
         readChan queue
         now <- readIORef nowThreads
-        q <- sendMessage hp $ Pinged $ Ping client author maxThreads now
+        q <- sendMessage hp $ Pinged $ Ping client author provide maxThreads now
         whenJust q $ \q@Question{..} -> do
             atomicModifyIORef nowThreads $ \now -> (now - qThreads, ())
             writeChan queue ()

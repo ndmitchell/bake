@@ -181,8 +181,8 @@ reject mem@Memory{..} = foldl' use mem $ concatMap bad results
 
         -- Map prefix (Set test)
         prepare = Map.fromList
-            [ (i, Set.fromList $ aTests a)
-            | (_,Question{..},a@Answer{..}) <- history
+            [ (i, Set.fromList aTests)
+            | (_,Question{..},Answer{..}) <- history
             , aSuccess, qTest == Nothing
             , Just i <- [rbPrefix qCandidate]]
 
@@ -345,8 +345,8 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $ l
         suitable (i,Just t)
             | pNowThreads >= threadsForTest t -- enough threads
             , (i,Just t) `Map.notMember` hist -- I have not done it
-            , (poss,_):_ <- map aTestsSuitable $ filter aSuccess $ catMaybes $ Map.findWithDefault [] (i,Nothing) hist
-            , t `elem` poss -- it is one of the test this client can do
+            , any aSuccess $ catMaybes $ Map.findWithDefault [] (i,Nothing) hist -- I have prepared
+            , all (`elem` pProvide) $ testRequire $ info t -- I can do this test
             , all (\t -> any (maybe False aSuccess) $ Map.findWithDefault [] (i,Just t) hist) $ testDepend $ info t -- I have done all the dependencies
             = True
         suitable _ = False

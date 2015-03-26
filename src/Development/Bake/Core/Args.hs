@@ -29,7 +29,7 @@ import Prelude
 
 data Bake
     = Server {port :: Port, author :: Author, name :: String, timeout :: Double, datadir :: FilePath}
-    | Client {host :: Host, port :: Port, author :: Author, name :: String, threads :: Int, ping :: Double}
+    | Client {host :: Host, port :: Port, author :: Author, name :: String, threads :: Int, provide :: [String], ping :: Double}
     | AddPatch {host :: Host, port :: Port, author :: Author, name :: String}
     | DelPatch {host :: Host, port :: Port, author :: Author, name :: String}
     | DelPatches {host :: Host, port :: Port, author :: Author}
@@ -47,7 +47,7 @@ data Bake
 
 bakeMode = cmdArgsMode $ modes
     [Server{port = 0, author = "unknown", name = "", timeout = 5*60, datadir = ""}
-    ,Client{host = "", threads = 1, ping = 60}
+    ,Client{host = "", threads = 1, ping = 60, provide = []}
     ,AddPatch{}
     ,DelPatch{}
     ,DelPatches{}
@@ -80,7 +80,7 @@ bake_ oven@Oven{..} = do
             startServer (getPort port) datadir author name timeout oven
         Client{..} -> do
             name <- if name /= "" then return name else pick defaultNames
-            startClient (getHostPort host port) author name threads ping oven
+            startClient (getHostPort host port) author name threads provide ping oven
         AddPatch{..} -> sendAddPatch (getHostPort host port) author =<< check "patch" (undefined :: patch) name
         DelPatch{..} -> sendDelPatch (getHostPort host port) author =<< check "patch" (undefined :: patch) name
         DelPatches{..} -> sendDelAllPatches (getHostPort host port) author
@@ -129,8 +129,7 @@ bake_ oven@Oven{..} = do
                     when (missing /= []) $
                         error $ unlines $ "Test is a dependency that cannot be reached:" : missing
 
-                    xs <- partitionM (testSuitable . ovenTestInfo) res
-                    writeFile ".bake.result" $ show $ both (map stringyTo) xs
+                    writeFile ".bake.result" $ show $ map stringyTo res
                 Just test -> do
                     testAction $ ovenTestInfo $ stringyFrom test
         RunExtra{..} -> do

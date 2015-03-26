@@ -49,16 +49,11 @@ compile = do
     return ["dist"]
 
 execute :: (Platform,Action) -> TestInfo (Platform,Action)
-execute (p,Compile) = matchOS p $ run $ unless useStep $ do
+execute (p,Compile) = require [show p] $ run $ unless useStep $ do
     () <- cmd "ghc --make Main.hs"
     -- ghc --make only has 1 second timestamp resolution
     -- so sleep for a second to make sure we work with incremental
     sleep 1
     incrementalDone
-execute (p,Run i) = depend [(p,Compile)] $ matchOS p $ run $
+execute (p,Run i) = depend [(p,Compile)] $ require [show p] $ run $
     cmd ("dist" </> "Main") (show i)
-
--- So we can run both clients on one platform we use an environment variable
--- to fake changing OS
-matchOS :: Platform -> TestInfo t -> TestInfo t
-matchOS p = suitable (fmap (== show p) $ getEnv "PLATFORM")
