@@ -13,10 +13,6 @@ import Control.Monad.Extra
 import Data.Maybe
 import System.Time.Extra
 
--- if True then use ovenStep, otherwise use ovenIncremental
-useStep = True
-
-
 data Platform = Linux | Windows deriving (Show,Read)
 data Action = Compile | Run Int deriving (Show,Read)
 
@@ -32,9 +28,8 @@ main = do
     let err = "You need to set an environment variable named $REPO for the Git repo"
     repo <- fromMaybe (error err) `fmap` lookupEnv "REPO"
     bake $
-        (if useStep then id else ovenIncremental) $
         ovenPretty "=" $
-        ((if useStep then ovenStepGit compile else ovenGit) repo "master" Nothing) $
+        ovenStepGit compile repo "master" Nothing) $
         ovenNotifyStdout $
         ovenTest (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
