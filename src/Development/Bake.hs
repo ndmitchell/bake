@@ -12,7 +12,6 @@ module Development.Bake(
     SHA1, ovenGit, ovenStepGit,
     ovenNotifyStdout, ovenNotifyEmail,
     ovenPretty, ovenPrettyMerge,
-    ovenIncremental, incrementalStart, incrementalDone,
     -- ** TestInfo members
     TestInfo, run, threads, threadsAll, depend, require, priority,
     -- * Operations
@@ -29,6 +28,5 @@ import Development.Bake.Core.Args
 import Development.Bake.Core.Send
 import Development.Bake.Git
 import Development.Bake.StepGit
-import Development.Bake.Build
 import Development.Bake.Pretty
 import Development.Bake.Email

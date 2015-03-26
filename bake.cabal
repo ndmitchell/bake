@@ -61,7 +61,6 @@ library
         Development.Bake
 
     other-modules:
-        Development.Bake.Build
         Development.Bake.Core.Args
         Development.Bake.Core.Client
         Development.Bake.Core.Message
