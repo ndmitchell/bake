@@ -16,8 +16,8 @@ instance Stringy a => Stringy (Pretty a) where
     stringyPretty (Pretty a b) = a ++ "=" ++ stringyPretty b
 
 
-ovenPretty :: String -> Oven state patch test -> Oven state (Pretty patch) test
-ovenPretty sep oven@Oven{..} = oven
+ovenPretty :: Oven state patch test -> Oven state (Pretty patch) test
+ovenPretty oven@Oven{..} = oven
     {ovenUpdate = \s ps -> ovenUpdate s (map unpretty ps)
     ,ovenPrepare = \s ps -> ovenPrepare s (map unpretty ps)
     ,ovenPatchExtra = \s p -> ovenPatchExtra s (fmap unpretty p)
