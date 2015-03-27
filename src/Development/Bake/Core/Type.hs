@@ -181,11 +181,11 @@ concrete o@Oven{..} = (Prettys prestate prepatch pretest, o
         (unpatch,_      ,prepatch) = f Patch fromPatch
         (untest ,retest ,pretest ) = f Test  fromTest
 
-        f :: Stringy o => (String -> s) -> (s -> String) -> (s -> o, o -> s, s -> String)
+        f :: forall o s . Stringy o => (String -> s) -> (s -> String) -> (s -> o, o -> s, s -> String)
         f inj proj =
             (check . stringyFrom . proj
             ,inj . stringyTo . check
-            ,check . stringyFrom . proj)
+            ,stringyPretty . flip asTypeOf (undefined :: o) . check . stringyFrom . proj)
 
         check :: forall o . Stringy o => o -> o
         check s | null $ stringyTo s = error "Problem with stringyTo/stringyFrom, generated blank string"
