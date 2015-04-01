@@ -297,6 +297,7 @@ reinput oven now mem (Finished q a) =
 
 -- | Given a state, figure out what you should do next.
 output :: (Test -> TestInfo Test) -> Memory -> Ping -> Maybe Question
+output info mem Ping{..} | pNowThreads == 0 = Nothing
 {-
 1) try anyone who failed in active by bisecting
 2) anyone not done in active or a superset
