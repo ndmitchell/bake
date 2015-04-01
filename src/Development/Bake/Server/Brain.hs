@@ -303,7 +303,8 @@ output info mem Ping{..} | pNowThreads == 0 = Nothing
 2) anyone not done in active or a superset
 3) anyone not done in active
 -}
-output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $ listToMaybe $ map question $ filter suitable $ nubOrd $ concatMap dependencies $ bad ++ good
+output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $
+        fmap question $ enoughThreads $ listToMaybe $ filter suitable $ nubOrd $ concatMap dependencies $ bad ++ good
     where
         rb = rebase mem
         rbPrefix = rebasePrefix mem
@@ -338,14 +339,17 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $ l
             , qClient q == pClient, Just i <- [rbPrefix $ qCandidate q]]
         threadsForTest = fromMaybe pMaxThreads . testThreads . info
 
+        -- if there are not enough threads, don't do anything else, just wait for threads to become available
+        enoughThreads :: Maybe (Int, Maybe Test) -> Maybe (Int, Maybe Test)
+        enoughThreads (Just (i, t)) | pNowThreads >= maybe 1 threadsForTest t = Just (i, t)
+        enoughThreads _ = Nothing
+
         suitable :: (Int, Maybe Test) -> Bool
         suitable (i, Nothing)
-            | pNowThreads >= 1 -- enough threads
-            , (i,Nothing) `Map.notMember` hist -- I have not done it
+            | (i,Nothing) `Map.notMember` hist -- I have not done it
             = True
         suitable (i,Just t)
-            | pNowThreads >= threadsForTest t -- enough threads
-            , (i,Just t) `Map.notMember` hist -- I have not done it
+            | (i,Just t) `Map.notMember` hist -- I have not done it
             , any aSuccess $ catMaybes $ Map.findWithDefault [] (i,Nothing) hist -- I have prepared
             , all (`elem` pProvide) $ testRequire $ info t -- I can do this test
             , all (\t -> any (maybe False aSuccess) $ Map.findWithDefault [] (i,Just t) hist) $ testDepend $ info t -- I have done all the dependencies
