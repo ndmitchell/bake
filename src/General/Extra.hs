@@ -79,7 +79,7 @@ createDir :: String -> [String] -> IO FilePath
 createDir prefix info = do
     let name = prefix ++ (if null info then "" else "-" ++ show (abs $ hash info))
     createDirectoryIfMissing True name
-    withLock createDirLock $ writeFile (name </> "bake.name") $ unlines info
+    withLock createDirLock $ writeFile (name </> ".bake.name") $ unlines info
     return name
 
 
