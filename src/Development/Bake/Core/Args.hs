@@ -36,7 +36,7 @@ data Bake
     | Requeue {host :: Host, port :: Port, author :: Author}
     | Pause {host :: Host, port :: Port, author :: Author}
     | Unpause {host :: Host, port :: Port, author :: Author}
-    | GC {dry_run :: Bool, days :: Double}
+    | GC {dry_run :: Bool, days :: Double, dirs :: [FilePath]}
       -- actions sent through from Bake itself
     | RunInit
     | RunUpdate {state :: String, patch :: [String]}
@@ -54,7 +54,7 @@ bakeMode = cmdArgsMode $ modes
     ,Requeue{}
     ,Pause{}
     ,Unpause{}
-    ,GC def 7
+    ,GC def 7 ([] &= args)
     ,RunTest def def def
     ,RunInit{}
     ,RunExtra{}
@@ -88,7 +88,7 @@ bake_ oven@Oven{..} = do
         Pause{..} -> sendPause (getHostPort host port) author
         Unpause{..} -> sendUnpause (getHostPort host port) author
         GC{..} -> do
-            xs <- calculateGC $ days * 24 * 60 *60
+            xs <- concatMapM (calculateGC $ days * 24 * 60 *60) $ if null dirs then ["."] else dirs
             failed <- flip filterM xs $ \x -> do
                 (act,msg) <- return $ case x of
                     Left file -> (removeFile file, "Delete file " ++ file)
@@ -154,17 +154,17 @@ defaultNames = words "Simon Lennart Dave Brian Warren Joseph Kevin Ralf Paul Joh
 
 
 -- | Either a Left file, or Right dir
-calculateGC :: Double -> IO [Either FilePath FilePath]
-calculateGC secs = do
+calculateGC :: Double -> FilePath -> IO [Either FilePath FilePath]
+calculateGC secs dir = do
     now <- getCurrentTime
     let test file = do
             t <- getModificationTime file
             return $ now `subtractTime` t > secs
 
-    dirs <- listContents "."
+    dirs <- listContents dir
     dirs <- flip filterM dirs $ \dir -> do
         let file = dir </> ".bake.name"
         doesDirectoryExist dir &&^ doesFileExist file &&^ do test file
 
-    files <- filterM test =<< ifM (doesDirectoryExist "bake-string") (listFiles "bake-string") (return [])
+    files <- filterM test =<< ifM (doesDirectoryExist $ dir </> "bake-string") (listFiles $ dir </> "bake-string") (return [])
     return $ map Left files ++ map Right dirs
