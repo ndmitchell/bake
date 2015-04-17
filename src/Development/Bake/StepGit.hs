@@ -80,7 +80,7 @@ ovenStepGit act repo branch path o = o
         stepPrepare s ps = do
             logEntry "stepPrepare"
             root <- root
-            dir <- createDir (root </> ".bake-point") $ map fromSHA1 $ s : ps
+            dir <- createDir (root </> "../bake-step-point") $ map fromSHA1 $ s : ps
             unlessM (doesFileExist $ dir </> "result.tar") $ do
                 git <- gitEnsure
                 logEntry "stepPrepare after gitEnsure"
@@ -91,7 +91,7 @@ ovenStepGit act repo branch path o = o
                         when (ps /= []) $ do
                             gitApplyPatch git $ last ps
                         logEntry "stepPrepare after merge"
-                        dir <- createDir (root </> ".bake-point") $ map fromSHA1 $ s : ps
+                        dir <- createDir (root </> "../bake-step-point") $ map fromSHA1 $ s : ps
                         unlessM (doesFileExist $ dir </> "result.tar") $ do
                             whenM (doesFileExist $ dir </> failure) $ do
                                 hPutStrLn stderr "failure found"
