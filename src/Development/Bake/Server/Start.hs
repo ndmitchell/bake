@@ -36,21 +36,7 @@ startServer port datadir author name timeout (concrete -> (prettys, oven)) = do
         dir <- getCurrentDirectory
         strInit (dir </> "bake-string") (25 * 1024 * 1024) -- use at most 25Mb for strings
     extra <- newDelayCache
-    var <- do
-        now <- getCurrentTime
-        putStrLn "Initialising server, computing initial state..."
-        (res, answer) <- runInit
-        when (isNothing res) $
-            ovenNotify oven [author] "Failed to initialise, pretty serious"
-        let state0 = fromMaybe stateFailure res
-        putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
-        when (isJust res) $ addDelayCache extra (Left state0) $ patchExtra state0 Nothing
-        newCVar $ new
-            {active=(state0,[])
-            ,authors=Map.fromList [(Nothing,[author])]
-            ,updates=[Update now answer state0 []]
-            ,fatal=["Failed to initialise" | isNothing res]
-            }
+    var <- newCVar =<< initialise oven author extra
 
     server port $ \i@Input{..} -> do
         whenLoud $ print i
@@ -77,6 +63,24 @@ startServer port datadir author name timeout (concrete -> (prettys, oven)) = do
                 else
                     return OutputMissing
             evaluate $ force res
+
+
+initialise :: Oven State Patch Test -> String -> DelayCache (Either State Patch) (Str, Str) -> IO Memory
+initialise oven author extra = do
+    now <- getCurrentTime
+    putStrLn "Initialising server, computing initial state..."
+    (res, answer) <- runInit
+    when (isNothing res) $
+        ovenNotify oven [author] "Failed to initialise, pretty serious"
+    let state0 = fromMaybe stateFailure res
+    putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
+    when (isJust res) $ addDelayCache extra (Left state0) $ patchExtra state0 Nothing
+    return $ new
+        {active=(state0,[])
+        ,authors=Map.fromList [(Nothing,[author])]
+        ,updates=[Update now answer state0 []]
+        ,fatal=["Failed to initialise" | isNothing res]
+        }
 
 
 -- | Get information about a patch
