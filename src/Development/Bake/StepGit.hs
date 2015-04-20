@@ -100,10 +100,10 @@ ovenStepGit act repo branch path o = o
                                 writeFile (dir </> failure) =<< showException e
                                 throwIO e
                             logEntry "stepPrepare before tar"
-                            timed "tar create" $ unit $ cmd "tar -cf" [toStandard $ dir </> "result.tar"] "-C" [git] res
+                            timed "tar create" $ unit $ cmd "tar -cf" [toStandard $ dir </> "result.tar"] "-C" [toStandard git] res
                             logEntry "stepPrepare after tar"
 
             logEntry "stepPrepare before extract"
             createDirectoryIfMissing True $ fromMaybe "." path
-            timed "tar extract" $ unit $ cmd "tar -xf" [toStandard $ dir </> "result.tar"] "-C" [fromMaybe "." path]
+            timed "tar extract" $ unit $ cmd "tar -xf" [toStandard $ dir </> "result.tar"] "-C" [toStandard $ fromMaybe "." path]
             logEntry "stepPrepare after extract"
