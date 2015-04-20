@@ -1,4 +1,5 @@
 -- | Fake cabal module for local building
+{-# OPTIONS_GHC -w #-}
 
 module Paths_bake where
 
