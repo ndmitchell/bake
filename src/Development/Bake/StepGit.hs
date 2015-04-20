@@ -58,7 +58,7 @@ ovenStepGit act repo branch path o = o
                 "But has become: " ++ trim x
 
         gitApplyPatch git p = do
-            unit $ cmd (Cwd git) "git merge" $ fromSHA1 p
+            unit $ cmd (Cwd git) "git merge" [fromSHA1 p]
 
         stepExtra s p = do
             root <- root
