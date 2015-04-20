@@ -2,7 +2,8 @@
 
 module Development.Bake.Core.Send(
     sendPause, sendUnpause,
-    sendAddPatch, sendDelPatch, sendDelAllPatches, sendRequeue
+    sendAddPatch, sendDelPatch, sendDelAllPatches, sendRequeue,
+    sendReinit
     ) where
 
 import Control.Monad
@@ -26,3 +27,6 @@ sendDelAllPatches hp author = void $ sendMessage hp $ DelAllPatches author
 
 sendRequeue :: (Host,Port) -> Author -> IO ()
 sendRequeue hp author = void $ sendMessage hp $ Requeue author
+
+sendReinit :: (Host,Port) -> Author -> IO ()
+sendReinit hp author = void $ sendMessage hp $ Reinit author

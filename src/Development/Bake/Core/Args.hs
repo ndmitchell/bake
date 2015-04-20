@@ -34,6 +34,7 @@ data Bake
     | DelPatch {host :: Host, port :: Port, author :: Author, name :: String}
     | DelPatches {host :: Host, port :: Port, author :: Author}
     | Requeue {host :: Host, port :: Port, author :: Author}
+    | Reinit {host :: Host, port :: Port, author :: Author}
     | Pause {host :: Host, port :: Port, author :: Author}
     | Unpause {host :: Host, port :: Port, author :: Author}
     | GC {dry_run :: Bool, days :: Double, dirs :: [FilePath]}
@@ -52,6 +53,7 @@ bakeMode = cmdArgsMode $ modes
     ,DelPatch{}
     ,DelPatches{}
     ,Requeue{}
+    ,Reinit{}
     ,Pause{}
     ,Unpause{}
     ,GC def 7 ([] &= args)
@@ -85,6 +87,7 @@ bake_ oven@Oven{..} = do
         DelPatch{..} -> sendDelPatch (getHostPort host port) author =<< check "patch" (undefined :: patch) name
         DelPatches{..} -> sendDelAllPatches (getHostPort host port) author
         Requeue{..} -> sendRequeue (getHostPort host port) author
+        Reinit{..} -> sendReinit (getHostPort host port) author
         Pause{..} -> sendPause (getHostPort host port) author
         Unpause{..} -> sendUnpause (getHostPort host port) author
         GC{..} -> do
