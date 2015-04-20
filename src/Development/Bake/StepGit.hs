@@ -18,9 +18,9 @@ import System.IO.Extra
 import System.IO.Unsafe
 
 
-ovenStepGit :: IO [FilePath] -> String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SHA1 test
-ovenStepGit act repo branch path o = o
-    {ovenInit = gitInit repo branch
+ovenStepGit :: IO [FilePath] -> String -> String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SHA1 test
+ovenStepGit act repo branchIn branchOut path o = o
+    {ovenInit = gitInit repo branchIn
     ,ovenUpdate = stepUpdate
     ,ovenPrepare = \s ps -> do stepPrepare s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenSupersede = \_ _ -> False
@@ -31,7 +31,7 @@ ovenStepGit act repo branch path o = o
         failure = unsafePerformIO $ do
             t <- getCurrentTime
             return $ "failure-" ++ showUTCTime "%Y-%m-%dT%H-%M-%S%Q" t <.> "txt"
-        root = createDir "../bake-step-git" [repo,branch]
+        root = createDir "../bake-step-git" [repo,branchOut]
 
         gitEnsure = do
             root <- root
@@ -49,13 +49,9 @@ ovenStepGit act repo branch path o = o
 
         gitSetState git s = do
             unit $ cmd (Cwd git) "git reset --merge"
-            unit $ cmd (Cwd git) "git checkout" [branch]
-            unit $ cmd (Cwd git) "git reset --hard" ["origin/" ++ branch]
-            Stdout x <- cmd (Cwd git) "git rev-parse HEAD"
-            when (trim x /= fromSHA1 s) $ error $
-                "The branch " ++ branch ++ " changed SHA1 independently of bake.\n" ++
-                "Expected value: " ++ fromSHA1 s ++ "\n" ++
-                "But has become: " ++ trim x
+            Exit _ <- cmd (Cwd git) "git branch" [branchOut] -- create the branch if it does not exist
+            unit $ cmd (Cwd git) "git checkout" [branchOut]
+            unit $ cmd (Cwd git) "git reset --hard" [fromSHA1 s]
 
         gitApplyPatch git p = do
             unit $ cmd (Cwd git) "git merge" [fromSHA1 p]
@@ -73,8 +69,8 @@ ovenStepGit act repo branch path o = o
             withFileLock (root </> ".bake-lock") $ do
                 gitSetState git s
                 forM_ ps $ gitApplyPatch git
-                Stdout x <- cmd (Cwd git) "git rev-parse" [branch]
-                unit $ cmd (Cwd git) "git push" [repo] [branch ++ ":" ++ branch]
+                Stdout x <- cmd (Cwd git) "git rev-parse" [branchOut]
+                unit $ cmd (Cwd git) "git push" [repo] [branchOut ++ ":" ++ branchOut]
                 return $ sha1 $ trim x
 
         stepPrepare s ps = do

@@ -29,7 +29,7 @@ main = do
     repo <- fromMaybe (error err) `fmap` lookupEnv "REPO"
     bake $
         ovenPretty $
-        ovenStepGit compile repo "master" Nothing $
+        ovenStepGit compile repo "master" "master" Nothing $
         ovenNotifyStdout $
         ovenTest (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
