@@ -28,7 +28,7 @@ main = do
 
 test :: FilePath -> IO ()
 test dir = do
-    let repo = "file://" ++ replace "\\" "/" dir ++ "/repo"
+    let repo = "file:///" ++ dropWhile (== '/') (replace "\\" "/" dir) ++ "/repo"
     b <- doesDirectoryExist dir
     when b $ do
         () <- cmd "chmod -R 755 .bake-test"
