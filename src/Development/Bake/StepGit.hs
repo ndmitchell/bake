@@ -70,7 +70,7 @@ ovenStepGit act repo branchIn branchOut path o = o
                 gitSetState git s
                 forM_ ps $ gitApplyPatch git
                 Stdout x <- cmd (Cwd git) "git rev-parse" [branchOut]
-                unit $ cmd (Cwd git) "git push" [repo] [branchOut ++ ":" ++ branchOut]
+                unit $ cmd (Cwd git) "git push" [repo] [branchOut ++ ":" ++ branchOut] ["--force" | branchIn /= branchOut]
                 return $ sha1 $ trim x
 
         stepPrepare s ps = do
