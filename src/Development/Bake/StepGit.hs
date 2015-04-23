@@ -48,10 +48,7 @@ ovenStepGit act repo branchIn branchOut path o = o
             return git
 
         gitSetState git s = do
-            unit $ cmd (Cwd git) "git reset --merge"
-            Exit _ <- cmd (Cwd git) "git branch" [branchOut] -- create the branch if it does not exist
-            unit $ cmd (Cwd git) "git checkout" [branchOut]
-            unit $ cmd (Cwd git) "git reset --hard" [fromSHA1 s]
+            unit $ cmd (Cwd git) "git checkout --force -B" [branchOut] [fromSHA1 s]
 
         gitApplyPatch git p = do
             unit $ cmd (Cwd git) "git merge" [fromSHA1 p]
