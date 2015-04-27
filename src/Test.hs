@@ -38,8 +38,8 @@ test dir = do
     createDirectoryIfMissing True (dir </> "repo")
     withCurrentDirectory (dir </> "repo") $ do
         () <- cmd "git init"
-        () <- cmd "git config user.email" ["master@example.com"]
-        () <- cmd "git config user.name" ["The Master"]
+        () <- cmd "git config user.email" ["gwen@example.com"]
+        () <- cmd "git config user.name" ["Ms Gwen"]
         writeFile "Main.hs" "module Main where\n\n-- Entry point\nmain = print 1\n"
         () <- cmd "git add Main.hs"
         () <- cmd "git commit -m" ["Initial version"]
