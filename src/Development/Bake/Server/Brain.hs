@@ -24,6 +24,7 @@ import Data.Map(Map)
 import qualified Data.Map as Map
 import Data.Set(Set)
 import qualified Data.Set as Set
+import Development.Bake.Server.History
 import Prelude
 
 trace _ x = x
@@ -154,6 +155,9 @@ input oven mem msg | fatal mem /= [] = return mem
 input oven mem msg = do
     now <- getCurrentTime
     mem <- return $ reject $ reinput oven now mem msg
+    case msg of
+        AddPatch _ p -> addHistory [(HQueue, p)]
+        _ -> return ()
     let f mem | fatal mem == [], Just mem <- reactive oven mem = f . reject =<< mem
               | otherwise = return mem
     mem <- f mem
@@ -214,6 +218,7 @@ reactive oven mem@Memory{..}
                     {fatal = "Failed to update" : fatal
                     ,updates = Update now answer stateFailure (snd active) : updates}
             Just s -> do
+                addHistory $ map (HMerge,) $ snd active
                 ovenNotify oven [a | p <- snd active, a <- Map.findWithDefault [] (Just p) authors]
                     "Your patch just made it in"
                 return mem
@@ -225,9 +230,10 @@ reactive oven mem@Memory{..}
     | not paused
     , queued /= []
     , reject == []
-    , snd active == [] || tests == Just (passed $ self ++ superset) = 
+    , snd active == [] || tests == Just (passed $ self ++ superset) = Just $ do
         -- requeue
-        Just $ return mem{active = second (++ queued) active, queued = []}
+        addHistory $ map (HPlausible,) (snd active) ++ map (HStart,) queued
+        return mem{active = second (++ queued) active, queued = []}
 
     -- if all tests either (passed on active or a superset)
     --              or     (failed on active and lead to a rejection)
@@ -237,9 +243,10 @@ reactive oven mem@Memory{..}
     , let tPass = passed $ self ++ superset
     , let tFail = Set.fromList $ catMaybes $ concatMap (Set.toList . snd) reject
     , flip all (Set.toList tests) $ \t ->
-        t `Set.member` tPass || any (`Set.member` tFail) (transitiveClosure (testDepend . ovenTestInfo oven) [t]) =
+        t `Set.member` tPass || any (`Set.member` tFail) (transitiveClosure (testDepend . ovenTestInfo oven) [t]) = Just $ do
         -- exclude the rejected from active
-        Just $ return mem{active = second (\\ map fst reject) active}
+        addHistory $ map (HReject,) (map fst reject `intersect` snd active)
+        return mem{active = second (\\ map fst reject) active}
 
     -- preparing failed and I can reject someone for preparation
     | reject /= []

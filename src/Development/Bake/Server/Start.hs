@@ -15,6 +15,7 @@ import General.Extra
 import Development.Bake.Server.Brain
 import Development.Bake.Server.Web
 import Development.Bake.Server.Stats
+import Development.Bake.Server.History
 import General.DelayCache
 import Control.Applicative
 import Control.DeepSeq
@@ -26,6 +27,7 @@ import System.Directory
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
 import qualified Data.Map as Map
+import qualified Data.ByteString.Char8 as BS
 import Prelude
 
 
@@ -47,6 +49,8 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
                 if null inputURL then do
                     -- prune but don't save, will reprune on the next ping
                     fmap OutputHTML $ web extra prettys admin inputArgs . prune =<< readCVar var
+                else if ["history"] `isPrefixOf` inputURL then
+                    fmap (OutputString . BS.unpack) readHistory 
                 else if ["html"] `isPrefixOf` inputURL then
                     return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if ["api"] `isPrefixOf` inputURL then

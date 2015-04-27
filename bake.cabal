@@ -74,6 +74,7 @@ library
         Development.Bake.StepGit
         Development.Bake.Pretty
         Development.Bake.Server.Brain
+        Development.Bake.Server.History
         Development.Bake.Server.Start
         Development.Bake.Server.Stats
         Development.Bake.Server.Web
