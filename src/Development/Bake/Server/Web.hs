@@ -14,6 +14,7 @@ import General.Extra
 import General.HTML
 import General.DelayCache
 import General.Str
+import Data.Hashable
 import Data.List.Extra
 import Data.Tuple.Extra
 import Data.Either.Extra
@@ -29,8 +30,8 @@ import qualified Data.Set as Set
 import Prelude
 
 
-web :: DelayCache (Either State Patch) (Str,Str) -> Prettys -> [(String, String)] -> Memory -> IO String
-web extra prettys (args -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
+web :: DelayCache (Either State Patch) (Str,Str) -> Prettys -> String -> [(String, String)] -> Memory -> IO String
+web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
     extra <- askDelayCache extra
     shower <- shower extra prettys argsAdmin
     stats <- if argsStats then stats prettys mem else return mempty
@@ -135,16 +136,16 @@ data Args = Args
     deriving (Show,Eq)
 
 argsEmpty :: Args -> Bool
-argsEmpty x = x{argsAdmin=False} == args []
+argsEmpty x = x{argsAdmin=False} == args "" []
 
-args :: [(String, String)] -> Args
-args xs = Args
+args :: String -> [(String, String)] -> Args
+args admn xs = Args
     (listToMaybe $ map State $ ask "state")
     (map Patch $ ask "patch")
     (listToMaybe $ map Client $ ask "client")
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ Test x) $ ask "test")
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ read x) $ ask "server")
-    (not $ null $ ask "admin")
+    (any (if null admn then const True else (==) admn . show . hash) $ ask "admin")
     (not $ null $ ask "stats")
     (not $ null $ ask "raw")
     where ask x = map snd $ filter ((==) x . fst) xs
