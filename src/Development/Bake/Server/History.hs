@@ -13,6 +13,7 @@ import qualified Data.ByteString as BS
 
 data History
     = HQueue -- ^ Promoted by the user, added to the queue
+    | HSupersede -- ^ Got superseded by another patch
     | HStart -- ^ Moved into the running queue
     | HPlausible -- ^ Running queue was expanded as its very likely correct
     | HMerge -- ^ Has been merged in
