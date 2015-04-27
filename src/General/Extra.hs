@@ -7,6 +7,7 @@ module General.Extra(
     pick,
     timed,
     logEntry,
+    eitherToMaybe,
     newCVar, readCVar, modifyCVar, modifyCVar_,
     registerMaster, forkSlave,
     makeRelativeEx,
@@ -82,6 +83,9 @@ createDir prefix info = do
     withLock createDirLock $ writeFile (name </> ".bake.name") $ unlines info
     return name
 
+
+eitherToMaybe :: Either a b -> Maybe b
+eitherToMaybe = either (const Nothing) Just
 
 pick :: [a] -> IO a
 pick xs = randomRIO (0, (length xs - 1)) >>= return . (xs !!)
