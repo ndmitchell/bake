@@ -9,6 +9,8 @@ import General.Extra
 import Control.Concurrent.Extra
 import System.IO.Unsafe
 import qualified Data.ByteString as BS
+import Control.Applicative
+import Prelude
 
 
 data History
