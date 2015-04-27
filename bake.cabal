@@ -63,6 +63,7 @@ library
     other-modules:
         Development.Bake.Core.Args
         Development.Bake.Core.Client
+        Development.Bake.Core.GC
         Development.Bake.Core.Message
         Development.Bake.Core.Run
         Development.Bake.Core.Send

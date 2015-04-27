@@ -9,6 +9,7 @@ module Development.Bake.Core.Args(
 import System.Console.CmdArgs
 import Development.Bake.Core.Type hiding (Client)
 import Development.Bake.Core.Client
+import Development.Bake.Core.GC
 import Development.Bake.Server.Start
 import Development.Bake.Core.Send
 import Control.Exception.Extra
@@ -22,7 +23,6 @@ import Data.Either.Extra
 import Data.Maybe
 import Data.List.Extra
 import Data.Tuple.Extra
-import System.Time.Extra
 import Paths_bake
 import Prelude
 
@@ -90,24 +90,7 @@ bake_ oven@Oven{..} = do
         Reinit{..} -> sendReinit (getHostPort host port) author
         Pause{..} -> sendPause (getHostPort host port) author
         Unpause{..} -> sendUnpause (getHostPort host port) author
-        GC{..} -> do
-            xs <- concatMapM (calculateGC $ days * 24 * 60 *60) $ if null dirs then ["."] else dirs
-            failed <- flip filterM xs $ \x -> do
-                (act,msg) <- return $ case x of
-                    Left file -> (removeFile file, "Delete file " ++ file)
-                    Right dir -> (removeDirectoryRecursive dir, "Delete directory " ++ dir)
-                if dry_run then do
-                    putStrLn $ "[DRY RUN] " ++ msg
-                    return False
-                 else do
-                    putStr $ msg ++ "... "
-                    res <- isRight <$> try_ act
-                    putStrLn $ if res then "success" else "FAILED"
-                    return $ not res
-            putStrLn $
-                (if dry_run then "[DRY RUN] " else "") ++
-                "Deleted " ++ show (length xs) ++ " items, " ++ show (length failed) ++ " failed"
-
+        GC{..} -> garbageCollect dry_run days dirs
         RunInit -> do
             logEntry "start init"
             s <- ovenInit
@@ -154,20 +137,3 @@ check typ _ x = do
 
 
 defaultNames = words "Simon Lennart Dave Brian Warren Joseph Kevin Ralf Paul John Thomas Mark Erik Alastair Colin Philip"
-
-
--- | Either a Left file, or Right dir
-calculateGC :: Double -> FilePath -> IO [Either FilePath FilePath]
-calculateGC secs dir = do
-    now <- getCurrentTime
-    let test file = do
-            t <- getModificationTime file
-            return $ now `subtractTime` t > secs
-
-    dirs <- listContents dir
-    dirs <- flip filterM dirs $ \dir -> do
-        let file = dir </> ".bake.name"
-        doesDirectoryExist dir &&^ doesFileExist file &&^ do test file
-
-    files <- filterM test =<< ifM (doesDirectoryExist $ dir </> "bake-string") (listFiles $ dir </> "bake-string") (return [])
-    return $ map Left files ++ map Right dirs
