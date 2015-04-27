@@ -1,6 +1,6 @@
 
 -- | Define a continuous integration system.
-module Development.Bake.Core.GC(garbageCollect, garbageCollectQuery) where
+module Development.Bake.Core.GC(garbageCollect, garbageQuery) where
 
 import Control.Exception.Extra
 import General.Extra
@@ -17,7 +17,7 @@ import Prelude
 
 garbageCollect :: Bool -> Double -> [FilePath] -> IO ()
 garbageCollect dry_run days dirs = do
-    xs <- concatMapM (garbageCollectQuery $ days * 24 * 60 *60) $ if null dirs then ["."] else dirs
+    xs <- concatMapM (garbageQuery $ days * 24 * 60 *60) $ if null dirs then ["."] else dirs
     failed <- flip filterM xs $ \x -> do
         (act,msg) <- return $ case x of
             Left file -> (removeFile file, "Delete file " ++ file)
@@ -36,8 +36,8 @@ garbageCollect dry_run days dirs = do
 
 
 -- | Either a Left file, or Right dir
-garbageCollectQuery :: Double -> FilePath -> IO [Either FilePath FilePath]
-garbageCollectQuery secs dir = do
+garbageQuery :: Double -> FilePath -> IO [Either FilePath FilePath]
+garbageQuery secs dir = do
     now <- getCurrentTime
     let test file = do
             t <- getModificationTime file
