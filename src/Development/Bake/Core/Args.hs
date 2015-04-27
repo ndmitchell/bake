@@ -37,7 +37,7 @@ data Bake
     | Reinit {host :: Host, port :: Port, author :: Author}
     | Pause {host :: Host, port :: Port, author :: Author}
     | Unpause {host :: Host, port :: Port, author :: Author}
-    | GC {dry_run :: Bool, days :: Double, dirs :: [FilePath]}
+    | GC {bytes :: Integer, ratio :: Double, days :: Double, dirs :: [FilePath]}
       -- actions sent through from Bake itself
     | RunInit
     | RunUpdate {state :: String, patch :: [String]}
@@ -56,7 +56,7 @@ bakeMode = cmdArgsMode $ modes
     ,Reinit{}
     ,Pause{}
     ,Unpause{}
-    ,GC def 7 ([] &= args)
+    ,GC 0 0 7 ([] &= args)
     ,RunTest def def def
     ,RunInit{}
     ,RunExtra{}
@@ -90,7 +90,7 @@ bake_ oven@Oven{..} = do
         Reinit{..} -> sendReinit (getHostPort host port) author
         Pause{..} -> sendPause (getHostPort host port) author
         Unpause{..} -> sendUnpause (getHostPort host port) author
-        GC{..} -> garbageCollect dry_run days dirs
+        GC{..} -> garbageCollect bytes ratio (days * 24*60*60) (if null dirs then ["."] else dirs)
         RunInit -> do
             logEntry "start init"
             s <- ovenInit

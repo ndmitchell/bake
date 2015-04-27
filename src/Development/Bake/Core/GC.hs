@@ -1,6 +1,6 @@
 
 -- | Define a continuous integration system.
-module Development.Bake.Core.GC(garbageCollect, garbageQuery) where
+module Development.Bake.Core.GC(garbageCollect) where
 
 import Control.Exception.Extra
 import General.Extra
@@ -11,42 +11,63 @@ import Control.Applicative
 import Data.Either.Extra
 import Data.List.Extra
 import System.Time.Extra
+import Data.Maybe
+import System.DiskSpace
 import Prelude
 
 
+-- | Garbage collect enough files to satisfy the requirements.
+garbageCollect
+    :: Integer -- ^ Minimum number of bytes you want free on the drive (use 0 if you don't want any)
+    -> Double -- ^ Ratio of the drive you want free, e.g. 0.25 to demand a quarter of the drive free (1 to delete everything you can)
+    -> Seconds -- ^ Minimum age to delete in seconds
+    -> [FilePath] -- ^ Directories containing Bake stuff
+    -> IO ()
+garbageCollect _ _ _ [] = return ()
+garbageCollect bytes ratio limit dirs@(d:_) = do
+    total <- diskTotal <$> getDiskUsage d
+    gs <- reverse . sortOn gAge . filter ((>= limit) . gAge) <$> garbageQuery dirs
 
-garbageCollect :: Bool -> Double -> [FilePath] -> IO ()
-garbageCollect dry_run days dirs = do
-    xs <- concatMapM (garbageQuery $ days * 24 * 60 *60) $ if null dirs then ["."] else dirs
-    failed <- flip filterM xs $ \x -> do
-        (act,msg) <- return $ case x of
-            Left file -> (removeFile file, "Delete file " ++ file)
-            Right dir -> (removeDirectoryRecursive dir, "Delete directory " ++ dir)
-        if dry_run then do
-            putStrLn $ "[DRY RUN] " ++ msg
-            return False
-         else do
-            putStr $ msg ++ "... "
-            res <- isRight <$> try_ act
-            putStrLn $ if res then "success" else "FAILED"
-            return $ not res
-    putStrLn $
-        (if dry_run then "[DRY RUN] " else "") ++
-        "Deleted " ++ show (length xs) ++ " items, " ++ show (length failed) ++ " failed"
+    bytes <- return $ max (floor $ fromIntegral total * ratio) bytes
+
+    flip loopM gs $ \gs -> case gs of
+        [] -> return $ Right ()
+        g:gs -> do
+            b <- getAvailSpace d
+            if b >= bytes then
+                return $ Right ()
+            else do
+                putStr $ "Deleting " ++ gPath g ++ "..."
+                res <- try_ $
+                    if gDirectory g then do
+                        renameDirectory (gPath g) (gPath g <.> "gc")
+                        removeDirectoryRecursive (gPath g <.> "gc")
+                    else
+                        removeFile (gPath g)
+                putStrLn $ either (\e -> "FAILED\n" ++ show e) (const "success") res
+                return $ Left gs
+    putStrLn "Garbage collection complete"
 
 
--- | Either a Left file, or Right dir
-garbageQuery :: Double -> FilePath -> IO [Either FilePath FilePath]
-garbageQuery secs dir = do
+data Garbage = Garbage
+    {gPath :: FilePath
+    ,gDirectory :: Bool
+    ,gAge :: Seconds -- ^ Age in seconds, will be positive (unless clock adjustments)
+    }
+
+
+-- | Given a list of directories, find the possible garbage present.
+garbageQuery :: [FilePath] -> IO [Garbage]
+garbageQuery dirs = do
     now <- getCurrentTime
-    let test file = do
+    let f gen file = fmap eitherToMaybe $ try_ $ do
             t <- getModificationTime file
-            return $ now `subtractTime` t > secs
+            return $ gen $ now `subtractTime` t
 
-    dirs <- listContents dir
-    dirs <- flip filterM dirs $ \dir -> do
-        let file = dir </> ".bake.name"
-        doesDirectoryExist dir &&^ doesFileExist file &&^ do test file
+    fmap (concatMap catMaybes) $ forM dirs $ \dir -> do
+        dirs <- listContents dir
+        dirs <- forM dirs $ \dir -> f (Garbage dir True) $ dir </> ".bake.name"
 
-    files <- filterM test =<< ifM (doesDirectoryExist $ dir </> "bake-string") (listFiles $ dir </> "bake-string") (return [])
-    return $ map Left files ++ map Right dirs
+        files <- listFiles (dir </> "bake-string") `catch_` const (return [])
+        files <- forM files $ \file -> f (Garbage file False) file
+        return $ dirs ++ files
