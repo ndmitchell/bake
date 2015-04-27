@@ -26,6 +26,7 @@ lock = unsafePerformIO newLock
 
 
 addHistory :: [(History, Patch)] -> IO ()
+addHistory [] = return ()
 addHistory xs = do
     now <- show <$> getCurrentTime
     withLock lock $ appendFile "history.txt" $ unlines [now ++ " " ++ tail (show h) ++ " " ++ fromPatch p | (h,p) <- xs]
