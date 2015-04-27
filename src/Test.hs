@@ -77,6 +77,7 @@ test dir = do
     environment <- fmap (("REPO",repo):) $ getEnvironment
     p0 <- createProcessAlive (proc exe ["server","--datadir=../.."])
         {cwd=Just $ dir </> "server", env=Just environment}
+    sleep 5
     ps <- forM (zip [1..] Example.platforms) $ \(i,p) -> do
         sleep 0.5 -- so they don't ping at the same time
         createDirectoryIfMissing True $ dir </> "client-" ++ show p
