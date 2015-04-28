@@ -64,11 +64,11 @@ data Memory = Memory
     ,running :: [(UTCTime, Question)]
         -- ^ Questions you have sent to clients and are waiting for.
 
-    ,rejected :: Map Patch (Set (Maybe Test))
+    ,rejected :: Map Patch (UTCTime, Set (Maybe Test))
         -- ^ Reasons a particular patch was rejected
-    ,superseded :: Set Patch
+    ,superseded :: Map Patch UTCTime
         -- ^ Things that got superseded
-    ,plausible :: Set Patch
+    ,plausible :: Map Patch UTCTime
         -- ^ Things that are known to be plausible
 
     ,paused :: Bool
@@ -87,7 +87,7 @@ stateFailure = State ""
 
 -- | Create a new piece of memory.
 new :: Memory
-new = Memory [] [] Map.empty [] False Map.empty [] [] Map.empty Set.empty Set.empty False [] (stateFailure, [])
+new = Memory [] [] Map.empty [] False Map.empty [] [] Map.empty Map.empty Map.empty False [] (stateFailure, [])
 
 
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
@@ -159,12 +159,12 @@ input oven mem msg | fatal mem /= [] = return mem
 input oven mem msg = do
     now <- getCurrentTime
     let preQueue = queued mem
-    mem <- return $ reject $ reinput oven now mem msg
+    mem <- return $ reject now $ reinput oven now mem msg
     case msg of
         AddPatch _ p -> addHistory [(HQueue, p)]
         _ -> return ()
     addHistory $ map (HSupersede,) $ preQueue \\ queued mem
-    let f mem | fatal mem == [], Just mem <- reactive oven mem = f . reject =<< mem
+    let f mem | fatal mem == [], Just mem <- reactive now oven mem = f . reject now =<< mem
               | otherwise = return mem
     mem <- f mem
     res <- try_ $ when (fatal mem == []) $ consistent mem
@@ -175,11 +175,11 @@ input oven mem msg = do
             return mem{fatal = ("Consistency check failed: " ++ e) : fatal mem}
 
 
-reject :: Memory -> Memory
+reject :: UTCTime -> Memory -> Memory
 -- find tests which have a passed/failed one apart in Prefix,
 -- assume 0 is implicitly passing
 -- and anywhere the test isn't available
-reject mem@Memory{..} = foldl' use mem $ concatMap bad results
+reject now mem@Memory{..} = foldl' use mem $ concatMap bad results
     where
         rbPrefix = rebasePrefix mem
 
@@ -202,17 +202,18 @@ reject mem@Memory{..} = foldl' use mem $ concatMap bad results
             (i-1) `elem` (0:pass) ||
             Just False == (do t <- t; ts <- Map.lookup (i-1) prepare; return $ t `Set.member` ts)]
 
-        use mem@Memory{..} (p, t) = mem{rejected = Map.insertWith Set.union p (Set.singleton t) rejected}
+        comb (a1,a2) (b1,b2) = (min a1 b1, Set.union a2 b2)
+        use mem@Memory{..} (p, t) = mem{rejected = Map.insertWith comb p (now, Set.singleton t) rejected}
 
 
-reactive :: Oven State Patch Test -> Memory -> Maybe (IO Memory)
-reactive oven mem@Memory{..}
+reactive :: UTCTime -> Oven State Patch Test -> Memory -> Maybe (IO Memory)
+reactive now oven mem@Memory{..}
     -- if active or a superset passed all tests and none are rejected mark as plausible
     | reject == []
-    , new@(_:_) <- filter (`Set.notMember` plausible) $ snd active
+    , new@(_:_) <- filter (`Map.notMember` plausible) $ snd active
     , tests == Just (passed $ self ++ superset) = Just $ do
         addHistory $ map (HPlausible,) new
-        return mem{plausible = Set.union (Set.fromList new) plausible}
+        return mem{plausible = Map.unionWith min (Map.fromList $ map (,now) new) plausible}
 
     -- if active has passed all tests and none of the patches are on rejected
     | snd active /= []
@@ -276,7 +277,7 @@ reactive oven mem@Memory{..}
         superset = filter ((== Just Superset) . rb . qCandidate . snd3) history
         passed tqa = Set.fromList [t | (_,Question{qTest=Just t},Answer{aSuccess=True}) <- tqa]
         tests = listToMaybe [Set.fromList $ aTests a | (_,q,a) <- self, qTest q == Nothing, aSuccess a]
-        reject = [(p, ts) | p <- snd active, Just ts <- [Map.lookup p rejected]]
+        reject = [(p, snd ts) | p <- snd active, Just ts <- [Map.lookup p rejected]]
 
 
 reinput :: Oven State Patch Test -> UTCTime -> Memory -> Message -> Memory
@@ -285,7 +286,7 @@ reinput oven now mem@Memory{..} (AddPatch author p) =
         error "patch has already been submitted"
      else mem
         {queued = queue `snoc` p
-        ,superseded = Set.fromList supersede `Set.union` superseded
+        ,superseded = Map.unionWith min (Map.fromList $ map (,now) supersede) superseded
         ,authors = Map.insertWith (++) (Just p) [author] authors
         ,patches = (now,p) : patches}
         where (queue, supersede) = partition (\old -> not $ old == p || ovenSupersede oven old p) queued

@@ -262,7 +262,7 @@ failures Shower{..} Memory{..} = when (ts /= []) $ do
     where
         ts = Set.toList $ failed `Set.difference` reject
         failed = Set.fromList [qTest q | (_,q,a) <- history, qCandidate q == active, aSuccess a == False]
-        reject = Set.unions [t | (p,t) <- Map.toList rejected, p `elem` snd active]
+        reject = Set.unions [snd t | (p,t) <- Map.toList rejected, p `elem` snd active]
 
 
 showAnswer :: Maybe Answer -> HTML
@@ -295,7 +295,7 @@ rowUpdate Shower{..} Memory{..} (i,Update{..}) = [showTime upTime, body, showAns
 rowPatch :: Shower -> Memory -> Bool -> Int -> Either State Patch -> (String, [HTML])
 rowPatch Shower{..} mem@Memory{..} argsAdmin passed patch = (code, [maybe mempty showTime time, state, body <> special])
     where
-        failed | Right p <- patch = Map.lookup p rejected
+        failed | Right p <- patch = snd <$> Map.lookup p rejected
                | Left s <- patch = let xs = [qTest q | (_,q,a) <- history, not $ aSuccess a, qCandidate q == (s,[])]
                                    in if null xs then Nothing else Just $ Set.fromList xs
 
