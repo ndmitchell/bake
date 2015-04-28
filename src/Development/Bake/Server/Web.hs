@@ -106,11 +106,11 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
 
             case xs of
                 _ | Just s <- argsState, argsEmpty a{argsState=Nothing} ->
-                    maybeM (return "list") (extra $ Left s) $ \(_, e) -> do
+                    maybe' (extra $ Left s) (return "list") $ \(_, e) -> do
                         h2_ $ str_ "State information"; raw_ $ strUnpack e
                         return "state"
                 _ | [p] <- argsPatch, argsEmpty a{argsPatch=[]} ->
-                    maybeM (return "list") (extra $ Right p) $ \(_, e) -> do
+                    maybe' (extra $ Right p) (return "list") $ \(_, e) -> do
                         h2_ $ str_ "Patch information"; raw_ $ strUnpack e
                         return "patch"
                 [(_,_,Just Answer{..})] -> do
@@ -119,9 +119,6 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
                     return "output"
                 _ -> return "list"
 
-maybeM :: m b -> Maybe a -> (a -> m b) -> m b
-maybeM nothing Nothing _ = nothing
-maybeM _ (Just x) just = just x
 
 data Args = Args
     {argsState :: Maybe State
