@@ -308,6 +308,7 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin patch = (code, [maybe mempty showTi
              | Right p <- patch, Map.member p plausible = "pass"
              | Right p <- patch, p `elem` concatMap upPrevious updates = "pass"
              | Left s <- patch, length updates > 1 = "pass"
+             | Right p <- patch, p `elem` queued = "dull"
              | otherwise = ""
 
         body
