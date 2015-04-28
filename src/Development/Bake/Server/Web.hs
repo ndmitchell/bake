@@ -184,7 +184,7 @@ data Shower = Shower
 
 shower :: (Either State Patch -> Maybe (Str, Str)) -> Prettys -> Bool -> IO Shower
 shower extra Prettys{..} argsAdmin = do
-    showTime <- showRelativeTime
+    showRel <- showRelativeTime
     let shwState (State "") = span__ [class_ "bad" ] $ str_ $ "invalid state"
         shwState s = shwLink ("state=" ++ fromState s) $ str_ $ prettyState s
     let shwPatch p = shwLink ("patch=" ++ fromPatch p) $ str_ $ prettyPatch p
@@ -199,7 +199,7 @@ shower extra Prettys{..} argsAdmin = do
         ,showClient = \c -> shwLink ("client=" ++ url_ (fromClient c)) $ str_ $ fromClient c
         ,showTest = f Nothing Nothing []
         ,showQuestion = \Question{..} -> f (Just qClient) (Just $ fst qCandidate) (snd qCandidate) qTest
-        ,showTime = span__ [class_ "nobr"] . str_ . showTime
+        ,showTime = \x -> span__ [class_ "nobr"] $ str_ $ showUTCTime "%H:%M" x ++ " (" ++ showRel x ++ ")"
         ,showThreads = \i -> str_ $ show i ++ " thread" ++ ['s' | i /= 1]
         }
     where
