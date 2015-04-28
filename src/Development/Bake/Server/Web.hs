@@ -54,13 +54,8 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
             failures shower mem
             progress shower mem
             let s0 = upState $ last updates
-            let passes = Map.map Set.size $ Map.fromListWith Set.union
-                    [ (k, Set.singleton t)
-                    | (_,Question{qTest=t,qCandidate=(s,ps)},Answer{aSuccess=True}) <- history
-                    , let k = if null ps then Left s else Right $ last ps
-                    , either (== s0) (const True) k]
-            table "No patches submitted" ["Time","Job","Status"]
-                $ map (\p -> rowPatch shower mem argsAdmin (Map.findWithDefault 0 p passes) p) $
+            table "No patches submitted" ["Submitted","Job","Status"]
+                $ map (\p -> rowPatch shower mem argsAdmin p) $
                     nubOrd (map (Right . snd) patches) ++ [Left s0]
             h2_ $ str_ "Clients"
             table "No clients available" ["Name","Running"]
@@ -299,29 +294,38 @@ rowUpdate Shower{..} Memory{..} (i,Update{..}) = [showTime upTime, body, showAns
             str_ "To " <> showState upState
 
 
-rowPatch :: Shower -> Memory -> Bool -> Int -> Either State Patch -> (String, [HTML])
-rowPatch Shower{..} mem@Memory{..} argsAdmin passed patch = (code, [maybe mempty showTime time, state, body <> special])
+rowPatch :: Shower -> Memory -> Bool -> Either State Patch -> (String, [HTML])
+rowPatch Shower{..} mem@Memory{..} argsAdmin patch = (code, [maybe mempty showTime time, state, body <> special])
     where
-        failed | Right p <- patch = snd <$> Map.lookup p rejected
-               | Left s <- patch = let xs = [qTest q | (_,q,a) <- history, not $ aSuccess a, qCandidate q == (s,[])]
-                                   in if null xs then Nothing else Just $ Set.fromList xs
+        failed | Right p <- patch = Map.lookup p rejected
+               | Left s <- patch = let xs = [(aDuration a `addSeconds` t, qTest q) | (t,q,a) <- history, not $ aSuccess a, qCandidate q == (s,[])]
+                                   in if null xs then Nothing else Just (minimum $ map fst xs, Set.fromList $ map snd xs)
 
-        code | isJust failed = "fail"
-             | Right p <- patch, any (isSuffixOf [p] . snd . qCandidate . snd) running = "active"
+        code | Right p <- patch, any (isSuffixOf [p] . snd . qCandidate . snd) running = "active"
              | Left s <- patch, (s,[]) `elem` map (qCandidate . snd) running = "active"
-             | Right p <- patch, p `notElem` snd active = "dull"
-             | Left s <- patch, length updates > 1 = "dull"
+             | isJust failed = "fail"
+             | Right p <- patch, Map.member p superseded = "dull"
+             | Right p <- patch, Map.member p plausible = "pass"
+             | Right p <- patch, p `elem` concatMap upPrevious updates = "pass"
+             | Left s <- patch, length updates > 1 = "pass"
              | otherwise = ""
 
         body
-            | Just (Set.toList -> xs) <- failed = do
+            | Just (time, Set.toList -> xs) <- failed = do
                 span__ [class_ "bad"] $ str_ $ if isLeft patch then "Failed" else "Rejected"
+                str_ " at " <> showTime time
                 when (xs /= []) br_
                 span__ [class_ "info"] $ commasLimit_ 3 $ map showTest xs
             | Right p <- patch, p `elem` queued = str_ "Queued"
-            | Right p <- patch, p `elem` concatMap upPrevious updates = span__ [class_ "good"] $ str_ "Success"
-            | Left s <- patch, length updates > 1 = span__ [class_ "good"] $ str_ "Success"
-            | otherwise = str_ $ "Passed " ++ show passed
+            | Right p <- patch, Just t <- Map.lookup p superseded = str_ "Superseded at " <> showTime t
+            | Right p <- patch, Just Update{..} <- find (elem p . upPrevious) updates = do
+                span__ [class_ "good"] $ str_ "Merged"
+                str_ " at " <> showTime upTime
+            | Right p <- patch, Just t <- Map.lookup p plausible = do
+                span__ [class_ "good"] $ str_ "Plausible"
+                str_ " at " <> showTime t
+            | Left s <- patch, length updates > 1 = span__ [class_ "good"] $ str_ "Passed"
+            | otherwise = str_ "Active"
 
         special
             | argsAdmin, Right p <- patch =
