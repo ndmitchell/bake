@@ -12,6 +12,7 @@ import Control.Monad
 import Control.DeepSeq
 import Data.Aeson hiding (Success)
 import General.Str
+import System.Time.Extra
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Prelude
 
@@ -54,7 +55,7 @@ instance NFData Question where
 
 data Answer = Answer
     {aStdout :: Str
-    ,aDuration :: Double
+    ,aDuration :: Seconds
     ,aTests :: [Test]
     ,aSuccess :: Bool
     }
