@@ -41,10 +41,10 @@ import qualified Data.Set as Set
 import Prelude
 
 
-addSeconds :: Double -> UTCTime -> UTCTime
+addSeconds :: Seconds -> UTCTime -> UTCTime
 addSeconds x = addUTCTime (fromRational $ toRational x)
 
-relativeTime :: IO (UTCTime -> Double)
+relativeTime :: IO (UTCTime -> Seconds)
 relativeTime = do
     now <- getCurrentTime
     return $ \old -> subtractTime now old
