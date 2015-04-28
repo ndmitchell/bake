@@ -52,6 +52,7 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
             when paused $
                 p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
             failures shower mem
+            progress shower mem
             let s0 = upState $ last updates
             let passes = Map.map Set.size $ Map.fromListWith Set.union
                     [ (k, Set.singleton t)
@@ -260,6 +261,15 @@ failures Shower{..} Memory{..} = when (ts /= []) $ do
         ts = Set.toList $ failed `Set.difference` reject
         failed = Set.fromList [qTest q | (_,q,a) <- history, qCandidate q == active, aSuccess a == False]
         reject = Set.unions [snd t | (p,t) <- Map.toList rejected, p `elem` snd active]
+
+
+progress :: Shower -> Memory -> HTML
+progress Shower{..} Memory{..}
+    = whenJust todo $ \t -> p_ $ str_ $ "Done " ++ show done ++ " tests out of " ++ show (t+1)
+    where
+        me = [(q, a) | (_, q, a) <- history, qCandidate q == active]
+        done = length $ nubOrd $ map (qTest . fst) me
+        todo = length <$> listToMaybe [aTests a | (q, a) <- me, qTest q == Nothing, aSuccess a]
 
 
 showAnswer :: Maybe Answer -> HTML
