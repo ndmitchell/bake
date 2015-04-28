@@ -13,6 +13,7 @@ module General.Extra(
     makeRelativeEx,
     transitiveClosure, findCycle,
     putBlock,
+    maybe',
     commas, commasLimit, unwordsLimit
     ) where
 
@@ -244,3 +245,6 @@ unwordsLimit = limit unwords
 limit :: ([String] -> String) -> Int -> [String] -> String
 limit rejoin i xs = rejoin a ++ (if null b then "" else "...")
     where (a,b) = splitAt i xs
+
+maybe' :: Maybe a -> b -> (a -> b) -> b
+maybe' x nothing just = maybe nothing just x
