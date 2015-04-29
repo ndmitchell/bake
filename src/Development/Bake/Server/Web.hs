@@ -333,7 +333,7 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin patch = (code, [maybe mempty showTi
                 if p `elem` snd active || p `elem` queued then
                     do br_; admin (DelPatch "admin" p) $ str_ "Delete"
                 else if p `notElem` concatMap upPrevious updates then
-                    do br_; admin (AddPatch "admin" p) $ str_ "Retry"
+                    do br_; admin (AddPatch "admin" $ Patch $ '\'' : fromPatch p) $ str_ "Retry"
                 else
                     mempty
             | otherwise = mempty
