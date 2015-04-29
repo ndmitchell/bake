@@ -111,6 +111,7 @@ makeRelativeEx x y = do
         f _ ys = ys
 
 
+-- Might be better off using the 'filelock' package
 withFileLock :: FilePath -> IO a -> IO a
 withFileLock lock act = do
     -- important to canonicalize everything as the act might change the current directory
