@@ -82,6 +82,7 @@ initialise oven author extra = do
     let state0 = fromMaybe stateFailure res
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
     when (isJust res) $ addDelayCache extra (Left state0) $ patchExtra state0 Nothing
+    addHistory [(HRestart, Patch "")]
     return $ new
         {active=(state0,[])
         ,authors=Map.fromList [(Nothing,[author])]

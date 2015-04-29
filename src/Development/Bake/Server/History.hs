@@ -14,7 +14,8 @@ import Prelude
 
 
 data History
-    = HQueue -- ^ Promoted by the user, added to the queue
+    = HRestart -- ^ I was restarted
+    | HQueue -- ^ Promoted by the user, added to the queue
     | HSupersede -- ^ Got superseded by another patch
     | HStart -- ^ Moved into the running queue
     | HPlausible -- ^ Running queue was expanded as its very likely correct
