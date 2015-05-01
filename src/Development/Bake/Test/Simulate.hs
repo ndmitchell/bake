@@ -29,6 +29,7 @@ simulate = withBuffering stdout NoBuffering $ do
         (t,_) <- duration $ performance 200
         putStrLn $ "Performance test took " ++ showDuration t
     bisect
+    newTest
     when False quickPlausible
     replicateM_ 20 randomSimple
 
@@ -188,6 +189,19 @@ bisect = do
     when (done > 50) $ error "Did too many tests to bisect"
     putStrLn "Success at bisect"
 
+
+newTest :: IO ()
+newTest = do
+    -- had test x,y all along. Introduce z at patch 12, and that fails always
+    let info t = mempty
+    let client = Client "c"
+    simulation info [(client,1)] (map (Patch . show) [1..20 :: Int]) $ \active patches -> return $ case () of
+        _ | p:patches <- patches -> (patches, True, Submit p (p /= Patch "12") (\t -> p == Patch "12" && t == Just (Test "z")))
+          | q:_ <- active, let isZ = qTest q == Just (Test "z"), let has12 = Patch "12" `elem` snd (qCandidate q) ->
+                if isZ && not has12 then error $ "Running a test that doesn't exist, " ++ show q
+                else ([], True, Reply q (not isZ) (map Test $ ["x","y"] ++ ["z" | has12]))
+          | otherwise -> ([], False, Request client)
+    putStrLn "Success at newtest"
 
 performance :: Int -> IO ()
 performance nTests = do
