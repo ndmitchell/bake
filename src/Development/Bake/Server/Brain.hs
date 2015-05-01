@@ -338,7 +338,10 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $
         failedPrefix = Map.fromListWith mappend $
                 [(qTest q, if aSuccess a then ([i],[]) else ([],[i]))
                     | (_,q,a) <- history, qTest q `Set.member` failedSelf, Just (Prefix i) <- [rb (qCandidate q)]] ++
-                map (,mempty) (Set.toList failedSelf)
+                map (,mempty) (Set.toList failedSelf) ++
+                [(t,([i],[]))
+                    | (_,q,a) <- history, qTest q == Nothing, aSuccess a, Just (Prefix i) <- [rb (qCandidate q)]
+                    , t <- Set.toList $ failedSelf `Set.difference` Set.fromList (map Just $ aTests a)]
         bad = trace ("bisecting: " ++ show failedSelf) $
             [(i, t) | (t,(pass,fail)) <- Map.toList failedPrefix
                       -- assume 0 passed, so add to pass and delete from fail,
@@ -374,7 +377,8 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $
             = True
         suitable (i,Just t)
             | (i,Just t) `Map.notMember` hist -- I have not done it
-            , any aSuccess $ catMaybes $ Map.findWithDefault [] (i,Nothing) hist -- I have prepared
+            , ts:_ <- map aTests $ filter aSuccess $ catMaybes $ Map.findWithDefault [] (i,Nothing) hist -- I have prepared
+            , t `elem` ts -- this test is relevant to this patch
             , all (`elem` pProvide) $ testRequire $ info t -- I can do this test
             , all (\t -> any (maybe False aSuccess) $ Map.findWithDefault [] (i,Just t) hist) $ testDepend $ info t -- I have done all the dependencies
             = True
