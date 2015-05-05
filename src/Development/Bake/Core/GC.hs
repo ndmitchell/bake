@@ -46,7 +46,7 @@ garbageCollect bytes ratio limit dirs@(d:_) = do
                         removeFile (gPath g)
                 putStrLn $ either (\e -> "FAILED\n" ++ show e) (const "success") res
                 return $ Left gs
-    putStrLn "Garbage collection complete"
+    putStrLn "[Bake] Disk space garbage collection complete"
 
 
 data Garbage = Garbage
