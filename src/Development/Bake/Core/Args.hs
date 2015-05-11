@@ -75,6 +75,7 @@ bake = bake_ -- so the forall's don't show up in Haddock
 bake_ :: forall state patch test . (Stringy state, Stringy patch, Stringy test) => Oven state patch test -> IO ()
 bake_ oven@Oven{..} = do
     registerMaster
+    timeInit
     x <- cmdArgsRun bakeMode
     case x of
         Server{..} -> do
@@ -92,15 +93,12 @@ bake_ oven@Oven{..} = do
         Unpause{..} -> sendUnpause (getHostPort host port) author
         GC{..} -> garbageCollect bytes ratio (days * 24*60*60) (if null dirs then ["."] else dirs)
         RunInit -> do
-            logEntry "start init"
             s <- ovenInit
             writeFile ".bake.result" $ stringyTo s
         RunUpdate{..} -> do
-            logEntry "start update"
             s <- ovenUpdate (stringyFrom state) $ map stringyFrom patch
             writeFile ".bake.result" $ stringyTo s
         RunTest{..} -> do
-            logEntry "start test"
             case test of
                 Nothing -> do
                     res <- nubOn stringyTo <$> ovenPrepare

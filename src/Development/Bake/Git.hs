@@ -48,8 +48,8 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
     }
     where
         gitSafe dir = do
-            unit $ cmd (Cwd dir) "git config user.email" ["https://github.com/ndmitchell/bake"]
-            unit $ cmd (Cwd dir) "git config user.name" ["Bake Continuous Integration"]
+            time_ $ cmd (Cwd dir) "git config user.email" ["https://github.com/ndmitchell/bake"]
+            time_ $ cmd (Cwd dir) "git config user.name" ["Bake Continuous Integration"]
 
         -- initialise the mirror, or make it up to date
         gitInitMirror = traced "gitInitMirror" $ do
@@ -59,40 +59,40 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             -- see http://blog.plataformatec.com.br/2013/05/how-to-properly-mirror-a-git-repository/
             ready <- doesFileExist $ mirror </> "HEAD"
             if ready then
-                timed "git fetch for mirror" $ unit $ cmd (Cwd mirror) "git fetch --prune"
+                time_ $ cmd (Cwd mirror) "git fetch --prune"
              else do
-                timed "git clone for mirror" $ unit $ cmd (Cwd mirror) "git clone --mirror" [repo] "."
+                time_ $ cmd (Cwd mirror) "git clone --mirror" [repo] "."
                 gitSafe mirror
             return mirror
 
         gitUpdate s ps = traced "gitUpdate" $ do
             gitCheckout s ps
-            Stdout x <- cmd (Cwd path) "git rev-parse" [branch]
-            unit $ cmd (Cwd path) "git push" [repo] [branch ++ ":" ++ branch]
+            Stdout x <- time $ cmd (Cwd path) "git rev-parse" [branch]
+            time_ $ cmd (Cwd path) "git push" [repo] [branch ++ ":" ++ branch]
             return $ sha1 $ trim x
 
         gitCheckout s ps = traced "gitCheckout" $ do
             createDirectoryIfMissing True path
             mirror <- gitInitMirror
             unlessM (doesDirectoryExist $ path </>".git") $ do
-                unit $ cmd (Cwd path) "git init"
+                time_ $ cmd (Cwd path) "git init"
                 gitSafe path
-                unit $ cmd (Cwd path) "git remote add origin" [(if path == "." then "" else "../") ++ mirror]
-            timed "git fetch" $ unit $ cmd (Cwd path) "git fetch"
-            timed "git checkout" $ unit $ cmd (Cwd path) "git checkout" [branch]
-            timed "git reset" $ unit $ cmd (Cwd path) "git reset --hard" ["origin/" ++ branch]
-            Stdout x <- cmd (Cwd path) "git rev-parse HEAD"
+                time_ $ cmd (Cwd path) "git remote add origin" [(if path == "." then "" else "../") ++ mirror]
+            time_ $ cmd (Cwd path) "git fetch"
+            time_ $ cmd (Cwd path) "git checkout" [branch]
+            time_ $ cmd (Cwd path) "git reset --hard" ["origin/" ++ branch]
+            Stdout x <- time $ cmd (Cwd path) "git rev-parse HEAD"
             when (trim x /= fromSHA1 s) $ error $
                 "The branch " ++ branch ++ " changed SHA1 independently of bake.\n" ++
                 "Expected value: " ++ fromSHA1 s ++ "\n" ++
                 "But has become: " ++ trim x
             forM_ ps $ \p ->
-                timed "git merge" $ unit $ cmd (Cwd path) "git merge" (fromSHA1 p)
+                time_ $ cmd (Cwd path) "git merge" (fromSHA1 p)
 
 
 gitInit :: String -> String -> IO SHA1
 gitInit repo branch = traced "gitInit" $ do
-    Stdout hash <- timed "git ls-remote" $ cmd "git ls-remote" [repo] [branch]
+    Stdout hash <- time $ cmd "git ls-remote" [repo] [branch]
     case words $ concat $ takeEnd 1 $ lines hash of
         [] -> error "Couldn't find branch"
         x:xs -> return $ sha1 $ trim x
@@ -111,18 +111,18 @@ traced msg act = do
 
 gitPatchExtra :: SHA1 -> Maybe SHA1 -> FilePath -> IO (String, String)
 gitPatchExtra s Nothing dir = do
-    Stdout full <- cmd (Cwd dir) "git log --no-merges -n10 --pretty=format:%s" [fromSHA1 s]
-    Stdout count <- cmd (Cwd dir) "git rev-list --count" [fromSHA1 s]
+    Stdout full <- time $ cmd (Cwd dir) "git log --no-merges -n10 --pretty=format:%s" [fromSHA1 s]
+    Stdout count <- time $ cmd (Cwd dir) "git rev-list --count" [fromSHA1 s]
     let summary = takeWhile (/= '\n') full
     return (renderHTML $ do str_ $ count ++ " patches"; br_; str_ summary
            ,renderHTML $ pre_ $ str_ full)
 
 gitPatchExtra (SHA1 s) (Just (SHA1 p)) dir = do
-    Stdout diff <- cmd (Cwd dir)
+    Stdout diff <- time $ cmd (Cwd dir)
         "git diff" [s ++ "..." ++ p]
-    Stdout stat <- cmd (Cwd dir)
+    Stdout stat <- time $ cmd (Cwd dir)
         "git diff --stat" [s ++ "..." ++ p]
-    Stdout log <- cmd (Cwd dir)
+    Stdout log <- time $ cmd (Cwd dir)
         "git log --no-merges -n1 --pretty=format:%s" [p]
     return (renderHTML $ do str_ $ reduceStat stat; br_; str_ $ take 120 $ takeWhile (/= '\n') log
            ,renderHTML $ pre_ $ do prettyStat stat; str_ "\n"; prettyDiff diff)

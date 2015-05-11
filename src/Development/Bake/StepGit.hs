@@ -40,18 +40,18 @@ ovenStepGit act repo branchIn branchOut path o = o
             withFileLock (root </> ".bake-lock") $ do
                 ready <- doesFileExist $ git </> ".git/HEAD"
                 if ready then
-                    timed "git fetch for mirror" $ unit $ cmd (Cwd git) "git fetch"
+                    time_ $ cmd (Cwd git) "git fetch"
                  else do
-                    timed "git clone for mirror" $ unit $ cmd (Cwd git) "git clone" [repo] "."
-                    unit $ cmd (Cwd git) "git config user.email" ["https://github.com/ndmitchell/bake"]
-                    unit $ cmd (Cwd git) "git config user.name" ["Bake Continuous Integration"]
+                    time_ $ cmd (Cwd git) "git clone" [repo] "."
+                    time_ $ cmd (Cwd git) "git config user.email" ["https://github.com/ndmitchell/bake"]
+                    time_ $ cmd (Cwd git) "git config user.name" ["Bake Continuous Integration"]
             return git
 
         gitSetState git s = do
-            unit $ cmd (Cwd git) "git checkout --force -B" [branchOut] [fromSHA1 s]
+            time_ $ cmd (Cwd git) "git checkout --force -B" [branchOut] [fromSHA1 s]
 
         gitApplyPatch git p = do
-            unit $ cmd (Cwd git) "git merge" [fromSHA1 p]
+            time_ $ cmd (Cwd git) "git merge" [fromSHA1 p]
 
         stepExtra s p = do
             root <- root
@@ -66,27 +66,23 @@ ovenStepGit act repo branchIn branchOut path o = o
             withFileLock (root </> ".bake-lock") $ do
                 gitSetState git s
                 forM_ ps $ gitApplyPatch git
-                Stdout x <- cmd (Cwd git) "git rev-parse" [branchOut]
+                Stdout x <- time $ cmd (Cwd git) "git rev-parse" [branchOut]
                 when (branchIn /= branchOut) $ do
                     -- the branch may not already exist, so remote deleting it may fail
-                    Exit _ <- cmd (Cwd git) "git push" [repo] [":" ++ branchOut]; return ()
-                unit $ cmd (Cwd git) "git push" [repo] [branchOut ++ ":" ++ branchOut]
+                    Exit _ <- time $ cmd (Cwd git) "git push" [repo] [":" ++ branchOut]; return ()
+                time_ $ cmd (Cwd git) "git push" [repo] [branchOut ++ ":" ++ branchOut]
                 return $ sha1 $ trim x
 
         stepPrepare s ps = do
-            logEntry "stepPrepare"
             root <- root
             dir <- createDir (root </> "../bake-step-point") $ map fromSHA1 $ s : ps
             unlessM (doesFileExist $ dir </> "result.tar") $ do
                 git <- gitEnsure
-                logEntry "stepPrepare after gitEnsure"
                 withFileLock (root </> ".bake-lock") $ do
-                    logEntry "stepPrepare git initialise"
                     gitSetState git s
                     forM_ (inits ps) $ \ps -> do
                         when (ps /= []) $ do
                             gitApplyPatch git $ last ps
-                        logEntry "stepPrepare after merge"
                         dir <- createDir (root </> "../bake-step-point") $ map fromSHA1 $ s : ps
                         unlessM (doesFileExist $ dir </> "result.tar") $ do
                             whenM (doesFileExist $ dir </> failure) $ do
@@ -95,11 +91,7 @@ ovenStepGit act repo branchIn branchOut path o = o
                             res <- withCurrentDirectory git (timed "stepPrepare user action" act) `catch_` \e -> do
                                 writeFile (dir </> failure) =<< showException e
                                 throwIO e
-                            logEntry "stepPrepare before tar"
-                            timed "tar create" $ unit $ cmd "tar -cf" [toStandard $ dir </> "result.tar"] "-C" [toStandard git] res
-                            logEntry "stepPrepare after tar"
+                            time_ $ cmd "tar -cf" [toStandard $ dir </> "result.tar"] "-C" [toStandard git] res
 
-            logEntry "stepPrepare before extract"
             createDirectoryIfMissing True $ fromMaybe "." path
-            timed "tar extract" $ unit $ cmd "tar -xf" [toStandard $ dir </> "result.tar"] "-C" [toStandard $ fromMaybe "." path]
-            logEntry "stepPrepare after extract"
+            time_ $ cmd "tar -xf" [toStandard $ dir </> "result.tar"] "-C" [toStandard $ fromMaybe "." path]

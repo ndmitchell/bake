@@ -5,8 +5,7 @@ module General.Extra(
     createDir,
     withFileLock,
     pick,
-    timed,
-    logEntry,
+    timeInit, timed, time, time_,
     eitherToMaybe,
     newCVar, readCVar, modifyCVar, modifyCVar_,
     registerMaster, forkSlave,
@@ -31,6 +30,7 @@ import Control.Exception.Extra
 import Control.Applicative
 import Control.Monad.Extra
 import Control.Concurrent.Extra
+import Development.Shake.Command
 import System.Random
 import Data.Either.Extra
 import Data.Time.Format
@@ -69,8 +69,8 @@ showUTCTime = formatTime defaultTimeLocale
 logTime :: IO Seconds
 logTime = unsafePerformIO offsetTime
 
-logEntry :: String -> IO ()
-logEntry msg = do t <- logTime; putStrLn $ "# BAKE LOG after " ++ showDuration t ++ ", " ++ msg
+timeInit :: IO ()
+timeInit = void logTime
 
 
 {-# NOINLINE createDirLock #-}
@@ -94,9 +94,20 @@ pick xs = randomRIO (0, (length xs - 1)) >>= return . (xs !!)
 
 timed :: String -> IO a -> IO a
 timed msg act = do
-    (t,r) <- duration act
-    putStrLn $ "Spent " ++ showDuration t ++ " on " ++ msg
-    return r
+    (tim,res) <- duration act
+    tot <- logTime
+    putStrLn $ "[BAKE-TIME] " ++ showDuration tim ++ " (total of " ++ showDuration tot ++ "): " ++ msg
+    return res
+
+time_ :: IO (CmdLine, CmdTime) -> IO ()
+time_ act = time $ do (a,b) <- act; return (a,b,())
+
+time :: IO (CmdLine, CmdTime, a) -> IO a
+time act = do
+    (CmdLine msg, CmdTime tim, res) <- act
+    tot <- logTime
+    putStrLn $ "[BAKE-TIME] " ++ showDuration tim ++ " (total of " ++ showDuration tot ++ "): " ++ msg
+    return res
 
 
 makeRelativeEx :: FilePath -> FilePath -> IO FilePath

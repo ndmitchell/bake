@@ -37,7 +37,7 @@ garbageCollect bytes ratio limit dirs@(d:_) = do
             if b >= bytes then
                 return $ Right done
             else do
-                putStr $ "Deleting " ++ gPath g ++ "..."
+                putStr $ "[BAKE-GC] Deleting " ++ gPath g ++ "..."
                 res <- try_ $
                     if gDirectory g then do
                         renameDirectory (gPath g) (gPath g <.> "gc")
@@ -47,7 +47,7 @@ garbageCollect bytes ratio limit dirs@(d:_) = do
                 putStrLn $ either (\e -> "FAILED\n" ++ show e) (const "success") res
                 return $ Left (True,gs)
     when done $
-        putStrLn "[Bake] Disk space garbage collection complete"
+        putStrLn "[BAKE-GC] Disk space garbage collection complete"
 
 
 data Garbage = Garbage
