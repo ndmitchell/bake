@@ -30,12 +30,12 @@ garbageCollect bytes ratio limit dirs@(d:_) = do
 
     bytes <- return $ max (floor $ fromIntegral total * ratio) bytes
 
-    flip loopM gs $ \gs -> case gs of
-        [] -> return $ Right ()
+    done <- flip loopM (False,gs) $ \(done,gs) -> case gs of
+        [] -> return $ Right done
         g:gs -> do
             b <- getAvailSpace d
             if b >= bytes then
-                return $ Right ()
+                return $ Right done
             else do
                 putStr $ "Deleting " ++ gPath g ++ "..."
                 res <- try_ $
@@ -45,8 +45,9 @@ garbageCollect bytes ratio limit dirs@(d:_) = do
                     else
                         removeFile (gPath g)
                 putStrLn $ either (\e -> "FAILED\n" ++ show e) (const "success") res
-                return $ Left gs
-    putStrLn "[Bake] Disk space garbage collection complete"
+                return $ Left (True,gs)
+    when done $
+        putStrLn "[Bake] Disk space garbage collection complete"
 
 
 data Garbage = Garbage
