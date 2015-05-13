@@ -18,7 +18,15 @@ import System.IO.Extra
 import System.IO.Unsafe
 
 
-ovenStepGit :: IO [FilePath] -> String -> String -> String -> Maybe FilePath -> Oven () () test -> Oven SHA1 SHA1 test
+-- | Oven creation for modules using git with the step strategy.
+ovenStepGit
+    :: IO [FilePath] -- ^ Function that does a compile and returns the pieces that should be available at test time
+    -> String -- ^ Git repo you are using
+    -> String -- ^ Branch used as the initial starting point
+    -> String -- ^ Branch updates are written to (usually the same as the starting point)
+    -> Maybe FilePath -- ^ Path under which the git will be checked out
+    -> Oven () () test -- ^ Normal oven
+    -> Oven SHA1 SHA1 test
 ovenStepGit act repo branchIn branchOut path o = o
     {ovenInit = gitInit repo branchIn
     ,ovenUpdate = stepUpdate
