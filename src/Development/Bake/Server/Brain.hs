@@ -23,7 +23,6 @@ import Control.Exception.Extra
 import Data.List.Extra
 import Data.Map(Map)
 import qualified Data.Map as Map
-import Data.Set(Set)
 import qualified Data.Set as Set
 import Development.Bake.Server.History
 import Prelude
@@ -67,7 +66,7 @@ data Memory = Memory
     ,skip :: Map.Map Test Author
         -- ^ Tests that are currently marked to be skipped, so are not run
 
-    ,rejected :: Map Patch (UTCTime, Set (Maybe Test))
+    ,rejected :: Map Patch (UTCTime, Map (Maybe Test) (State, [Patch]))
         -- ^ Reasons a particular patch was rejected
     ,superseded :: Map Patch UTCTime
         -- ^ Things that got superseded
@@ -204,13 +203,14 @@ reject now mem@Memory{..} = foldl' use mem $ concatMap bad results
             , Just i <- [rbPrefix qCandidate]]
 
         -- 0: makes the assumption the base state passes all tests
-        bad :: (Maybe Test, ([Int], [Int])) -> [(Patch, Maybe Test)]
-        bad (t, (pass, fail)) = [(snd active !! (i-1), t) | i <- fail,
+        bad :: (Maybe Test, ([Int], [Int])) -> [([Patch], Maybe Test)]
+        bad (t, (pass, fail)) = [(take i $ snd active, t) | i <- fail,
             (i-1) `elem` (0:pass) ||
             Just False == (do t <- t; ts <- Map.lookup (i-1) prepare; return $ t `Set.member` ts)]
 
-        comb (a1,a2) (b1,b2) = (min a1 b1, Set.union a2 b2)
-        use mem@Memory{..} (p, t) = mem{rejected = Map.insertWith comb p (now, Set.singleton t) rejected}
+        comb (a1,a2) (b1,b2) = (min a1 b1, Map.union b2 a2) -- deliberately return the first failure
+        use mem@Memory{..} (ps, t) = mem
+            {rejected = Map.insertWith comb (last ps) (now, Map.singleton t (fst active, ps)) rejected}
 
 
 reactive :: UTCTime -> Oven State Patch Test -> Memory -> Maybe (IO Memory)
@@ -262,7 +262,7 @@ reactive now oven mem@Memory{..}
     | reject /= []
     , Just tests <- tests
     , let tPass = passed $ self ++ superset
-    , let tFail = Set.fromList $ catMaybes $ concatMap (Set.toList . snd) reject
+    , let tFail = Set.fromList $ catMaybes $ concatMap (Map.keys . snd) reject
     , flip all (Set.toList tests) $ \t ->
         t `Set.member` tPass || any (`Set.member` tFail) (transitiveClosure (testDepend . ovenTestInfo oven) [t]) = Just $ do
         -- exclude the rejected from active
@@ -272,7 +272,7 @@ reactive now oven mem@Memory{..}
     -- preparing failed and I can reject someone for preparation
     | reject /= []
     , not $ null [() | (_,q,a) <- self, qTest q == Nothing, not $ aSuccess a]
-    , any (Set.member Nothing . snd) reject = Just $ do
+    , any (Map.member Nothing . snd) reject = Just $ do
         -- exclude the rejected from active
         addHistory $ map (HReject,) (map fst reject `intersect` snd active)
         return mem{active = second (\\ map fst reject) active}

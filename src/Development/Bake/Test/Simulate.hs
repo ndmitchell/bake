@@ -116,7 +116,7 @@ simulation testInfo clients u step = do
     forM_ patch $ \(p, pass, fail) ->
         case () of
             _ | pass -> unless (p `elem` unstate (fst active)) $ error $ show ("expected pass but not",p)
-              | Just (_,t) <- Map.lookup p rejected -> unless (all fail $ Set.toList t) $ error "incorrect test failure"
+              | Just (_,t) <- Map.lookup p rejected -> unless (all fail $ Map.keys t) $ error "incorrect test failure"
               | otherwise -> error "missing patch"
     return user
 

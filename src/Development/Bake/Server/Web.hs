@@ -174,6 +174,7 @@ data Shower = Shower
     ,showPatch :: Patch -> HTML
     ,showExtra :: Either State Patch -> HTML
     ,showTest :: Maybe Test -> HTML
+    ,showTestAt :: (State, [Patch]) -> Maybe Test -> HTML
     ,showQuestion :: Question -> HTML
     ,showClient :: Client -> HTML
     ,showState :: State -> HTML
@@ -198,6 +199,7 @@ shower extra Prettys{..} argsAdmin = do
         ,showExtra = \e -> raw_ $ maybe "" (strUnpack . fst) $ extra e
         ,showClient = \c -> shwLink ("client=" ++ url_ (fromClient c)) $ str_ $ fromClient c
         ,showTest = f Nothing Nothing []
+        ,showTestAt = \(s,ps) -> f Nothing (Just s) ps
         ,showQuestion = \Question{..} -> f (Just qClient) (Just $ fst qCandidate) (snd qCandidate) qTest
         ,showTime = \x -> span__ [class_ "nobr"] $ str_ $ showUTCTime "%H:%M" x ++ " (" ++ showRel x ++ ")"
         ,showThreads = \i -> str_ $ show i ++ " thread" ++ ['s' | i /= 1]
@@ -260,7 +262,7 @@ failures Shower{..} Memory{..} = when (ts /= []) $ do
     where
         ts = Set.toList $ failed `Set.difference` reject
         failed = Set.fromList [qTest q | (_,q,a) <- history, qCandidate q == active, aSuccess a == False]
-        reject = Set.unions [snd t | (p,t) <- Map.toList rejected, p `elem` snd active]
+        reject = Set.unions [Map.keysSet $ snd t | (p,t) <- Map.toList rejected, p `elem` snd active]
 
 
 progress :: Shower -> Memory -> HTML
