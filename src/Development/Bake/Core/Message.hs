@@ -143,6 +143,8 @@ messageFromInput (Input [msg] args body)
     | msg == "add" = AddPatch <$> str "author" <*> (Patch <$> str "patch")
     | msg == "del" = DelPatch <$> str "author" <*> (Patch <$> str "patch")
     | msg == "delall" = DelAllPatches <$> str "author"
+    | msg == "addskip" = AddSkip <$> str "author" <*> (Test <$> str "test")
+    | msg == "delskip" = DelSkip <$> str "author" <*> (Test <$> str "test")
     | msg == "requeue" = Requeue <$> str "author"
     | msg == "reinit" = Reinit <$> str "author"
     | msg == "pause" = Pause <$> str "author"
