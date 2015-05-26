@@ -114,7 +114,9 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
                     maybe' (extra $ Right p) (return "list") $ \(_, e) -> do
                         h2_ $ str_ "Patch information"; raw_ $ strUnpack e
                         return "patch"
-                [(_,_,Just Answer{..})] -> do
+                [(_,Question{..},Just Answer{..})] -> do
+                    when (argsAdmin && not aSuccess) $ whenJust qTest $ \t ->
+                        p_ $ admin (AddSkip "admin" t) $ str_ "Skip test"
                     h2_ $ str_ "Output"
                     pre_ $ str_ $ strUnpack aStdout
                     return "output"
