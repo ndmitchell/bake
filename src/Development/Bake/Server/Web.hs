@@ -33,7 +33,7 @@ import Prelude
 web :: DelayCache (Either State Patch) (Str,Str) -> Prettys -> String -> [(String, String)] -> Memory -> IO String
 web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
     extra <- askDelayCache extra
-    shower <- shower extra prettys argsAdmin
+    shower@Shower{..} <- shower extra prettys argsAdmin
     stats <- if argsStats then stats prettys mem else return mempty
     return $ (valueHTML &&& renderHTML . void) $ template $ do
         let noargs = argsEmpty a
@@ -57,6 +57,11 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
             table "No patches submitted" ["Submitted","Job","Status"]
                 $ map (\p -> rowPatch shower mem argsAdmin p) $
                     nubOrd (map (Right . snd) patches) ++ [Left s0]
+            unless (Map.null skip) $ do
+                h2_ $ str_ "Skipped tests"
+                ul_ $ fmap mconcat $ forM (Map.toList skip) $ \(test,author) -> li_ $ do
+                    showTest (Just test) <> str_ (", by " ++ author ++ ".")
+                    when argsAdmin $ str_ " " <> admin (DelSkip "admin" test) (str_ "Remove")
             h2_ $ str_ "Clients"
             table "No clients available" ["Name","Running"]
                 (map (rowClient shower mem) $ Nothing : map Just (Map.keys pings))
