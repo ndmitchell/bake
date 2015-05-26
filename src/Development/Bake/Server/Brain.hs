@@ -16,6 +16,7 @@ import General.Extra
 import Data.Tuple.Extra
 import Data.Maybe
 import Data.Monoid
+import General.Str
 -- import Debug.Trace
 import Control.Monad
 import Control.Exception.Extra
@@ -63,6 +64,8 @@ data Memory = Memory
         -- ^ Questions you have sent to clients, and how they responded.
     ,running :: [(UTCTime, Question)]
         -- ^ Questions you have sent to clients and are waiting for.
+    ,skip :: Map.Map Test Author
+        -- ^ Tests that are currently marked to be skipped, so are not run
 
     ,rejected :: Map Patch (UTCTime, Set (Maybe Test))
         -- ^ Reasons a particular patch was rejected
@@ -87,7 +90,7 @@ stateFailure = State ""
 
 -- | Create a new piece of memory.
 new :: Memory
-new = Memory [] [] Map.empty [] False Map.empty [] [] Map.empty Map.empty Map.empty False [] (stateFailure, [])
+new = Memory [] [] Map.empty [] False Map.empty [] [] Map.empty Map.empty Map.empty Map.empty False [] (stateFailure, [])
 
 
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
@@ -147,9 +150,13 @@ prod :: Oven State Patch Test -> Memory -> Message -> IO (Memory, Maybe Question
 prod oven mem msg = do
     mem <- input oven mem msg
     now <- getCurrentTime
-    return $ case msg of
-        Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p -> (mem{running = (now,q) : running mem}, Just q)
-        _ -> (mem, Nothing)
+    case msg of
+        Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p ->
+            if maybe False (`Map.member` skip mem) $ qTest q then
+                prod oven mem $ Finished q $ Answer (strPack "Skipped due to being on the skip list") 0 [] True
+            else
+                return (mem{running = (now,q) : running mem}, Just q)
+        _ -> return (mem, Nothing)
 
 
 
@@ -313,6 +320,14 @@ reinput oven now mem@Memory{..} (Unpause _)
 
 reinput oven now mem@Memory{..} (Pinged ping) =
     mem{pings = Map.insert (pClient ping) (PingEx now ping True) pings}
+
+reinput oven now mem@Memory{..} (AddSkip author test)
+    | test `Map.member` skip = error "already skipped"
+    | otherwise = mem{skip = Map.insert test author skip}
+
+reinput oven now mem@Memory{..} (DelSkip author test)
+    | test `Map.notMember` skip = error "already not skipped"
+    | otherwise = mem{skip = Map.delete test skip}
 
 reinput oven now mem (Finished q a) =
     mem{running = other, history = (head $ map fst this `snoc` now, q, a) : history mem}

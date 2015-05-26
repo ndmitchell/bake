@@ -26,6 +26,8 @@ data Message
     | Reinit Author
     | Pause Author
     | Unpause Author
+    | AddSkip Author Test
+    | DelSkip Author Test
     -- Sent by the client
     | Pinged Ping
     | Finished {question :: Question, answer :: Answer}
@@ -39,6 +41,8 @@ instance NFData Message where
     rnf (Reinit x) = rnf x
     rnf (Pause x) = rnf x
     rnf (Unpause x) = rnf x
+    rnf (AddSkip x y) = rnf x `seq` rnf y
+    rnf (DelSkip x y) = rnf x `seq` rnf y
     rnf (Pinged x) = rnf x
     rnf (Finished x y) = rnf x `seq` rnf y
 
@@ -124,6 +128,8 @@ messageToInput (Requeue author) = Input ["api","requeue"] [("author",author)] ""
 messageToInput (Reinit author) = Input ["api","reinit"] [("author",author)] ""
 messageToInput (Pause author) = Input ["api","pause"] [("author",author)] ""
 messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
+messageToInput (AddSkip author (Test test)) = Input ["api","addskip"] [("author",author),("test",test)] ""
+messageToInput (DelSkip author (Test test)) = Input ["api","delskip"] [("author",author),("test",test)] ""
 messageToInput (Pinged Ping{..}) = Input ["api","ping"] 
     ([("client",fromClient pClient),("author",pAuthor)] ++
      [("provide",x) | x <- pProvide] ++

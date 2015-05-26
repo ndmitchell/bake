@@ -3,6 +3,7 @@
 module Development.Bake.Core.Send(
     sendPause, sendUnpause,
     sendAddPatch, sendDelPatch, sendDelAllPatches, sendRequeue,
+    sendAddSkip, sendDelSkip,
     sendReinit
     ) where
 
@@ -27,6 +28,12 @@ sendDelAllPatches hp author = void $ sendMessage hp $ DelAllPatches author
 
 sendRequeue :: (Host,Port) -> Author -> IO ()
 sendRequeue hp author = void $ sendMessage hp $ Requeue author
+
+sendAddSkip :: (Host,Port) -> Author -> String -> IO ()
+sendAddSkip hp author x = void $ sendMessage hp $ AddSkip author $ Test x
+
+sendDelSkip :: (Host,Port) -> Author -> String -> IO ()
+sendDelSkip hp author x = void $ sendMessage hp $ DelSkip author $ Test x
 
 sendReinit :: (Host,Port) -> Author -> IO ()
 sendReinit hp author = void $ sendMessage hp $ Reinit author
