@@ -1,4 +1,4 @@
-:set -fwarn-unused-binds -fwarn-unused-imports
+:set -W -fno-warn-unused-matches
 :set -isrc
 :load Test src/Paths
 
