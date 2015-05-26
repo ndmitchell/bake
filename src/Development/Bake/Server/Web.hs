@@ -269,8 +269,8 @@ failures Shower{..} Memory{..} = when (ts /= []) $ do
 
 progress :: Shower -> Memory -> HTML
 progress Shower{..} Memory{..}
-    | Just t <- todo = p_ $ str_ $ "Done " ++ show done ++ " tests out of " ++ show (t+1)
-    | not $ null me = p_ $ str_ "Preparing test set"
+    | Just t <- todo = p_ $ b_ (str_ "Testing") <> str_ (", done " ++ show done ++ " tests out of " ++ show (t+1))
+    | not $ null me = p_ $ b_ (str_ "Preparing") <> str_ ", getting ready to test"
     | otherwise = return ()
     where
         me = [(q, a) | (_, q, a) <- history, qCandidate q == active]
