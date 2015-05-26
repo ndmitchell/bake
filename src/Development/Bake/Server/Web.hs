@@ -265,7 +265,9 @@ failures Shower{..} Memory{..} = when (ts /= []) $ do
 
 progress :: Shower -> Memory -> HTML
 progress Shower{..} Memory{..}
-    = whenJust todo $ \t -> p_ $ str_ $ "Done " ++ show done ++ " tests out of " ++ show (t+1)
+    | Just t <- todo = p_ $ str_ $ "Done " ++ show done ++ " tests out of " ++ show (t+1)
+    | not $ null me = p_ $ str_ "Preparing test set"
+    | otherwise = return ()
     where
         me = [(q, a) | (_, q, a) <- history, qCandidate q == active]
         done = length $ nubOrd $ map (qTest . fst) me
