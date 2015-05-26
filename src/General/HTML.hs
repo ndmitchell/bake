@@ -105,10 +105,12 @@ valid x = error $ "Not a valid HTML name, " ++ show x
 
 attribute_ :: String -> String -> Attribute
 attribute_ a b | valid a = Attribute $ a ++ "=\"" ++ escapeHTML b ++ "\""
+               | otherwise = error $ "Invalid attribute name, " ++ a
 
 
 tag__ :: String -> [Attribute] -> HTML -> HTML
-tag__ name at inner | valid name = do
+tag__ name at inner | not $ valid name = error $ "Invalid tag name, " ++ name
+                    | otherwise = do
     -- if you collapse an "a", it goes wrong
     -- if you don't collapse a "br", it goes wrong
     let zero = nullHTML inner && name `elem` ["br","link"]

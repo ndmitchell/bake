@@ -318,6 +318,7 @@ reinput oven now mem (Finished q a) =
     mem{running = other, history = (head $ map fst this `snoc` now, q, a) : history mem}
     where (this,other) = partition ((==) q . snd) $ running mem
 
+reinput oven now mem Reinit{} = error "Not handled by brains, Reinit"
 
 -- | Given a state, figure out what you should do next.
 output :: (Test -> TestInfo Test) -> Memory -> Ping -> Maybe Question

@@ -297,9 +297,10 @@ rowUpdate Shower{..} Memory{..} (i,Update{..}) = [showTime upTime, body, showAns
 rowPatch :: Shower -> Memory -> Bool -> Either State Patch -> (String, [HTML])
 rowPatch Shower{..} mem@Memory{..} argsAdmin patch = (code, [maybe mempty showTime time, state, body <> special])
     where
-        failed | Right p <- patch = Map.lookup p rejected
-               | Left s <- patch = let xs = [(aDuration a `addSeconds` t, qTest q) | (t,q,a) <- history, not $ aSuccess a, qCandidate q == (s,[])]
-                                   in if null xs then Nothing else Just (minimum $ map fst xs, Set.fromList $ map snd xs)
+        failed = case patch of
+            Right p -> Map.lookup p rejected
+            Left s -> if null xs then Nothing else Just (minimum $ map fst xs, Set.fromList $ map snd xs)
+                where xs = [(aDuration a `addSeconds` t, qTest q) | (t,q,a) <- history, not $ aSuccess a, qCandidate q == (s,[])]
 
         code | Right p <- patch, any (isSuffixOf [p] . snd . qCandidate . snd) running = "active"
              | Left s <- patch, (s,[]) `elem` map (qCandidate . snd) running = "active"
@@ -344,8 +345,9 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin patch = (code, [maybe mempty showTi
             br_
             span__ [class_ "info"] $ showExtra patch
 
-        time | Right p <- patch = fst <$> find ((==) p . snd) patches
-             | Left s <- patch = upTime <$> find ((==) s . upState) updates
+        time = case patch of
+            Right p -> fst <$> find ((==) p . snd) patches
+            Left s -> upTime <$> find ((==) s . upState) updates
 
 
 rowClient :: Shower -> Memory -> Maybe Client -> (String, [HTML])

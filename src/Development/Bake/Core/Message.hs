@@ -79,6 +79,7 @@ instance NFData Ping where
 -- JSON instance is only true for Finished
 instance ToJSON Message where
     toJSON (Finished q a) = object ["question" .= q, "answer" .= a]
+    toJSON _ = error "ToJSON Message is only supported for Finished"
 
 instance FromJSON Message where
     parseJSON (Object v) = Finished <$>
