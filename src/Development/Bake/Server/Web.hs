@@ -310,7 +310,7 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin patch = (code, [maybe mempty showTi
     where
         failed = case patch of
             Right p -> Map.lookup p rejected
-            Left s -> if null xs then Nothing else Just (minimum $ map fst xs, Set.fromList $ map snd xs)
+            Left s -> if null xs then Nothing else Just (minimum $ map fst xs, Map.fromList $ map ((, (s, [])) . snd) xs)
                 where xs = [(aDuration a `addSeconds` t, qTest q) | (t,q,a) <- history, not $ aSuccess a, qCandidate q == (s,[])]
 
         code | Right p <- patch, any (isSuffixOf [p] . snd . qCandidate . snd) running = "active"
@@ -324,11 +324,11 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin patch = (code, [maybe mempty showTi
              | otherwise = ""
 
         body
-            | Just (time, Set.toList -> xs) <- failed = do
+            | Just (time, Map.toList -> xs) <- failed = do
                 span__ [class_ "bad"] $ str_ $ if isLeft patch then "Failed" else "Rejected"
                 str_ " at " <> showTime time
                 when (xs /= []) br_
-                span__ [class_ "info"] $ commasLimit_ 3 $ map showTest xs
+                span__ [class_ "info"] $ commasLimit_ 3 [showTestAt sps t | (t,sps) <- xs]
             | Right p <- patch, p `elem` queued = str_ "Queued"
             | Right p <- patch, Just t <- Map.lookup p superseded = str_ "Superseded at " <> showTime t
             | Right p <- patch, Just Update{..} <- find (elem p . upPrevious) updates = do
