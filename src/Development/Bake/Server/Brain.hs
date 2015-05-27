@@ -4,7 +4,7 @@
 module Development.Bake.Server.Brain(
     Memory(..), stateFailure, new, expire,
     Question(..), Answer(..), Ping(..),
-    PingEx(..), Update(..), rebase,
+    PingEx(..), Update(..),
     prod
     ) where
 
