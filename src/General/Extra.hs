@@ -5,6 +5,7 @@ module General.Extra(
     createDir,
     withFileLock,
     pick,
+    memo1,
     timeInit, timed, time, time_,
     eitherToMaybe,
     newCVar, readCVar, modifyCVar, modifyCVar_,
@@ -233,6 +234,19 @@ findCycle follow = firstJust $ \x ->
     let children = transitiveClosure follow (follow x)
     -- if there is a cycle, make the element we know is cyclic first, so its easier to debug
     in if x `elem` children then Just (x : delete x children) else Nothing
+
+
+memo1 :: Eq a => (a -> IO b) -> IO (a -> IO b)
+memo1 op = do
+    ref <- newIORef Nothing
+    return $ \v -> do
+        old <- readIORef ref
+        case old of
+            Just (a,b) | a == v -> return b
+            _ -> do
+                new <- op v
+                writeIORef ref $ Just (v, new)
+                return new
 
 
 ---------------------------------------------------------------------
