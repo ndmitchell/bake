@@ -22,6 +22,7 @@ import System.FilePath
 import Control.Monad.Extra
 import System.Directory.Extra
 import Data.Tuple.Extra
+import Data.Unique
 
 
 newtype Run = Run {fromRun :: Int}
@@ -66,12 +67,16 @@ newtype Notify = Notify (forall result . Q result -> result -> IO ())
 notifyId :: IORef Int
 notifyId = unsafePerformIO $ newIORef 0
 
-data Disk = Disk FilePath (Var (Map.Map Int Notify))
+data Disk = Disk Unique FilePath (Var (Map.Map Int Notify))
+
+instance Eq Disk where
+    Disk u1 _ _ == Disk u2 _ _ = u1 == u2
 
 newDisk :: FilePath -> IO Disk
 newDisk file = do
     v <- newVar Map.empty
-    return $ Disk file v
+    u <- newUnique
+    return $ Disk u file v
 
 op :: FilePath -> Q result -> (IO result, result -> IO ())
 op dir x = case x of
@@ -136,16 +141,16 @@ fileMay x = (ifM (doesFileExist x) (Just <$> storedLoad x) (return Nothing)
 
 -- caches with cache invalidation
 load :: Disk -> Q result -> IO result
-load (Disk dir _) q = fst $ op dir q
+load (Disk _ dir _) q = fst $ op dir q
 
 save :: Disk -> Q result -> result -> IO ()
-save (Disk dir notify) q a = do
+save (Disk _ dir notify) q a = do
     snd (op dir q) a
     notify <- readVar notify
     forM_ (Map.toAscList notify) $ \(_, Notify act) -> act q a
 
 notify :: Disk -> (forall result . Q result -> result -> IO ()) -> IO (IO ())
-notify (Disk dir notify) act = do
+notify (Disk _ dir notify) act = do
     u <- atomicModifyIORef notifyId (succ &&& succ)
     modifyVar_ notify $ return . Map.insert u (Notify act)
     return $ modifyVar_ notify $ return . Map.delete u
