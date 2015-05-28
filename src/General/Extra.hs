@@ -6,6 +6,7 @@ module General.Extra(
     withFileLock,
     pick,
     memo1,
+    catMaybesSet,
     timeInit, timed, time, time_,
     eitherToMaybe,
     newCVar, readCVar, modifyCVar, modifyCVar_,
@@ -32,6 +33,7 @@ import Control.Applicative
 import Control.Monad.Extra
 import Control.Concurrent.Extra
 import Development.Shake.Command
+import Data.Maybe
 import System.Random
 import Data.Either.Extra
 import Data.Time.Format
@@ -247,6 +249,10 @@ memo1 op = do
                 new <- op v
                 writeIORef ref $ Just (v, new)
                 return new
+
+
+catMaybesSet :: Ord a => Set.Set (Maybe a) -> Set.Set a
+catMaybesSet = Set.mapMonotonic fromJust . Set.delete Nothing
 
 
 ---------------------------------------------------------------------
