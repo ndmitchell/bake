@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, TupleSections #-}
 
 module Development.Bake.Server.Property(
     rejectable, plausible, mergeable,
@@ -6,7 +6,8 @@ module Development.Bake.Server.Property(
     ) where
 
 import Data.IORef
-import Development.Bake.Server.Disk
+import Development.Bake.Server.Memory
+import Development.Bake.Server.Store
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Development.Bake.Core.Type
@@ -17,64 +18,63 @@ import Data.Tuple.Extra
 import Development.Bake.Core.Message
 import System.IO.Unsafe
 import General.Extra
-import Development.Bake.Server.Memory
+import Development.Bake.Server.Store
 import Data.List
 
 
 -- | I can reject the tests rejected because of the given patches
-rejectable :: Memory -> Cache -> [(Patch, Maybe Test)]
+rejectable :: Memory -> [(Patch, Maybe Test)]
 -- only look at failing tests in the current state
 -- find tests which have a passed/failed one apart
 -- assume the state passes everything
 -- if a test isn't avaiable at a point, it passes
-rejectable Memory{..} Cache{..} =
+rejectable Memory{..} =
         [(p, t) | (p,me,prev) <- zip3 patches points (tail points), t <- failed
-                , pass t me == Just False && pass t prev == Just True]
+                , poTest me t == Just False && poTest prev t == Just True]
     where
+        piZero = PointInfo Nothing Set.empty Set.empty
+        piOne = PointInfo (Just Set.empty) (Set.singleton Nothing) Set.empty
+
         -- tests that are failing in self, interesting to consider
-        failed = [t | (t, xs) <- Map.toList $ pointRuns selfInfo, any (not . fst) xs]
+        failed = Set.toList $ poFail $ storePoint store active
 
         patches = reverse $ snd active
-        points = selfInfo : reverse previousInfo ++
-            [PointEx (Just Set.empty) (Map.singleton Nothing [(True, Client "")]) Set.empty True] -- fake state point
-
-        pass t PointEx{..}
-            | xs@(_:_) <- Map.findWithDefault [] t pointRuns = Just $ all fst xs -- I have a result for it
-            | Just t <- t, Just todo <- pointTests, not $ t `Set.member` todo = Just True -- It's not applicable, and thus passes
-            | otherwise = Nothing
+        points = map (storePoint store . (fst active,)) (tail $ inits $ snd active) ++ [piOne]
 
 
 -- | I can mark all active patches as plausible
-plausible :: Memory -> Cache -> Bool
-plausible Memory{..} Cache{..}
-    | all (Set.null . pointRejected) $ selfInfo : previousInfo
-    , Just tests <- pointTests selfInfo
-    , all (all fst) $ Map.elems $ pointRuns selfInfo
-    , tests == Set.union supersetPass (catMaybesSet $ Map.keysSet $ pointRuns selfInfo)
+plausible :: Memory -> Bool
+plausible Memory{..}
+    | all (isNothing . paReject . storePatch store) $ snd active
+    , PointInfo{..} <- storePoint store active
+    , Just tests <- poTodo
+    , Set.null poFail
+    , tests == Set.union (storeSupersetPass store active) (catMaybesSet poPass)
     = True
-plausible _ _ = False
+plausible _ = False
 
 
 -- | I can merge all active patches
-mergeable :: Memory -> Cache -> Bool
-mergeable mem@Memory{..} cache@Cache{..}
-    | plausible mem cache
-    , Just tests <- pointTests selfInfo
-    , Set.size tests + 1 == Map.size (pointRuns selfInfo)
+mergeable :: Memory -> Bool
+mergeable mem@Memory{..}
+    | plausible mem
+    , PointInfo{..} <- storePoint store active
+    , Just tests <- poTodo
+    , Set.size tests + 1 == Set.size poPass
     = True
-mergeable _ _ = False
+mergeable _ = False
 
 
 -- | Add in all extra patches that are queued
-extendActive :: Memory -> Cache -> Bool
+extendActive :: Memory -> Bool
 -- either there are no patches being tested, or the ones being tested are all plausible
 -- relies on throwing out the rejected ones with restrictActive first
-extendActive Memory{..} Cache{..} = null (snd active) || all pointPlausible (selfInfo : previousInfo)
+extendActive Memory{..} = all (isJust . paPlausible . storePatch store) $ snd active
 
 
 -- | Throw out the patches that have been rejected
-restrictActive :: Oven State Patch Test -> Memory -> Cache -> Bool
-restrictActive oven Memory{..} Cache{..}
+restrictActive :: Oven State Patch Test -> Memory -> Bool
+restrictActive oven Memory{..}
     -- I can reject someone for failing preparation
     | Nothing `Set.member` rejectedTests = True
 
@@ -82,12 +82,13 @@ restrictActive oven Memory{..} Cache{..}
     --              or     (failed on active and lead to a rejection)
     --              or     (depend on a test that failed)
     | not $ Set.null rejectedTests
-    , Just tests <- pointTests selfInfo
+    , PointInfo{..} <- storePoint store active
+    , Just tests <- poTodo
+    , let pass = Set.union (storeSupersetPass store active) $ catMaybesSet $ poPass `Set.difference` poFail
     , flip all (Set.toList tests) $ \t ->
-        t `Set.member` passedTests || any (flip Set.member rejectedTests . Just) (transitiveClosure (testDepend . ovenTestInfo oven) [t]) = True
+        t `Set.member` pass || any (flip Set.member rejectedTests . Just) (transitiveClosure (testDepend . ovenTestInfo oven) [t]) = True
 
     | otherwise = False
 
     where
-        rejectedTests = Set.unions $ map pointRejected $ selfInfo : previousInfo
-        passedTests = Set.union supersetPass $ catMaybesSet $ Map.keysSet $ Map.filter (all fst) $ pointRuns selfInfo
+        rejectedTests = Set.unions $ mapMaybe (fmap (Map.keysSet . snd) . paReject . storePatch store) $ snd active
