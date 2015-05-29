@@ -47,10 +47,12 @@ ovenStepGit act repo branchIn branchOut path o = o
             createDirectoryIfMissing True git
             withFileLock (root </> ".bake-lock") $ do
                 ready <- doesFileExist $ git </> ".git/HEAD"
-                if ready then
+                if ready then do
                     -- for some reason git sometimes times out, not sure why
                     -- hopefully this will help track it down
                     time_ $ cmd (Cwd git) (Timeout $ 15*60) "git fetch"
+                    -- stops us creating lots of garbage in the reflog, which slows everything down
+                    time_ $ cmd (Cwd git) "git reflog expire --all --expire=all --expire-unreachable=all"
                  else do
                     time_ $ cmd (Cwd git) "git clone" [repo] "."
                     time_ $ cmd (Cwd git) "git config user.email" ["https://github.com/ndmitchell/bake"]
