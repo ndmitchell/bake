@@ -140,3 +140,4 @@ test dir = do
                     error $ "Expected to have updated Main, but got:\n" ++ src
 
         putStrLn "Completed successfully!"
+        putStrLn "Waiting (time to view webpage)..." >> sleep 1000

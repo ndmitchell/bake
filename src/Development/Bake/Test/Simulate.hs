@@ -7,6 +7,8 @@ module Development.Bake.Test.Simulate(
 import Development.Bake.Core.Message
 import Development.Bake.Core.Type
 import Development.Bake.Server.Brain
+import Development.Bake.Server.Memory
+import Development.Bake.Server.Store
 import Control.Monad.Extra
 import Data.List.Extra
 import Data.Tuple.Extra
@@ -24,10 +26,11 @@ import Prelude
 
 
 simulate :: IO ()
-simulate = withBuffering stdout NoBuffering $ do
+simulate = when False $ withBuffering stdout NoBuffering $ do
     when False $ do
         (t,_) <- duration $ performance 200
         putStrLn $ "Performance test took " ++ showDuration t
+    basic
     bisect
     newTest
     when False quickPlausible
@@ -65,12 +68,13 @@ simulation
     -> s                                        -- ^ initial seed
     -> ([Question] -> s -> IO (s, Bool, Step))  -- ^ step function
     -> IO s
-simulation testInfo clients u step = do
+simulation testInfo workers u step = withTempDir $ \dir -> do
     t <- getCurrentTime
-    let mem = new
-            {active = (restate [], [])
-            ,simulated = True
-            ,updates = [Update t (Answer (strPack "") 0 mempty True) (restate []) []]}
+    s <- newStore dir
+    mem <- newMemory s (restate [])
+    mem <- return mem
+        {active = (restate [], [])
+        ,simulated = True}
     let s = S u mem 20 Set.empty []
 
     let count s c = sum [qThreads | (_, Question{..}) <- running $ memory s, qClient == c]
@@ -83,6 +87,8 @@ simulation testInfo clients u step = do
             ,ovenPatchExtra = undefined
             }
     s@S{..} <- flip loopM s $ \s -> do
+        -- print $ clients $ memory s
+        -- print $ storePoint (store $ memory s) (active $ memory s)
         putChar '.'
         (u, cont, res) <- step (map snd $ running $ memory s) (user s)
         s <- return s{user = u}
@@ -92,9 +98,10 @@ simulation testInfo clients u step = do
                 let ans = Answer (strPack "") 0 (if good && isNothing (qTest q) then tests else []) good
                 in (Finished q ans, s)
             Request c ->
-                let Just mx = lookup c clients
+                let Just mx = lookup c workers
                 in (Pinged $ Ping c (fromClient c) [] mx $ mx - count s c, s)
         (mem, q) <- prod oven (memory s) msg
+        -- print q
         when (fatal mem /= []) $ error $ "Fatal error, " ++ unlines (fatal mem)
         s <- return s{memory = mem}
         s <- return $ case q of
@@ -107,16 +114,19 @@ simulation testInfo clients u step = do
     putStrLn ""
     let S{memory=Memory{..},..} = s
 
+--    putStrLn $ unlines $ map show $ Map.toList $ storePoints store
+
     unless (null running) $ error "Active should have been empty"
-    forM_ clients $ \(c,_) -> do
+    forM_ workers $ \(c,_) -> do
         (_, q) <- prod oven Memory{..} $ Pinged $ Ping c (fromClient c) [] maxBound maxBound
         when (isJust q) $ error "Brains should have returned sleep"
+    let rejected = Map.filter (isJust . paReject) $ storePatches store
     when (snd active /= []) $ error $ "Target is not blank: active = " ++ show active ++ ", rejected = " ++ show (Map.keys rejected)
 
     forM_ patch $ \(p, pass, fail) ->
         case () of
             _ | pass -> unless (p `elem` unstate (fst active)) $ error $ show ("expected pass but not",p)
-              | Just (_,t) <- Map.lookup p rejected -> unless (all fail $ Map.keys t) $ error "incorrect test failure"
+              | PatchInfo{paReject=Just (_,t)} <- storePatch store p -> unless (all fail $ Map.keys t) $ error "incorrect test failure"
               | otherwise -> error "missing patch"
     return user
 
@@ -188,6 +198,19 @@ bisect = do
           | otherwise -> ((done,[]), False, Request client)
     when (done > 50) $ error "Did too many tests to bisect"
     putStrLn "Success at bisect"
+
+
+basic :: IO ()
+basic = do
+    -- have test x, fails in patch 4 of 5
+    let info t = mempty
+    let client = Client "c"
+    simulation info [(client,1)] (map (Patch . show) [1..5 :: Int]) $ \active patches -> return $ case () of
+        _ | p:patches <- patches -> (patches, True, Submit p (p /= Patch "4") (\t -> p == Patch "4" && t == Just (Test "x")))
+          | q:_ <- active, let isX = qTest q == Just (Test "x"), let has12 = Patch "4" `elem` snd (qCandidate q) ->
+                ([], True, Reply q (not $ isX && has12) (map Test ["x"]))
+          | otherwise -> ([], False, Request client)
+    putStrLn "Success at basic"
 
 
 newTest :: IO ()

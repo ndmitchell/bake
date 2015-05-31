@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns, TupleSections #-}
+{-# OPTIONS_GHC -w #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Web(
@@ -6,6 +7,7 @@ module Development.Bake.Server.Web(
     ) where
 
 import Development.Bake.Server.Brain
+import Development.Bake.Server.Store
 import Development.Bake.Server.Stats
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
@@ -53,26 +55,27 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
                 p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
             failures shower mem
             progress shower mem
-            let s0 = upState $ last updates
-            table "No patches submitted" ["Submitted","Job","Status"]
-                $ map (\p -> rowPatch shower mem argsAdmin p) $
-                    nubOrd (map (Right . snd) patches) ++ [Left s0]
-            unless (Map.null skip) $ do
+
+            table "No patches submitted" ["Submitted","Job","Status"] $
+                map (\p -> rowPatch shower mem argsAdmin p) $ map snd $ sortOn fst $
+                [(fst paQueued, Right p) | (p, PatchInfo{..}) <- Map.toList $ storePatches store] ++
+                [(stCreated, Left s) | (s, StateInfo{..}) <- Map.toList $ storeStates store]
+            unless (Map.null skipped) $ do
                 h2_ $ str_ "Skipped tests"
-                ul_ $ fmap mconcat $ forM (Map.toList skip) $ \(test,author) -> li_ $ do
+                ul_ $ fmap mconcat $ forM (Map.toList skipped) $ \(test,author) -> li_ $ do
                     showTest (Just test) <> str_ (", by " ++ author ++ ".")
                     when argsAdmin $ str_ " " <> admin (DelSkip "admin" test) (str_ "Remove")
             h2_ $ str_ "Clients"
             table "No clients available" ["Name","Running"]
-                (map (rowClient shower mem) $ Nothing : map Just (Map.keys pings))
+                (map (rowClient shower mem) $ Nothing : map Just (Map.toList clients))
 
             when argsAdmin $ do
                 h2_ $ str_ "Admin"
                 ul_ $ do
-                    li_ $ if null (snd active) && null queued
+                    li_ $ if Set.null $ storeAlive store
                         then str_ "Cannot delete all patches, no patches available"
                         else admin (DelAllPatches "admin") $ str_ "Delete all patches"
-                    li_ $ if null queued
+                    li_ $ if null (Set.toList (storeAlive store) \\ snd active)
                         then str_ "Cannot requeue, no queued patches"
                         else admin (Requeue "admin") $ str_ "Reqeue"
                     li_ $ if paused
@@ -85,11 +88,12 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
             return "stats"
 
          else if argsRaw then do
-            str_ $ show mem
+            -- str_ $ show mem
             return "raw"
 
          else if isJust argsServer then do
             let s = fromJust argsServer
+            {-
             table "No server operations" ["Time","Job","Status"] $
                 map (("",) . rowUpdate shower mem) $
                     filter (maybe (const True) (==) s . fst) $
@@ -97,9 +101,11 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
             whenJust s $ \s -> do
                 h2_ $ str_ "Output"
                 pre_ $ str_ $ strUnpack $ aStdout $ upAnswer $ reverse updates !! s
+            -}
             return "server"
 
          else do
+            return "list" {-
             let xs = filter (argsFilter a . snd3) $
                     map (\(t,q) -> (t,q,Nothing)) running ++ map (\(t,q,a) -> (t,q,Just a)) history
             table "No runs" ["Time","Job","Status"] $
@@ -120,7 +126,7 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
                     h2_ $ str_ "Output"
                     pre_ $ str_ $ strUnpack aStdout
                     return "output"
-                _ -> return "list"
+                _ -> return "list" -}
 
 
 data Args = Args
@@ -258,17 +264,17 @@ template inner = do
 
 
 failures :: Shower -> Memory -> HTML
-failures Shower{..} Memory{..} = when (ts /= []) $ do
+failures Shower{..} Memory{..} = return () {- when (ts /= []) $ do
     p_ $ str_ "Tracking down failures in:"
     ul_ $ mconcat $ map (li_ . showTest) ts
     where
         ts = Set.toList $ failed `Set.difference` reject
         failed = Set.fromList [qTest q | (_,q,a) <- history, qCandidate q == active, aSuccess a == False]
-        reject = Set.unions [Map.keysSet $ snd t | (p,t) <- Map.toList rejected, p `elem` snd active]
+        reject = Set.unions [Map.keysSet $ snd t | (p,t) <- Map.toList rejected, p `elem` snd active] -}
 
 
 progress :: Shower -> Memory -> HTML
-progress Shower{..} Memory{..}
+progress Shower{..} Memory{..} = return () {-
     | Just t <- todo = p_ $ b_ (str_ "Testing") <> str_ (", done " ++ show done ++ " tests out of " ++ show (t+1))
     | not $ null me = p_ $ b_ (str_ "Preparing") <> str_ ", getting ready to test"
     | otherwise = return ()
@@ -276,7 +282,7 @@ progress Shower{..} Memory{..}
         me = [(q, a) | (_, q, a) <- history, qCandidate q == active]
         done = length $ nubOrd $ map (qTest . fst) me
         todo = length <$> listToMaybe [aTests a | (q, a) <- me, qTest q == Nothing, aSuccess a]
-
+-}
 
 showAnswer :: Maybe Answer -> HTML
 showAnswer Nothing = i_ $ str_ $ "Running..."
@@ -294,7 +300,7 @@ rowHistory Shower{..} Memory{..} (t, q@Question{..}, a) = [showTime t, body, sho
             str_ "Test " <> showQuestion q <> str_ " on " <> showClient qClient
             str_ " with " <> showThreads qThreads
 
-
+{-
 rowUpdate :: Shower -> Memory -> (Int,Update) -> [HTML]
 rowUpdate Shower{..} Memory{..} (i,Update{..}) = [showTime upTime, body, showAnswer $ Just upAnswer]
     where
@@ -303,10 +309,10 @@ rowUpdate Shower{..} Memory{..} (i,Update{..}) = [showTime upTime, body, showAns
             br_
             unless (null upPrevious) $ str_ "With " <> commas_ (map showPatch upPrevious)
             str_ "To " <> showState upState
-
+-}
 
 rowPatch :: Shower -> Memory -> Bool -> Either State Patch -> (String, [HTML])
-rowPatch Shower{..} mem@Memory{..} argsAdmin patch = (code, [maybe mempty showTime time, state, body <> special])
+rowPatch Shower{..} mem@Memory{..} argsAdmin patch = ("", []) {- (code, [maybe mempty showTime time, state, body <> special])
     where
         failed = case patch of
             Right p -> Map.lookup p rejected
@@ -359,15 +365,16 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin patch = (code, [maybe mempty showTi
         time = case patch of
             Right p -> fst <$> find ((==) p . snd) patches
             Left s -> upTime <$> find ((==) s . upState) updates
+            -}
 
 
-rowClient :: Shower -> Memory -> Maybe Client -> (String, [HTML])
-rowClient Shower{..} Memory{..} (Just c) = ((if maybe False piAlive $ Map.lookup c pings then "" else "dull"),) $
+rowClient :: Shower -> Memory -> Maybe (Client, ClientInfo) -> (String, [HTML])
+rowClient Shower{..} Memory{..} (Just (c, ClientInfo{..})) = ((if ciAlive then "" else "dull"),) $
     [showLink ("client=" ++ url_ (fromClient c)) $ str_ $ fromClient c
     ,if null xs then i_ $ str_ "None" else mconcat $ intersperse br_ xs]
     where xs = reverse [showQuestion q <> str_ " started " <> showTime t | (t,q) <- running, qClient q == c]
 rowClient Shower{..} Memory{..} Nothing = ("",) $
     [showLink "server=" $ i_ $ str_ "Server"
-    ,showLink ("server=" ++ show (length updates - 1))
+    ,return ()] {- showLink ("server=" ++ show (length updates - 1))
         (str_ $ if length updates == 1 then "Initialised" else "Updated") <>
-     str_ " finished " <> showTime (upTime $ head updates)]
+     str_ " finished " <> showTime (upTime $ head updates)] -}

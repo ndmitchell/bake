@@ -5,18 +5,12 @@ module Development.Bake.Server.Memory(
     newMemory, stateFailure
     ) where
 
-import Data.IORef
 import Development.Bake.Server.Store
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import Development.Bake.Core.Type
 import Data.Time
-import Control.Monad.Extra
-import Data.Maybe
-import Data.Tuple.Extra
 import Development.Bake.Core.Message
-import System.IO.Unsafe
-import General.Extra
+import Control.DeepSeq
 
 stateFailure = State ""
 
@@ -28,12 +22,14 @@ data ClientInfo = ClientInfo
     {ciPingTime :: UTCTime
     ,ciPing :: Ping
     ,ciAlive :: Bool
-    ,ciDone :: Set.Set ((State, [Patch]), Maybe Test) -- all were successful
+    ,ciTests :: Map.Map ((State, [Patch]), Maybe Test) Bool -- if a single failure, set to False
     } deriving (Eq,Show)
 
 data Memory = Memory
     {simulated :: Bool
         -- ^ Are we running in a simulation (don't spawn separate process)
+    ,authors :: [Author]
+        -- ^ Author
     ,store :: Store
         -- ^ All the information on disk
     ,fatal :: [String]
@@ -50,5 +46,10 @@ data Memory = Memory
         -- ^ tests which are currently skipped
     }
 
-newMemory :: Store -> State -> Memory
-newMemory store state = Memory False store [] Map.empty [] False (state, []) Map.empty
+newMemory :: Store -> State -> IO Memory
+newMemory store state = do
+    store <- storeUpdate store [IUState state Nothing]
+    return $ Memory False [] store [] Map.empty [] False (state, []) Map.empty
+
+instance NFData Memory where
+    rnf Memory{..} = ()

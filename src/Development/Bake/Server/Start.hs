@@ -16,6 +16,8 @@ import Development.Bake.Server.Brain
 import Development.Bake.Server.Web
 import Development.Bake.Server.Stats
 import Development.Bake.Server.History
+import Development.Bake.Server.Memory
+import Development.Bake.Server.Store
 import General.DelayCache
 import Control.Applicative
 import Control.DeepSeq
@@ -26,7 +28,6 @@ import Control.Monad.Extra
 import System.Directory
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
-import qualified Data.Map as Map
 import qualified Data.ByteString.Char8 as BS
 import Prelude
 
@@ -83,10 +84,11 @@ initialise oven author extra = do
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
     when (isJust res) $ addDelayCache extra (Left state0) $ patchExtra state0 Nothing
     addHistory [(HRestart, Patch "")]
-    return $ new
-        {active=(state0,[])
-        ,authors=Map.fromList [(Nothing,[author])]
-        ,updates=[Update now answer state0 []]
+    store <- newStore "bake-stuff"
+    mem <- newMemory store state0
+    return $ mem
+        {authors=[author]
+--        ,updates=[Update now answer state0 []]
         ,fatal=["Failed to initialise" | isNothing res]
         }
 

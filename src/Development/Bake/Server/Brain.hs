@@ -2,13 +2,12 @@
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Brain(
-    Memory(..), stateFailure, new, expire,
+    Memory(..), expire,
     Question(..), Answer(..), Ping(..),
-    PingEx(..), Update(..),
+    ClientInfo(..),
     prod
     ) where
 
-import Control.DeepSeq
 import Development.Bake.Core.Run
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
@@ -17,79 +16,15 @@ import Data.Tuple.Extra
 import Data.Maybe
 import Data.Monoid
 import General.Str
--- import Debug.Trace
 import Control.Monad
-import Control.Exception.Extra
 import Data.List.Extra
-import Data.Map(Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Development.Bake.Server.History
+import Development.Bake.Server.Store
 import Prelude
 
-trace _ x = x
-
----------------------------------------------------------------------
--- THE DATA TYPE
-
-data PingEx = PingEx
-    {piTime :: UTCTime
-    ,piPing :: Ping
-    ,piAlive :: Bool
-    } deriving (Eq,Show)
-
-data Update = Update
-    {upTime :: UTCTime
-    ,upAnswer :: Answer
-    ,upState :: State
-    ,upPrevious :: [Patch] -- those which were applied to the previous state
-    } deriving (Eq,Show)
-
-data Memory = Memory
-    {patches :: [(UTCTime, Patch)]
-        -- ^ List of all patches that have been submitted over time
-    ,updates :: [Update]
-        -- ^ Updates that have been made. If the Answer failed, you must have an entry in fatal
-    ,authors :: Map (Maybe Patch) [Author]
-        -- ^ Authors associated with each patch (Nothing is the server author)
-    ,fatal :: [String]
-        -- ^ A list of fatal error messages that have been raised by the server
-    ,simulated :: Bool
-        -- ^ Are we running in a simulation (don't spawn separate process)
-
-    ,pings :: Map Client PingEx
-        -- ^ Latest time of a ping sent by each client
-    ,history :: [(UTCTime, Question, Answer)]
-        -- ^ Questions you have sent to clients, and how they responded.
-    ,running :: [(UTCTime, Question)]
-        -- ^ Questions you have sent to clients and are waiting for.
-    ,skip :: Map.Map Test Author
-        -- ^ Tests that are currently marked to be skipped, so are not run
-
-    ,rejected :: Map Patch (UTCTime, Map (Maybe Test) (State, [Patch]))
-        -- ^ Reasons a particular patch was rejected
-    ,superseded :: Map Patch UTCTime
-        -- ^ Things that got superseded
-    ,plausible :: Map Patch UTCTime
-        -- ^ Things that are known to be plausible
-
-    ,paused :: Bool
-        -- ^ Pretend the queued is empty
-    ,queued :: [Patch]
-        -- ^ People who are queued up
-    ,active :: (State, [Patch])
-        -- ^ the target we are working at (some may already be rejected)
-    } deriving Show
-
-instance NFData Memory where
-    rnf Memory{} = () -- I don't ever intend putting something lazy in Memory
-
-
-stateFailure = State ""
-
--- | Create a new piece of memory.
-new :: Memory
-new = Memory [] [] Map.empty [] False Map.empty [] [] Map.empty Map.empty Map.empty Map.empty False [] (stateFailure, [])
+import Development.Bake.Server.Memory
+import Development.Bake.Server.Property
 
 
 -- any question that has been asked of a client who hasn't pinged since the time is thrown away
@@ -97,243 +32,147 @@ expire :: UTCTime -> Memory -> Memory
 expire cutoff s
     | null died = s
     | otherwise = s{running = filter (flip notElem died . qClient . snd) $ running s
-                   ,pings = Map.map (\pi@PingEx{..} -> pi{piAlive = piAlive && pClient piPing `notElem` died}) $ pings s}
-    where died = [pClient piPing | PingEx{..} <- Map.elems $ pings s, piTime < cutoff, piAlive]
-
-
-consistent :: Memory -> IO ()
-consistent mem@Memory{..} = do
-    -- basic sanity checks
-    when (fst active /= upState (head updates)) $ error "active is not working of the most recent update"
-
-    -- all preparations for a given point are equal
-    let xs = groupSort $ map (qCandidate . snd3 &&& id) $ filter (isNothing . qTest . snd3) history
-    forM_ xs $ \(c,vs) -> do
-        case nubOrd $ map (sort . aTests) $ filter aSuccess $ map thd3 vs of
-            a:b:_ -> error $ "serverConsistent: Tests don't match for candidate: " ++ show (c,a,b,vs)
-            _ -> return ()
-
-
-data Rebase = Active -- exactly equal to 'active' (s,ps)
-            | Prefix Int -- a prefix of the current 'active' (s,take i ps)
-            | Superset -- a superset of 'active', (s,?p?s?) - all patches in order, plus others
-              deriving (Eq,Show)
-
--- Active gets mapped to Prefix, Superset becomes Nothing
-rebasePrefix :: Memory -> ((State, [Patch]) -> Maybe Int)
-rebasePrefix mem = \x -> case rb x of
-        Just Active -> Just n
-        Just (Prefix i) -> Just i
-        _ -> Nothing
-    where
-        n = length $ snd $ active mem
-        rb = rebase mem
-
-rebase :: Memory -> ((State, [Patch]) -> Maybe Rebase)
-rebase Memory{..} = \(s,ps) -> case Map.lookup s mp of
-    Just pre
-        | Just ps <- stripPrefix pre ps, ps `isPrefixOf` snd active
-            -> Just $ let i = length ps in if i == n then Active else Prefix i
-        | isSuperset (pre ++ ps) (snd active) -> Just Superset
-    _ -> Nothing
-    where
-        n = length $ snd active
-        -- mapping from state to exact list of patches to get to the front of the list
-        mp = Map.fromList $ zip (map upState updates) (map (concat . reverse) $ inits $ map upPrevious updates)
-
-        isSuperset (x:xs) (y:ys) = if x == y then isSuperset xs ys else isSuperset xs (y:ys)
-        isSuperset _ ys = null ys
+                   ,clients = Map.map (\ci@ClientInfo{..} -> ci{ciAlive = ciAlive && pClient ciPing `notElem` died}) $ clients s}
+    where died = [pClient ciPing | ClientInfo{..} <- Map.elems $ clients s, ciPingTime < cutoff, ciAlive]
 
 
 prod :: Oven State Patch Test -> Memory -> Message -> IO (Memory, Maybe Question)
 prod oven mem msg = do
-    mem <- input oven mem msg
-    now <- getCurrentTime
+    mem <- update oven mem msg
+    mem <- reacts oven mem
     case msg of
         Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p ->
-            if maybe False (`Map.member` skip mem) $ qTest q then
+            if maybe False (`Map.member` skipped mem) $ qTest q then
                 prod oven mem $ Finished q $ Answer (strPack "Skipped due to being on the skip list") 0 [] True
-            else
+            else do
+                now <- getCurrentTime
                 return (mem{running = (now,q) : running mem}, Just q)
         _ -> return (mem, Nothing)
 
 
 
--- | Given a state, produce more.
-input :: Oven State Patch Test -> Memory -> Message -> IO Memory
-input oven mem msg | fatal mem /= [] = return mem
-input oven mem msg = do
-    now <- getCurrentTime
-    let preQueue = queued mem
-    mem <- return $ reject now $ reinput oven now mem msg
-    case msg of
-        AddPatch _ p -> addHistory [(HQueue, p)]
-        _ -> return ()
-    addHistory $ map (HSupersede,) $ preQueue \\ queued mem
-    let f mem | fatal mem == [], Just mem <- reactive now oven mem = f . reject now =<< mem
-              | otherwise = return mem
-    mem <- f mem
-    res <- try_ $ when (fatal mem == []) $ consistent mem
-    case res of
-        Right () -> return mem
-        Left e -> do
-            e <- showException e
-            return mem{fatal = ("Consistency check failed: " ++ e) : fatal mem}
-
-
-reject :: UTCTime -> Memory -> Memory
--- find tests which have a passed/failed one apart in Prefix,
--- assume 0 is implicitly passing
--- and anywhere the test isn't available
-reject now mem@Memory{..} = foldl' use mem $ concatMap bad results
+reacts :: Oven State Patch Test -> Memory -> IO Memory
+reacts oven = f 10
     where
-        rbPrefix = rebasePrefix mem
-
-        -- [(test, ([pass], [fail]))]
-        results = Map.toList $ Map.fromListWith mappend
-            [ (qTest, if aSuccess then ([i],[]) else ([],[i]))
-            | (_,Question{..},Answer{..}) <- history
-            , Just i <- [rbPrefix qCandidate]]
-
-        -- Map prefix (Set test)
-        prepare = Map.fromList
-            [ (i, Set.fromList aTests)
-            | (_,Question{..},Answer{..}) <- history
-            , aSuccess, qTest == Nothing
-            , Just i <- [rbPrefix qCandidate]]
-
-        -- 0: makes the assumption the base state passes all tests
-        bad :: (Maybe Test, ([Int], [Int])) -> [([Patch], Maybe Test)]
-        bad (t, (pass, fail)) = [(take i $ snd active, t) | i <- fail,
-            (i-1) `elem` (0:pass) ||
-            Just False == (do t <- t; ts <- Map.lookup (i-1) prepare; return $ t `Set.member` ts)]
-
-        comb (a1,a2) (b1,b2) = (min a1 b1, Map.union b2 a2) -- deliberately return the first failure
-        use mem@Memory{..} (ps, t) = mem
-            {rejected = Map.insertWith comb (last ps) (now, Map.singleton t (fst active, ps)) rejected}
+        f 0 mem = return mem{fatal = "React got into a loop" : fatal mem}
+        f i mem | null $ fatal mem, Just mem <- react oven mem = f (i-1) =<< mem
+                | otherwise = return mem
 
 
-reactive :: UTCTime -> Oven State Patch Test -> Memory -> Maybe (IO Memory)
-reactive now oven mem@Memory{..}
-    -- if active or a superset passed all tests and none are rejected mark as plausible
-    | reject == []
-    , new@(_:_) <- filter (`Map.notMember` plausible) $ snd active
-    , tests == Just (passed $ self ++ superset) = Just $ do
-        addHistory $ map (HPlausible,) new
-        return mem{plausible = Map.unionWith min (Map.fromList $ map (,now) new) plausible}
+react :: Oven State Patch Test -> Memory -> Maybe (IO Memory)
+react oven mem@Memory{..}
+    | xs <- rejectable mem
+    , xs@(_:_) <- filter (\(p,t) -> t `Map.notMember` maybe Map.empty snd (paReject $ storePatch store p)) xs
+    = Just $ do
+        -- print $ "Rejecting: " ++ show xs
+        -- print $ storePoint store (fst active, take 1 $ snd active)
+        store <- storeUpdate store
+            [IUReject p t (fst active, takeWhile (/= p) (snd active) ++ [p]) | (p,t) <- xs]
+        return mem{store = store}
 
-    -- if active has passed all tests and none of the patches are on rejected
-    | snd active /= []
-    , reject == []
-    , tests == Just (passed self) = Just $ do
-        now <- getCurrentTime
+    | plausible mem
+    , xs@(_:_) <- filter (isNothing . paPlausible . storePatch store) $ snd active
+    = Just $ do
+        store <- storeUpdate store $ map IUPlausible xs
+        return mem{store = store}
+
+    | mergeable mem
+    , not $ null $ snd active
+    = Just $ do
         (s, answer) <-
             if not simulated then uncurry runUpdate active
             else do s <- ovenUpdate oven (fst active) (snd active); return (Just s, Answer mempty 0 mempty True)
 
+        let pauthors = map (snd . paQueued . storePatch store) $ snd active
         case s of
             Nothing -> do
-                ovenNotify oven [a | p <- Nothing : map Just (snd active), a <- Map.findWithDefault [] p authors]
-                    "Failed to update, pretty serious"
+                ovenNotify oven (authors ++ pauthors) "Failed to update, pretty serious"
                 return mem
-                    {fatal = "Failed to update" : fatal
-                    ,updates = Update now answer stateFailure (snd active) : updates}
+                    {fatal = ("Failed to update\n" ++ strUnpack (aStdout answer)) : fatal}
             Just s -> do
-                addHistory $ map (HMerge,) $ snd active
-                ovenNotify oven [a | p <- snd active, a <- Map.findWithDefault [] (Just p) authors]
-                    "Your patch just made it in"
-                return mem
-                    {updates = Update now answer s (snd active) : updates
-                    ,active = (s, [])
-                    }
+                ovenNotify oven authors "Your patch just made it in"
+                storeSaveUpdate store s answer
+                store <- storeUpdate store $ IUState s (Just active) : map IUMerge (snd active)
+                return mem{active = (s, []), store = store}
 
-    -- if active or a superset passed all tests and none are rejected and not paused dequeue
-    | not paused
-    , queued /= []
-    , reject == []
-    , snd active == [] || tests == Just (passed $ self ++ superset) = Just $ do
-        -- requeue
-        addHistory $ map (HStart,) queued
-        return mem{active = second (++ queued) active, queued = []}
+    | restrictActive oven mem
+    , (reject@(_:_), keep) <- partition (isJust . paReject . storePatch store) $ snd active
+    = Just $ do
+        let authors = map (snd . paQueued . storePatch store) reject
+        ovenNotify oven authors "Rejected"
+        return mem{active = (fst active, keep)}
 
-    -- if all tests either (passed on active or a superset)
-    --              or     (failed on active and lead to a rejection)
-    --              or     (depend on a test that failed)
-    | reject /= []
-    , Just tests <- tests
-    , let tPass = passed $ self ++ superset
-    , let tFail = Set.fromList $ catMaybes $ concatMap (Map.keys . snd) reject
-    , flip all (Set.toList tests) $ \t ->
-        t `Set.member` tPass || any (`Set.member` tFail) (transitiveClosure (testDepend . ovenTestInfo oven) [t]) = Just $ do
-        -- exclude the rejected from active
-        addHistory $ map (HReject,) (map fst reject `intersect` snd active)
-        return mem{active = second (\\ map fst reject) active}
+    | extendActive mem
+    , add@(_:_) <- Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
+    = Just $ do
+        store <- storeUpdate store $ map IUStart add
+        return mem
+            {active = (fst active, snd active ++ sortOn (fst . paQueued . storePatch store) add)
+            ,store = store}
 
-    -- preparing failed and I can reject someone for preparation
-    | reject /= []
-    , not $ null [() | (_,q,a) <- self, qTest q == Nothing, not $ aSuccess a]
-    , any (Map.member Nothing . snd) reject = Just $ do
-        -- exclude the rejected from active
-        addHistory $ map (HReject,) (map fst reject `intersect` snd active)
-        return mem{active = second (\\ map fst reject) active}
-
-    | otherwise = Nothing -- trace (show ("reactive", length reject, show tests, show self)) $ Nothing
-    where
-        rb = rebase mem
-        self     = filter ((== Just Active  ) . rb . qCandidate . snd3) history
-        superset = filter ((== Just Superset) . rb . qCandidate . snd3) history
-        passed tqa = Set.fromList [t | (_,Question{qTest=Just t},Answer{aSuccess=True}) <- tqa]
-        tests = listToMaybe [Set.fromList $ aTests a | (_,q,a) <- self, qTest q == Nothing, aSuccess a]
-        reject = [(p, snd ts) | p <- snd active, Just ts <- [Map.lookup p rejected]]
+    | otherwise = Nothing
 
 
-reinput :: Oven State Patch Test -> UTCTime -> Memory -> Message -> Memory
-reinput oven now mem@Memory{..} (AddPatch author p) =
-    if p `elem` map snd patches then
+update :: Oven State Patch Test -> Memory -> Message -> IO Memory
+update oven mem@Memory{..} (AddPatch author p) =
+    if p `Map.member` storePatches store then
         error "patch has already been submitted"
-     else mem
-        {queued = queue `snoc` p
-        ,superseded = Map.unionWith min (Map.fromList $ map (,now) supersede) superseded
-        ,authors = Map.insertWith (++) (Just p) [author] authors
-        ,patches = (now,p) : patches}
-        where (queue, supersede) = partition (\old -> not $ old == p || ovenSupersede oven old p) queued
+     else do
+        let queued = storeAlive store `Set.difference` Set.fromList (snd active)
+            supersede = filter (\old -> ovenSupersede oven old p) $ Set.toList queued
+        store <- storeUpdate store $ IUQueue p author : map IUSupersede supersede
+        return mem{store = store}
 
-reinput oven now mem@Memory{..} (DelPatch _ p) = mem
-    {queued = filter (/= p) queued
-    ,active = second (delete p) active}
+update oven mem@Memory{..} (DelPatch _ p) =
+    if not $ p `Set.member` storeAlive store then
+        error "patch is already dead or not known"
+    else do
+        store <- storeUpdate store [IUDelete p]
+        return mem{store = store, active = second (delete p) active}
 
-reinput oven now mem@Memory{..} (DelAllPatches _) = mem
-    {queued = []
-    ,active = (fst active, [])}
+update oven mem@Memory{..} (DelAllPatches author) = do
+    store <- storeUpdate store $ map IUDelete $ Set.toList $ storeAlive store
+    return mem{store = store, active = (fst active, [])}
 
-reinput oven now mem@Memory{..} (Requeue _) = mem
-    {queued = []
-    ,active = second (++ queued) active}
+update oven mem@Memory{..} (Requeue author) = do
+    let add = Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
+    store <- storeUpdate store $ map IUStart add
+    return mem
+        {active = (fst active, snd active ++ sortOn (fst . paQueued . storePatch store) add)
+        ,store = store}
 
-reinput oven now mem@Memory{..} (Pause _)
+update oven mem@Memory{..} (Pause _)
     | paused = error "already paused"
-    | otherwise = mem{paused = True}
+    | otherwise = return mem{paused = True}
 
-reinput oven now mem@Memory{..} (Unpause _)
+update oven mem@Memory{..} (Unpause _)
     | not paused = error "already unpaused"
-    | otherwise = mem{paused = False}
+    | otherwise = return mem{paused = False}
 
-reinput oven now mem@Memory{..} (Pinged ping) =
-    mem{pings = Map.insert (pClient ping) (PingEx now ping True) pings}
+update oven mem@Memory{..} (Pinged ping) = do
+    now <- getCurrentTime
+    return mem{clients = Map.alter (Just . ClientInfo now ping True . maybe Map.empty ciTests) (pClient ping) clients}
 
-reinput oven now mem@Memory{..} (AddSkip author test)
-    | test `Map.member` skip = error "already skipped"
-    | otherwise = mem{skip = Map.insert test author skip}
+update oven mem@Memory{..} (AddSkip author test)
+    | test `Map.member` skipped = error "already skipped"
+    | otherwise = return mem{skipped = Map.insert test author skipped}
 
-reinput oven now mem@Memory{..} (DelSkip author test)
-    | test `Map.notMember` skip = error "already not skipped"
-    | otherwise = mem{skip = Map.delete test skip}
+update oven mem@Memory{..} (DelSkip author test)
+    | test `Map.notMember` skipped = error "already not skipped"
+    | otherwise = return mem{skipped = Map.delete test skipped}
 
-reinput oven now mem (Finished q a) =
-    mem{running = other, history = (head $ map fst this `snoc` now, q, a) : history mem}
-    where (this,other) = partition ((==) q . snd) $ running mem
+update oven mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
+    storeSaveTest store q a
+    store <- storeUpdate store $
+        [PUTest qCandidate aTests | aSuccess && qTest == Nothing] ++
+        [(if aSuccess then PUPass else PUFail) qCandidate qTest]
+    let add ci = ci{ciTests = Map.insertWith (&&) (qCandidate, qTest) aSuccess $ ciTests ci}
+    return mem{store = store
+              ,clients = Map.adjust add qClient clients
+              ,running = filter ((/=) q . snd) running}
 
-reinput oven now mem Reinit{} = error "Not handled by brains, Reinit"
+update oven mem (Reinit s) = return mem -- already handled
+
 
 -- | Given a state, figure out what you should do next.
 output :: (Test -> TestInfo Test) -> Memory -> Ping -> Maybe Question
@@ -343,30 +182,26 @@ output info mem Ping{..} | pNowThreads == 0 = Nothing
 2) anyone not done in active or a superset
 3) anyone not done in active
 -}
-output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $
+output info mem@Memory{..} Ping{..} = -- trace (show (length bad, length good)) $
         fmap question $ enoughThreads $ listToMaybe $ filter suitable $ nubOrd $ concatMap dependencies $ bad ++ good
     where
-        rb = rebase mem
-        rbPrefix = rebasePrefix mem
-        self = [(q, a) | (_,q,a) <- history, rb (qCandidate q) == Just Active]
-
-        failedSelf = Set.fromList [qTest q | (q, a) <- self, not $ aSuccess a]
+        self = storePoint store active
+        failedSelf = Set.toList $ poFail self
         failedPrefix = Map.fromListWith mappend $
-                [(qTest q, if aSuccess a then ([i],[]) else ([],[i]))
-                    | (_,q,a) <- history, qTest q `Set.member` failedSelf, Just (Prefix i) <- [rb (qCandidate q)]] ++
-                map (,mempty) (Set.toList failedSelf) ++
-                [(t,([i],[]))
-                    | (_,q,a) <- history, qTest q == Nothing, aSuccess a, Just (Prefix i) <- [rb (qCandidate q)]
-                    , t <- Set.toList $ failedSelf `Set.difference` Set.fromList (map Just $ aTests a)]
-        bad = trace ("bisecting: " ++ show failedSelf) $
+            [ (t, case poTest po t of Just True -> ([i],[]); Just False -> ([],[i]); Nothing -> ([],[]))
+            | (i, ps) <- zip [1..] $ tail $ inits $ snd active, let po = storePoint store (fst active, ps)
+            , t <- failedSelf]
+
+        bad = -- trace ("bisecting: " ++ show failedSelf) $
             [(i, t) | (t,(pass,fail)) <- Map.toList failedPrefix
                       -- assume 0 passed, so add to pass and delete from fail,
                       -- ensures we never try and "blame" 0 (which we can't reject)
                     , i <- bisect (0:pass) $ filter (/= 0) $ length (snd active):fail]
 
-        tests = Set.fromList $ Nothing : concat (take 1 [map Just $ aTests a | (q, a) <- self, qTest q == Nothing, aSuccess a])
-        doneSelf = Set.fromList [qTest q | (q, a) <- self]
-        passSuper = Set.fromList [qTest q | (_,q,a) <- history, rb (qCandidate q) == Just Superset, aSuccess a]
+        setAddNothing = Set.insert Nothing . Set.mapMonotonic Just
+        tests = setAddNothing $ fromMaybe Set.empty $ poTodo self
+        doneSelf = poPass self `Set.union` poFail self
+        passSuper = setAddNothing $ storeSupersetPass store active
         good = let (pri2,pri1) = partition (`Set.member` passSuper) $
                                  sortOn (maybe 0 $ negate . testPriority . info) $ Set.toList $
                                  tests `Set.difference` doneSelf
@@ -377,9 +212,8 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $
             Nothing -> []
             Just t -> Nothing : map Just (testDepend $ info t)
 
-        hist = Map.fromListWith (++) [((i,qTest q),[a])
-            | (q,a) <- map (snd3 &&& Just . thd3) history ++ map ((,Nothing) . snd) running
-            , qClient q == pClient, Just i <- [rbPrefix $ qCandidate q]]
+        histDone = ciTests $ clients Map.! pClient
+        histStarted = Map.keysSet histDone `Set.union` Set.fromList [(qCandidate, qTest) | (_,Question{..}) <- running, qClient == pClient]
         threadsForTest = fromMaybe pMaxThreads . testThreads . info
 
         -- if there are not enough threads, don't do anything else, just wait for threads to become available
@@ -387,20 +221,24 @@ output info mem@Memory{..} Ping{..} = trace (show (length bad, length good)) $
         enoughThreads (Just (i, t)) | pNowThreads >= maybe 1 threadsForTest t = Just (i, t)
         enoughThreads _ = Nothing
 
+        unprefix i = second (take i) active
+
         suitable :: (Int, Maybe Test) -> Bool
         suitable (i, Nothing)
-            | (i,Nothing) `Map.notMember` hist -- I have not done it
+            | (unprefix i,Nothing) `Set.notMember` histStarted -- I have not done it
             = True
         suitable (i,Just t)
-            | (i,Just t) `Map.notMember` hist -- I have not done it
-            , ts:_ <- map aTests $ filter aSuccess $ catMaybes $ Map.findWithDefault [] (i,Nothing) hist -- I have prepared
-            , t `elem` ts -- this test is relevant to this patch
+            | (unprefix i,Just t) `Set.notMember` histStarted -- I have not done it
+            , Map.lookup (unprefix i,Nothing) histDone == Just True -- I have prepared
+            , Just ts <- poTodo $ storePoint store (unprefix i)
+            , t `Set.member` ts -- this test is relevant to this patch
             , all (`elem` pProvide) $ testRequire $ info t -- I can do this test
-            , all (\t -> any (maybe False aSuccess) $ Map.findWithDefault [] (i,Just t) hist) $ testDepend $ info t -- I have done all the dependencies
+            , all (\t -> Map.lookup (unprefix i, Just t) histDone == Just True) $ testDepend $ info t -- I have done all the dependencies
             = True
         suitable _ = False
 
         question (i, t) = Question (second (take i) active) t (maybe 1 threadsForTest t) pClient
+
 
 -- | Given the passes, and the fails, suggest what you would like to try next
 bisect :: [Int] -> [Int] -> [Int]

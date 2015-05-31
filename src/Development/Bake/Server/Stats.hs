@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns, CPP #-}
+{-# OPTIONS_GHC -w #-} -- since half commented out
 
 module Development.Bake.Server.Stats(
     stats,
@@ -63,6 +64,7 @@ stats Prettys{..} Memory{..} = do
     info <- strInfo
     rel <- relativeTime
     return $ do
+        {-
         p_ $ str_ $ "Requests = " ++ show (length history) ++ ", updates = " ++ show (length updates)
 
         h2_ $ str_ "Sampled statistics"
@@ -98,9 +100,7 @@ stats Prettys{..} Memory{..} = do
             -- 75 10 60 = 0   15
             -- 65 10 60 = 5   5
             -- 55 10 60 = 10  0
-
-        h2_ $ str_ "String pool statistics"
-        pre_ $ str_ info
+        -}
 
         h2_ $ str_ "GHC statistics"
         case stats of

@@ -5,20 +5,13 @@ module Development.Bake.Server.Property(
     extendActive, restrictActive
     ) where
 
-import Data.IORef
 import Development.Bake.Server.Memory
 import Development.Bake.Server.Store
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Development.Bake.Core.Type
-import Data.Time
-import Control.Monad.Extra
 import Data.Maybe
-import Data.Tuple.Extra
-import Development.Bake.Core.Message
-import System.IO.Unsafe
 import General.Extra
-import Development.Bake.Server.Store
 import Data.List
 
 
@@ -29,17 +22,17 @@ rejectable :: Memory -> [(Patch, Maybe Test)]
 -- assume the state passes everything
 -- if a test isn't avaiable at a point, it passes
 rejectable Memory{..} =
-        [(p, t) | (p,me,prev) <- zip3 patches points (tail points), t <- failed
-                , poTest me t == Just False && poTest prev t == Just True]
+    [(last ps, t)
+        | ps <- tail $ inits $ snd active
+        , let me = storePoint store (fst active, ps)
+        , let prev = if length ps == 1 then piState else storePoint store (fst active, init ps)
+        , t <- failed
+        , poTest me t == Just False && poTest prev t == Just True]
     where
-        piZero = PointInfo Nothing Set.empty Set.empty
-        piOne = PointInfo (Just Set.empty) (Set.singleton Nothing) Set.empty
+        piState = PointInfo (Just Set.empty) (Set.singleton Nothing) Set.empty
 
         -- tests that are failing in self, interesting to consider
         failed = Set.toList $ poFail $ storePoint store active
-
-        patches = reverse $ snd active
-        points = map (storePoint store . (fst active,)) (tail $ inits $ snd active) ++ [piOne]
 
 
 -- | I can mark all active patches as plausible

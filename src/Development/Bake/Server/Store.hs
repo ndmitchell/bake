@@ -1,39 +1,39 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
 
 -- Stuff on disk on the server
 module Development.Bake.Server.Store(
     Store, newStore,
-    PointInfo(..), poTest, PatchInfo(..),
-    storePatches, storePatch, storeAlive, storePoint, storeSupersetPass,
-    Update(..), storeUpdate
+    PointInfo(..), poTest, PatchInfo(..), StateInfo(..),
+    storePatches, storePatch, storeState, storeStates, storeAlive, storePoint, storeSupersetPass,
+    Update(..), storeUpdate,
+    storeSaveTest, storeLoadTest,
+    storeSaveUpdate, storeLoadUpdate
     ) where
 
-import Control.Exception.Extra
-import Control.Concurrent.Extra
+import Development.Bake.Server.Database
 import Development.Bake.Core.Type
-import Data.IORef
-import System.IO.Unsafe
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
+import Development.Bake.Core.Message
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Time
-import System.Time.Extra
+import Data.Monoid
+import General.Extra
+import Data.Maybe
+import Control.Monad
+import System.Directory
+import Database.SQLite.Simple
 import System.FilePath
-import Control.Monad.Extra
-import System.Directory.Extra
-import Data.Tuple.Extra
-import Data.Unique
-import Data.Hashable
-import qualified Data.Bimap as Bimap
-import qualified General.MRU as MRU
 
 
 data PointInfo = PointInfo
     {poTodo :: Maybe (Set.Set Test)
     ,poPass :: Set.Set (Maybe Test)
     ,poFail :: Set.Set (Maybe Test) -- may be in both pass and fail
-    }
+    } deriving Show
+
+instance Monoid PointInfo where
+    mempty = PointInfo Nothing Set.empty Set.empty
+    mappend (PointInfo x1 x2 x3) (PointInfo y1 y2 y3) = PointInfo (x1 <> y1) (x2 <> y2) (x3 <> y3)
 
 poTest :: PointInfo -> Maybe Test -> Maybe Bool
 poTest PointInfo{..} t
@@ -47,42 +47,72 @@ data PatchInfo = PatchInfo
     {paQueued :: (UTCTime, Author)
     ,paStart :: Maybe UTCTime
     ,paDelete :: Maybe UTCTime
-    ,paReject :: Maybe (UTCTime, Map.Map (Maybe Test) Point)
+    ,paSupersede :: Maybe UTCTime
+    ,paReject :: Maybe (UTCTime, Map.Map (Maybe Test) (State, [Patch]))
     ,paPlausible :: Maybe UTCTime
     ,paMerge :: Maybe UTCTime
     }
+    deriving Show
+
+data StateInfo = StateInfo
+    {stCreated :: UTCTime
+    ,stSource :: Maybe (State, [Patch])
+    }
 
 data Store = Store
-    {time :: UTCTime
-    ,pointMap :: Map.Map PointHash Point -- ^ Points I have any information about (so I can store only hashes, and enumerate points) 
-    ,stateMap :: Map.Map State Point -- ^ States produced from patches
+    {conn :: Connection
+    ,path :: FilePath
+    ,time :: UTCTime
+    ,stateMap :: Map.Map State StateInfo -- ^ Time I found out about this state, Point it was created from
     ,patchInfo :: Map.Map Patch PatchInfo -- ^ Information about all patches
     ,patchAlive :: Set.Set Patch -- ^ Patches that are alive
-    ,points :: MRU.MRU Point PointInfo -- needs to be in IO for cache properties
-    ,supersets :: Maybe (Point, Set.Set Test) -- needs to be in IO for cache properties
+    ,points :: Map.Map (State, [Patch]) PointInfo -- needs to be in IO for cache properties
+    -- ,supersets :: Maybe (Point, Set.Set Test) -- needs to be in IO for cache properties
     }
 
 newStore :: FilePath -> IO Store
-newStore = undefined
+newStore path = do
+    time <- getCurrentTime
+    createDirectoryIfMissing True path
+    conn <- create (path </> "bake.db")
+    return $ Store conn path time Map.empty Map.empty Set.empty Map.empty
 
 storePoint :: Store -> (State,[Patch]) -> PointInfo
-storePoint = undefined
+storePoint Store{..} x = Map.findWithDefault mempty x points
 
 storePatches :: Store -> Map.Map Patch PatchInfo
-storePatches = undefined
+storePatches = patchInfo
 
 storePatch :: Store -> Patch -> PatchInfo
-storePatch = undefined
+storePatch store p = storePatches store Map.! p
+
+storeState :: Store -> State -> StateInfo
+storeState store st = storeStates store Map.! st
+
+storeStates :: Store -> Map.Map State StateInfo
+storeStates = stateMap
 
 storeAlive :: Store -> Set.Set Patch
-storeAlive = undefined
+storeAlive Store{..} = Map.keysSet $ Map.filter isAlive patchInfo
+    where isAlive PatchInfo{..} = isNothing paDelete && isNothing paReject && isNothing paMerge && isNothing paSupersede
+
 
 storeSupersetPass :: Store -> (State,[Patch]) -> Set.Set Test
-storeSupersetPass = undefined
+storeSupersetPass Store{..} (s,ps) = Set.unions $ map passed $ Map.elems $ Map.filterWithKey isSuperset points
+    where
+        isSuperset (s2, ps2) _ = s == s2 && f ps ps2
+        passed PointInfo{..} = catMaybesSet $ poPass `Set.difference` poFail
+
+        f (x:xs) (y:ys)
+            | x == y = f xs ys
+            | otherwise = f (x:xs) ys
+        f [] _ = True
+        f _ [] = False
+
 
 
 data Update
-    = IUState State (State, [Patch])
+    = IUState State (Maybe (State, [Patch]))
     | IUQueue Patch Author
     | IUStart Patch
     | IUDelete Patch
@@ -93,27 +123,64 @@ data Update
     | PUTest (State, [Patch]) [Test]
     | PUPass (State, [Patch]) (Maybe Test)
     | PUFail (State, [Patch]) (Maybe Test)
+      deriving Show
 
 
-storeUpdate :: Store -> [Update] -> Store
-storeUpdate = undefined
+storeUpdate :: Store -> [Update] -> IO Store
+storeUpdate store xs = do
+    now <- getCurrentTime
+    print $ ("Updating",xs)
+    res <- foldM (f now) store xs
+    print "Updated"
+    return res
+    where
+        execute a b c = do
+            print b
+            Database.SQLite.Simple.execute a b c
+
+        f now store@Store{..} x = case x of
+            IUState s p -> do
+                return store{stateMap = Map.insert s (StateInfo now p) stateMap}
+            IUQueue p a -> do
+                execute conn "INSERT INTO patch VALUES (?,?,?,?,?,?,?,?,?)" $
+                    DbPatch p a now Nothing Nothing Nothing Nothing Nothing Nothing
+                return store{patchInfo = Map.insert p (PatchInfo (now,a) Nothing Nothing Nothing Nothing Nothing Nothing) patchInfo}
+            IUStart p -> do
+                execute conn "UPDATE patch SET start=? WHERE patch=?" (now, p)
+                return store{patchInfo = Map.adjust (\pa -> pa{paStart = Just now}) p patchInfo}
+            IUPlausible p -> do
+                execute conn "UPDATE patch SET plausible=? WHERE patch=?" (now, p)
+                return store{patchInfo = Map.adjust (\pa -> pa{paPlausible = Just now}) p patchInfo}
+            IUMerge p -> do
+                execute conn "UPDATE patch SET merge=? WHERE patch=?" (now, p)
+                return store{patchInfo = Map.adjust (\pa -> pa{paMerge = Just now}) p patchInfo}
+            IUDelete p -> do
+                execute conn "UPDATE patch SET delete_=? WHERE patch=?" (now, p)
+                return store{patchInfo = Map.adjust (\pa -> pa{paDelete = Just now}) p patchInfo}
+            IUSupersede p -> do
+                execute conn "UPDATE patch SET supersede=? WHERE patch=?" (now, p)
+                return store{patchInfo = Map.adjust (\pa -> pa{paSupersede = Just now}) p patchInfo}
+            IUReject p t pt -> do
+                execute conn "UPDATE patch SET reject=? WHERE patch=?" (now, p)
+                let add Nothing = (now, Map.singleton t pt)
+                    add (Just (a,b)) = (a, b `Map.union` Map.singleton t pt)
+                return store{patchInfo = Map.adjust (\pa -> pa{paReject = Just $ add $ paReject pa}) p patchInfo}
+            PUTest p t -> do
+                return store{points = Map.insertWith mappend p mempty{poTodo=Just $ Set.fromList t} points}
+            PUPass p t -> do
+                return store{points = Map.insertWith mappend p mempty{poPass=Set.singleton t} points}
+            PUFail p t -> do
+                return store{points = Map.insertWith mappend p mempty{poFail=Set.singleton t} points}
 
 
-data Point = Point (State, [Patch]) PointHash deriving Show
+storeSaveUpdate :: Store -> State -> Answer -> IO ()
+storeSaveUpdate _ _ _ = return ()
 
-newtype PointHash = PointHash Int deriving (Eq,Ord,Show)
+storeLoadUpdate :: Store -> State -> IO [Answer]
+storeLoadUpdate _ _ = return []
 
-instance Eq Point where
-    Point _ a == Point _ b = a == b
+storeSaveTest :: Store -> Question -> Answer -> IO ()
+storeSaveTest _ _ _ = return ()
 
-instance Ord Point where
-    compare (Point _ a) (Point _ b) = compare a b
-
-newPoint :: (State, [Patch]) -> Point
-newPoint (s, ps) = Point (s,ps) (PointHash $ hash (fromState s, map fromPatch ps))
-
-fromPoint :: Point -> (State, [Patch])
-fromPoint (Point a _) = a
-
-pointHash :: Point -> PointHash
-pointHash (Point _ b) = b
+storeLoadTest :: Store -> (State, [Patch]) -> Maybe Test -> IO [(Question, Answer)]
+storeLoadTest _ _ _ = return []
