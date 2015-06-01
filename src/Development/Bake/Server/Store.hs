@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings, ScopedTypeVariables #-}
 
 -- Stuff on disk on the server
 module Development.Bake.Server.Store(
@@ -74,7 +74,7 @@ newStore :: FilePath -> IO Store
 newStore path = do
     time <- getCurrentTime
     createDirectoryIfMissing True path
-    conn <- create (path </> "bake.db")
+    conn <- create (path </> "bake.sqlite")
     return $ Store conn path time Map.empty Map.empty Set.empty Map.empty
 
 storePoint :: Store -> (State,[Patch]) -> PointInfo
@@ -126,6 +126,19 @@ data Update
       deriving Show
 
 
+ensurePoint :: Store -> (State, [Patch]) -> IO Point
+ensurePoint Store{..} (s, ps) = do
+    let v = (fromState s, concatMap (\x -> "[" ++ fromPatch x ++ "]") ps)
+    res <- query conn "SELECT rowid FROM point WHERE state = ? AND patches = ?" v
+    case res of
+        [] -> do
+            execute conn "INSERT INTO point VALUES (?,?)" v
+            [Only x] <- query conn "SELECT rowid FROM point WHERE state = ? AND patches = ?" v
+            return x
+        [Only x] -> return x
+        _ -> error $ "ensurePoint, multiple points found"
+
+
 storeUpdate :: Store -> [Update] -> IO Store
 storeUpdate store xs = do
     now <- getCurrentTime
@@ -140,6 +153,8 @@ storeUpdate store xs = do
 
         f now store@Store{..} x = case x of
             IUState s p -> do
+                pt <- maybe (return Nothing) (fmap Just . ensurePoint store) p
+                execute conn "INSERT INTO state VALUES (?,?,?)" $ DbState s now pt
                 return store{stateMap = Map.insert s (StateInfo now p) stateMap}
             IUQueue p a -> do
                 execute conn "INSERT INTO patch VALUES (?,?,?,?,?,?,?,?,?)" $
@@ -161,15 +176,29 @@ storeUpdate store xs = do
                 execute conn "UPDATE patch SET supersede=? WHERE patch=?" (now, p)
                 return store{patchInfo = Map.adjust (\pa -> pa{paSupersede = Just now}) p patchInfo}
             IUReject p t pt -> do
+                pt2 <- ensurePoint store pt
+                [Only run] <- query conn "SELECT rowid FROM run WHERE success=? AND point=? AND test=?" (False, pt2, t)
                 execute conn "UPDATE patch SET reject=? WHERE patch=?" (now, p)
+                execute conn "INSERT INTO reject VALUES (?,?,?)" $ DbReject p t run
                 let add Nothing = (now, Map.singleton t pt)
                     add (Just (a,b)) = (a, b `Map.union` Map.singleton t pt)
                 return store{patchInfo = Map.adjust (\pa -> pa{paReject = Just $ add $ paReject pa}) p patchInfo}
             PUTest p t -> do
+                pt <- ensurePoint store p
+                res :: [Only (Maybe Test)] <- query conn "SELECT test FROM test WHERE point=?" $ Only pt
+                if null res then
+                    forM_ t $ \t -> execute conn "INSERT INTO test VALUES (?,?)" (pt, t)
+                else
+                    when (Set.fromList (mapMaybe fromOnly res) /= Set.fromList t) $
+                        error "Test disagreement"
                 return store{points = Map.insertWith mappend p mempty{poTodo=Just $ Set.fromList t} points}
             PUPass p t -> do
+                pt <- ensurePoint store p
+                execute conn "INSERT INTO run VALUES (?,?,?,?,?,?)" $ DbRun pt t True (Client "") now 0
                 return store{points = Map.insertWith mappend p mempty{poPass=Set.singleton t} points}
             PUFail p t -> do
+                pt <- ensurePoint store p
+                execute conn "INSERT INTO run VALUES (?,?,?,?,?,?)" $ DbRun pt t False (Client "") now 0
                 return store{points = Map.insertWith mappend p mempty{poFail=Set.singleton t} points}
 
 

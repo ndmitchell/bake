@@ -3,7 +3,7 @@
 -- Stuff on disk on the server
 module Development.Bake.Server.Database(
     Point, Run,
-    DbPatch(..), DbReject(..), DbPointState(..), DbPointPatch(..), DbRun(..), DbTests(..),
+    DbState(..), DbPatch(..), DbReject(..), DbPoint(..), DbRun(..), DbTest(..),
     create
     ) where
 
@@ -21,6 +21,12 @@ newtype Point = Point Int deriving (ToField, FromField)
 
 newtype Run = Run Int deriving (ToField, FromField)
 
+data DbState = DbState
+    {sState :: State, sCreate :: UTCTime, sPoint :: Maybe Point}
+
+createState = "CREATE TABLE state (" ++
+    "state TEXT NOT NULL UNIQUE PRIMARY KEY, time TEXT NOT NULL, point INTEGER)"
+
 data DbPatch = DbPatch
     {pPatch :: Patch, pAuthor :: String, pQueue :: UTCTime
     ,pStart :: Maybe UTCTime, pDelete :: Maybe UTCTime, pSupersede :: Maybe UTCTime, pReject :: Maybe UTCTime
@@ -34,41 +40,36 @@ data DbReject = DbReject
     {jPatch :: Patch, jTest :: Maybe Test, jRun :: Run}
 
 createReject = "CREATE TABLE reject (" ++
-    "patch TEXT NOT NULL, test TEXT NOT NULL, point INTEGER NOT NULL, run INTEGER)"
+    "patch TEXT NOT NULL, test TEXT NOT NULL, run INTEGER)"
 
-data DbPointState = DbPointState
-    {psPoint :: Point, psState :: State}
+data DbPoint = DbPoint
+    {tState :: State, tPatches :: String} -- surrounded by /
 
-createPointState = "CREATE TABLE point_state (" ++
-    "point INTEGER NOT NULL UNIQUE PRIMARY KEY, state TEXT NOT NULL)"
-
-data DbPointPatch = DbPointPatch
-    {ppPoint :: Point, ppPatch :: Patch, ppIndex :: Int}
-
-createPointPatch = "CREATE TABLE point_patch (" ++
-    "point INTEGER NOT NULL, patch TEXT NOT NULL, index_ INTEGER NOT NULL)"
+createPoint = "CREATE TABLE point (" ++
+    "state TEXT NOT NULL, patches TEXT NOT NULL, UNIQUE(state, patches))"
 
 data DbRun = DbRun
-    {rRun :: Run, rPoint :: Point, rTest :: Test
+    {rPoint :: Point, rTest :: Maybe Test, rSuccess :: Bool
     ,rClient :: Client, rStart :: UTCTime, rDuration :: Seconds}
 
 createRun = "CREATE TABLE run (" ++
-    "run INTEGER NOT NULL UNIQUE PRIMARY KEY, point INTEGER NOT NULL, test TEXT NOT NULL, " ++
+    "point INTEGER NOT NULL, test TEXT, success INTEGER NOT NULL, " ++
     "client TEXT NOT NULL, start TEXT NOT NULL, duration REAL NOT NULL)"
 
-data DbTests = DbTests
-    {tPoint :: Point, tTest :: Test}
+data DbTest = DbTest
+    {tPoint :: Point, tTest :: Maybe Test}
+    -- include the Nothing result so that if something has no tests it is still recorded
 
-createTests = "CREATE TABLE tests (" ++
-    "point INTEGER NOT NULL, test TEXT NOT NULL)"
+createTests = "CREATE TABLE test (" ++
+    "point INTEGER NOT NULL, test TEXT)"
 
 create :: String -> IO Connection
 create file = do
     c <- open file
+    execute_ c $ fromString createState
     execute_ c $ fromString createPatch
     execute_ c $ fromString createReject
-    execute_ c $ fromString createPointState
-    execute_ c $ fromString createPointPatch
+    execute_ c $ fromString createPoint
     execute_ c $ fromString createRun
     execute_ c $ fromString createTests
     return c
@@ -79,5 +80,20 @@ instance FromRow DbPatch where
 instance ToRow DbPatch where
     toRow (DbPatch a b c d e f g h i) = toRow (a,b,c,d,e,f,g,h,i)
 
+instance ToRow DbState where
+    toRow (DbState a b c) = toRow (a,b,c)
+
+instance ToRow DbReject where
+    toRow (DbReject a b c) = toRow (a,b,c)
+
+instance ToRow DbRun where
+    toRow (DbRun a b c d e f) = toRow (a,b,c,d,e,f)
+
 instance FromField Patch where fromField = fmap Patch . fromField
 instance ToField Patch where toField = toField . fromPatch
+instance FromField State where fromField = fmap State . fromField
+instance ToField State where toField = toField . fromState
+instance FromField Test where fromField = fmap Test . fromField
+instance ToField Test where toField = toField . fromTest
+instance FromField Client where fromField = fmap Client . fromField
+instance ToField Client where toField = toField . fromClient
