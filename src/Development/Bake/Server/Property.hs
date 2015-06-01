@@ -7,7 +7,6 @@ module Development.Bake.Server.Property(
 
 import Development.Bake.Server.Memory
 import Development.Bake.Server.Store
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Development.Bake.Core.Type
 import Data.Maybe
@@ -84,4 +83,4 @@ restrictActive oven Memory{..}
     | otherwise = False
 
     where
-        rejectedTests = Set.unions $ mapMaybe (fmap (Map.keysSet . snd) . paReject . storePatch store) $ snd active
+        rejectedTests = Set.unions $ mapMaybe (fmap snd . paReject . storePatch store) $ snd active

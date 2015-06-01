@@ -61,7 +61,7 @@ data PatchInfo = PatchInfo
     ,paStart :: Maybe UTCTime
     ,paDelete :: Maybe UTCTime
     ,paSupersede :: Maybe UTCTime
-    ,paReject :: Maybe (UTCTime, Map.Map (Maybe Test) ())
+    ,paReject :: Maybe (UTCTime, Set.Set (Maybe Test))
     ,paPlausible :: Maybe UTCTime
     ,paMerge :: Maybe UTCTime
     }
@@ -133,7 +133,7 @@ storePatchEx store@Store{..} p = do
             [Only row :. DbPatch{..}] <- query conn "SELECT rowid, * FROM patch WHERE patch IS ?" $ Only p
             reject <- if isNothing pReject then return Nothing else do
                 ts <- query conn "SELECT test FROM reject WHERE patch IS ?" $ Only (row :: PatchId)
-                return (Just (fromJust pReject, Map.fromList $ map (,()) $ map fromOnly ts))
+                return (Just (fromJust pReject, Set.fromList $ map fromOnly ts))
             return (row, PatchInfo (pQueue, pAuthor) pStart pDelete pSupersede reject pPlausible pMerge)
     c <- readIORef cache
     case Map.lookup p $ cachePatch c of
@@ -303,8 +303,8 @@ storeUpdate store xs = do
                 execute conn "UPDATE patch SET reject=? WHERE patch IS ?" (now, p)
                 pa <- ensurePatch store p
                 execute conn "INSERT INTO reject VALUES (?,?,?)" $ DbReject pa t run
-                let add Nothing = (now, Map.singleton t ())
-                    add (Just (a,b)) = (a, b `Map.union` Map.singleton t ())
+                let add Nothing = (now, Set.singleton t)
+                    add (Just (a,b)) = (a, b `Set.union` Set.singleton t)
                 modifyIORef cache $ \c -> c{cachePatch = Map.adjust (second $ \pa -> pa{paReject = Just $ add $ paReject pa}) p $ cachePatch c}
             PUTest p t -> do
                 pt <- ensurePoint store p

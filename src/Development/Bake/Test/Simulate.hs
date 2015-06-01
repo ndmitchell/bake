@@ -21,7 +21,6 @@ import System.Random
 import System.IO.Extra
 import System.Time.Extra
 import qualified Data.Set as Set
-import qualified Data.Map as Map
 import Prelude
 
 
@@ -126,7 +125,7 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
     forM_ patch $ \(p, pass, fail) ->
         case () of
             _ | pass -> unless (p `elem` unstate (fst active)) $ error $ show ("expected pass but not",p)
-              | PatchInfo{paReject=Just (_,t)} <- storePatch store p -> unless (all fail $ Map.keys t) $ error "incorrect test failure"
+              | PatchInfo{paReject=Just (_,t)} <- storePatch store p -> unless (all fail $ Set.toList t) $ error "incorrect test failure"
               | otherwise -> error "missing patch"
     return user
 
