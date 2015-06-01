@@ -2,7 +2,7 @@
 
 -- Stuff on disk on the server
 module Development.Bake.Server.Database(
-    Point, Run, StateId, PatchId, patchIds, fromPatchIds, patchIdsSuperset,
+    PointId, RunId, StateId, PatchId, patchIds, fromPatchIds, patchIdsSuperset,
     DbState(..), DbPatch(..), DbReject(..), DbPoint(..), DbRun(..), DbTest(..),
     create
     ) where
@@ -17,8 +17,8 @@ import System.Time.Extra
 import Data.List.Extra
 
 
-newtype Point = Point Int deriving (ToField, FromField,Show)
-newtype Run = Run Int deriving (ToField, FromField,Show)
+newtype PointId = Point Int deriving (ToField, FromField,Show)
+newtype RunId = Run Int deriving (ToField, FromField,Show)
 newtype StateId = StateId Int deriving (ToField, FromField, Show)
 newtype PatchId = PatchId Int deriving (ToField, FromField, Show)
 
@@ -35,7 +35,7 @@ fromPatchIds (PatchIds "") = []
 fromPatchIds (PatchIds xs) = map (PatchId . read) $ splitOn "][" $ init $ tail xs
 
 data DbState = DbState
-    {sState :: State, sCreate :: UTCTime, sPoint :: Maybe Point}
+    {sState :: State, sCreate :: UTCTime, sPoint :: Maybe PointId}
 
 createState = "CREATE TABLE IF NOT EXISTS state (" ++
     "state TEXT NOT NULL UNIQUE PRIMARY KEY, time TEXT NOT NULL, point INTEGER)"
@@ -50,7 +50,7 @@ createPatch = "CREATE TABLE IF NOT EXISTS patch (" ++
     "start TEXT, delete_ TEXT, supersede TEXT, reject TEXT, plausible TEXT, merge TEXT)"
 
 data DbReject = DbReject
-    {jPatch :: PatchId, jTest :: Maybe Test, jRun :: Run}
+    {jPatch :: PatchId, jTest :: Maybe Test, jRun :: RunId}
 
 createReject = "CREATE TABLE IF NOT EXISTS reject (" ++
     "patch INTEGER NOT NULL, test TEXT, run INTEGER NOT NULL)"
@@ -62,7 +62,7 @@ createPoint = "CREATE TABLE IF NOT EXISTS point (" ++
     "state INTEGER NOT NULL, patches TEXT NOT NULL, PRIMARY KEY (state, patches))"
 
 data DbRun = DbRun
-    {rPoint :: Point, rTest :: Maybe Test, rSuccess :: Bool
+    {rPoint :: PointId, rTest :: Maybe Test, rSuccess :: Bool
     ,rClient :: Client, rStart :: UTCTime, rDuration :: Seconds}
 
 createRun = "CREATE TABLE IF NOT EXISTS run (" ++
@@ -70,7 +70,7 @@ createRun = "CREATE TABLE IF NOT EXISTS run (" ++
     "client TEXT NOT NULL, start TEXT NOT NULL, duration REAL NOT NULL)"
 
 data DbTest = DbTest
-    {tPoint :: Point, tTest :: Maybe Test}
+    {tPoint :: PointId, tTest :: Maybe Test}
     -- include the Nothing result so that if something has no tests it is still recorded
 
 createTests = "CREATE TABLE IF NOT EXISTS test (" ++

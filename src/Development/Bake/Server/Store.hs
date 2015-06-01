@@ -32,7 +32,7 @@ import System.FilePath
 data Cache = Cache
     {cachePatch :: Map.Map Patch (PatchId, PatchInfo)
     ,cacheState :: Map.Map State (StateId, StateInfo)
-    ,cachePoint :: Map.Map (State, [Patch]) (Point, PointInfo)
+    ,cachePoint :: Map.Map (State, [Patch]) (PointId, PointInfo)
     ,cacheAlive :: Maybe (Set.Set Patch)
     ,cacheSuperset :: Maybe ((State, [Patch]), Set.Set Test)
     }
@@ -92,7 +92,7 @@ newStore mem path = do
 storePoint :: Store -> (State, [Patch]) -> PointInfo
 storePoint store = snd . unsafePerformIO . storePointEx store
 
-storePointEx :: Store -> (State,[Patch]) -> IO (Point, PointInfo)
+storePointEx :: Store -> (State,[Patch]) -> IO (PointId, PointInfo)
 storePointEx store@Store{..} x = do
     let ans = do
             pt <- ensurePoint store x
@@ -225,7 +225,7 @@ unsurePatch Store{..} p = do
     [Only p] <- query conn "SELECT patch FROM patch WHERE rowid IS ?" (Only p)
     return p
 
-unsurePoint :: Store -> Point -> IO (State, [Patch])
+unsurePoint :: Store -> PointId -> IO (State, [Patch])
 unsurePoint store@Store{..} pt = do
     conn <- readIORef conn
     [DbPoint{..}] <- query conn "SELECT * FROM point WHERE rowid IS ?" (Only pt)
@@ -240,7 +240,7 @@ ensureState Store{..} s = do
 ensurePatch :: Store -> Patch -> IO PatchId
 ensurePatch store = fmap fst . storePatchEx store
 
-ensurePoint :: Store -> (State, [Patch]) -> IO Point
+ensurePoint :: Store -> (State, [Patch]) -> IO PointId
 ensurePoint store@Store{..} (s, ps) = do
     s <- ensureState store s
     ps <- mapM (ensurePatch store) ps
