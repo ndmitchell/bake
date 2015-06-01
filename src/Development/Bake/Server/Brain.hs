@@ -115,7 +115,7 @@ react oven mem@Memory{..}
 
 update :: Oven State Patch Test -> Memory -> Message -> IO Memory
 update oven mem@Memory{..} (AddPatch author p) =
-    if p `Map.member` storePatches store then
+    if storeIsPatch store p then
         error "patch has already been submitted"
      else do
         let queued = storeAlive store `Set.difference` Set.fromList (snd active)

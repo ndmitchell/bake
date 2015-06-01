@@ -56,10 +56,12 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
             failures shower mem
             progress shower mem
 
+{-
             table "No patches submitted" ["Submitted","Job","Status"] $
                 map (\p -> rowPatch shower mem argsAdmin p) $ map snd $ sortOn fst $
                 [(fst paQueued, Right p) | (p, PatchInfo{..}) <- Map.toList $ storePatches store] ++
                 [(stCreated, Left s) | (s, StateInfo{..}) <- Map.toList $ storeStates store]
+-}
             unless (Map.null skipped) $ do
                 h2_ $ str_ "Skipped tests"
                 ul_ $ fmap mconcat $ forM (Map.toList skipped) $ \(test,author) -> li_ $ do

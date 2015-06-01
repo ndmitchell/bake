@@ -26,7 +26,7 @@ import Prelude
 
 
 simulate :: IO ()
-simulate = when False $ withBuffering stdout NoBuffering $ do
+simulate = withBuffering stdout NoBuffering $ do
     when False $ do
         (t,_) <- duration $ performance 200
         putStrLn $ "Performance test took " ++ showDuration t
@@ -70,7 +70,7 @@ simulation
     -> IO s
 simulation testInfo workers u step = withTempDir $ \dir -> do
     t <- getCurrentTime
-    s <- newStore dir
+    s <- newStore True dir
     mem <- newMemory s (restate [])
     mem <- return mem
         {active = (restate [], [])
@@ -120,8 +120,8 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
     forM_ workers $ \(c,_) -> do
         (_, q) <- prod oven Memory{..} $ Pinged $ Ping c (fromClient c) [] maxBound maxBound
         when (isJust q) $ error "Brains should have returned sleep"
-    let rejected = Map.filter (isJust . paReject) $ storePatches store
-    when (snd active /= []) $ error $ "Target is not blank: active = " ++ show active ++ ", rejected = " ++ show (Map.keys rejected)
+    let rejected = filter (isJust . paReject . storePatch store) $ storePatchList store
+    when (snd active /= []) $ error $ "Target is not blank: active = " ++ show active ++ ", rejected = " ++ show rejected
 
     forM_ patch $ \(p, pass, fail) ->
         case () of
