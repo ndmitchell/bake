@@ -14,7 +14,7 @@
 
 :{
 :def prof \_ -> return $ unlines
-        [":!ghc --make -o .test/prof/bake-test -outputdir .test/prof -isrc Test src/Paths -main-is Test.main -prof -auto-all -caf-all -rtsopts"
+        [":!ghc --make -o .test/prof/bake-test -outputdir .test/prof -isrc Test src/Paths -main-is Test.main -prof -auto-all -caf-all -rtsopts -DPROFILE"
         ,":!.test\\prof\\bake-test +RTS -p"
         ]
 :}
