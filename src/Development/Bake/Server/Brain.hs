@@ -15,12 +15,12 @@ import General.Extra
 import Data.Tuple.Extra
 import Data.Maybe
 import Data.Monoid
-import General.Str
 import Control.Monad
 import Data.List.Extra
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Development.Bake.Server.Store
+import qualified Data.Text.Lazy as TL
 import Prelude
 
 import Development.Bake.Server.Memory
@@ -43,7 +43,7 @@ prod oven mem msg = do
     case msg of
         Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p ->
             if maybe False (`Map.member` skipped mem) $ qTest q then
-                prod oven mem $ Finished q $ Answer (strPack "Skipped due to being on the skip list") 0 [] True
+                prod oven mem $ Finished q $ Answer (TL.pack "Skipped due to being on the skip list") 0 [] True
             else do
                 now <- getCurrentTime
                 return (mem{running = (now,q) : running mem}, Just q)
@@ -88,7 +88,7 @@ react oven mem@Memory{..}
             Nothing -> do
                 ovenNotify oven (authors ++ pauthors) "Failed to update, pretty serious"
                 return mem
-                    {fatal = ("Failed to update\n" ++ strUnpack (aStdout answer)) : fatal}
+                    {fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
             Just s -> do
                 ovenNotify oven authors "Your patch just made it in"
                 now <- getCurrentTime

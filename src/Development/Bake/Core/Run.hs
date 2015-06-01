@@ -18,6 +18,7 @@ import System.Environment.Extra
 import System.FilePath
 import Data.Maybe
 import System.Exit
+import qualified Data.Text.Lazy as TL
 
 
 state x = "--state=" ++ fromState x
@@ -51,9 +52,9 @@ runAll name args1 args2 parse = do
             ans <- fmap parse $ readFile' $ dir </> ".bake.result"
             evaluate $ rnf ans
             return $ Just ans
-        return (ex, Answer (strPack $ sout++serr) 0 [] (exit == ExitSuccess))
+        return (ex, Answer (TL.pack $ sout++serr) 0 [] (exit == ExitSuccess))
     case res of
         Left e -> do
             e <- showException e
-            return (Nothing, Answer (strPack e) time [] False)
+            return (Nothing, Answer (TL.pack e) time [] False)
         Right (ex,ans) -> return (ex, ans{aDuration=time})

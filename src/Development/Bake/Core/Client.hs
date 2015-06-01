@@ -7,7 +7,6 @@ module Development.Bake.Core.Client(
 import Development.Bake.Core.Type
 import Development.Bake.Core.Run
 import General.Extra
-import General.Str
 import Development.Bake.Core.Message
 import Control.Concurrent
 import Control.Monad.Extra
@@ -15,6 +14,7 @@ import System.Time.Extra
 import Data.IORef
 import Data.Tuple.Extra
 import System.Environment.Extra
+import qualified Data.Text.Lazy as TL
 
 
 -- given server, name, threads
@@ -50,7 +50,7 @@ startClient hp author (Client -> client) maxThreads provide ping (concrete -> (p
                     ,"Id: " ++ show i
                     ,"Result: " ++ (if aSuccess then "Success" else "Failure")
                     ,"Duration: " ++ showDuration aDuration
-                    ,"Output: " ++ strUnpack aStdout
+                    ,"Output: " ++ TL.unpack aStdout
                     ]
                 atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
                 sendMessage hp $ Finished q a

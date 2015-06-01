@@ -15,7 +15,6 @@ import Data.Tuple.Extra
 import Data.Monoid
 import Data.Maybe
 import Numeric.Extra
-import General.Str
 import General.Extra
 import System.Random
 import System.IO.Extra
@@ -94,7 +93,7 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
         (msg,s) <- return $ case res of
             Submit p pass fail -> (AddPatch "" p, s{patch = (p,pass,fail) : patch s})
             Reply q good tests ->
-                let ans = Answer (strPack "") 0 (if good && isNothing (qTest q) then tests else []) good
+                let ans = Answer mempty 0 (if good && isNothing (qTest q) then tests else []) good
                 in (Finished q ans, s)
             Request c ->
                 let Just mx = lookup c workers

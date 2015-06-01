@@ -28,6 +28,7 @@ import Control.Monad.Extra
 import System.Directory
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
+import qualified Data.Text.Lazy as TL
 import qualified Data.ByteString.Char8 as BS
 import Prelude
 
@@ -98,5 +99,5 @@ patchExtra :: State -> Maybe Patch -> IO (Str, Str)
 patchExtra s p = do
     (ex,ans) <- runExtra s p
     let failSummary = renderHTML $ i_ $ str_ "Error when computing patch information"
-    let failDetail = renderHTML $ pre_ $ str_ $ strUnpack $ aStdout ans
+    let failDetail = renderHTML $ pre_ $ str_ $ TL.unpack $ aStdout ans
     return $ fromMaybe (strPack failSummary, strPack failDetail) ex

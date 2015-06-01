@@ -11,8 +11,8 @@ import Control.Applicative
 import Control.Monad
 import Control.DeepSeq
 import Data.Aeson hiding (Success)
-import General.Str
 import System.Time.Extra
+import qualified Data.Text.Lazy as TL
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Prelude
 
@@ -58,7 +58,7 @@ instance NFData Question where
     rnf (Question a b c d) = rnf (a,b,c,d)
 
 data Answer = Answer
-    {aStdout :: Str
+    {aStdout :: TL.Text
     ,aDuration :: Seconds
     ,aTests :: [Test]
     ,aSuccess :: Bool
