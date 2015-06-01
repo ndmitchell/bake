@@ -6,9 +6,7 @@ module Development.Bake.Server.Store(
     PatchInfo(..), storePatchList, storeIsPatch, storePatch, storeAlive,
     PointInfo(..), poTest, storePoint, storeSupersetPass,
     StateInfo(..), storeState,
-    Update(..), storeUpdate,
-    storeSaveTest, storeLoadTest,
-    storeSaveUpdate, storeLoadUpdate
+    Update(..), storeUpdate
     ) where
 
 import Development.Bake.Server.Database
@@ -200,7 +198,7 @@ storeSupersetPass store@Store{..} (s,ps) = unsafePerformIO $ do
             return res
 
 data Update
-    = IUState State (Maybe Point)
+    = IUState State (Maybe (Point, UTCTime, Answer)) -- assumed to be success
     | IUQueue Patch Author
     | IUStart Patch
     | IUDelete Patch
@@ -208,9 +206,7 @@ data Update
     | IUPlausible Patch
     | IUSupersede Patch
     | IUMerge Patch
-    | PUTest Point [Test]
-    | PUPass Point (Maybe Test)
-    | PUFail Point (Maybe Test)
+    | PURun UTCTime Question Answer
       deriving Show
 
 unsureState :: Store -> StateId -> IO State
@@ -273,10 +269,10 @@ storeUpdate store xs = do
 
         f now conn store@Store{conn=_,..} x = case x of
             IUState s p -> do
-                pt <- maybe (return Nothing) (fmap Just . ensurePoint store) p
-                execute conn "INSERT INTO state VALUES (?,?,?)" $ DbState s now pt
+                pt <- maybe (return Nothing) (fmap Just . ensurePoint store . fst3) p
+                execute conn "INSERT INTO state VALUES (?,?,?,?,?)" $ DbState s now pt (fmap snd3 p) (fmap (aDuration . thd3) p)
                 [Only x] <- query_ conn "SELECT last_insert_rowid()"
-                modifyIORef cache $ \c -> c{cacheState = Map.insert s (x, StateInfo now p) $ cacheState c}
+                modifyIORef cache $ \c -> c{cacheState = Map.insert s (x, StateInfo now (fmap fst3 p)) $ cacheState c}
             IUQueue p a -> do
                 execute conn "INSERT INTO patch VALUES (?,?,?,?,?,?,?,?,?)" $
                     DbPatch p a now Nothing Nothing Nothing Nothing Nothing Nothing
@@ -306,35 +302,17 @@ storeUpdate store xs = do
                 let add Nothing = (now, Set.singleton t)
                     add (Just (a,b)) = (a, b `Set.union` Set.singleton t)
                 modifyIORef cache $ \c -> c{cachePatch = Map.adjust (second $ \pa -> pa{paReject = Just $ add $ paReject pa}) p $ cachePatch c}
-            PUTest p t -> do
-                pt <- ensurePoint store p
-                res :: [Only (Maybe Test)] <- query conn "SELECT test FROM test WHERE point=?" $ Only pt
-                if null res then
-                    forM_ t $ \t -> execute conn "INSERT INTO test VALUES (?,?)" (pt, t)
-                else
-                    when (Set.fromList (mapMaybe fromOnly res) /= Set.fromList t) $
-                        error "Test disagreement"
-                modifyIORef cache $ \c -> c{cachePoint = Map.insertWith together p (pt, mempty{poTodo=Just $ Set.fromList t}) $ cachePoint c}
-            PUPass p t -> do
-                pt <- ensurePoint store p
-                execute conn "INSERT INTO run VALUES (?,?,?,?,?,?)" $ DbRun pt t True (Client "") now 0
-                modifyIORef cache $ \c -> c{cachePoint = Map.insertWith together p (pt, mempty{poPass=Set.singleton t}) $ cachePoint c}
-            PUFail p t -> do
-                pt <- ensurePoint store p
-                execute conn "INSERT INTO run VALUES (?,?,?,?,?,?)" $ DbRun pt t False (Client "") now 0
-                modifyIORef cache $ \c -> c{cachePoint = Map.insertWith together p (pt, mempty{poFail=Set.singleton t}) $ cachePoint c}
-
-        together (x1,y1) (x2,y2) = (x1, y1 <> y2)
-
-
-storeSaveUpdate :: Store -> State -> Answer -> IO ()
-storeSaveUpdate _ _ _ = return ()
-
-storeLoadUpdate :: Store -> State -> IO [Answer]
-storeLoadUpdate _ _ = return []
-
-storeSaveTest :: Store -> Question -> Answer -> IO ()
-storeSaveTest _ _ _ = return ()
-
-storeLoadTest :: Store -> Point -> Maybe Test -> IO [(Question, Answer)]
-storeLoadTest _ _ _ = return []
+            PURun t Question{..} Answer{..} -> do
+                let together (x1,y1) (x2,y2) = (x1, y1 <> y2)
+                pt <- ensurePoint store qCandidate
+                when (qTest == Nothing) $ do
+                    res :: [Only (Maybe Test)] <- query conn "SELECT test FROM test WHERE point=?" $ Only pt
+                    if null res then
+                        forM_ aTests $ \t -> execute conn "INSERT INTO test VALUES (?,?)" (pt, t)
+                    else
+                        when (Set.fromList (mapMaybe fromOnly res) /= Set.fromList aTests) $
+                            error "Test disagreement"
+                    modifyIORef cache $ \c -> c{cachePoint = Map.insertWith together qCandidate (pt, mempty{poTodo=Just $ Set.fromList aTests}) $ cachePoint c}
+                execute conn "INSERT INTO run VALUES (?,?,?,?,?,?)" $ DbRun pt qTest aSuccess qClient t aDuration
+                let val = if aSuccess then mempty{poPass=Set.singleton qTest} else mempty{poFail=Set.singleton qTest}
+                modifyIORef cache $ \c -> c{cachePoint = Map.insertWith together qCandidate (pt, val) $ cachePoint c}

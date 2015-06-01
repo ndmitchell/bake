@@ -35,10 +35,10 @@ fromPatchIds (PatchIds "") = []
 fromPatchIds (PatchIds xs) = map (PatchId . read) $ splitOn "][" $ init $ tail xs
 
 data DbState = DbState
-    {sState :: State, sCreate :: UTCTime, sPoint :: Maybe PointId}
+    {sState :: State, sCreate :: UTCTime, sPoint :: Maybe PointId, sStart :: Maybe UTCTime, sDuration :: Maybe Seconds}
 
 createState = "CREATE TABLE IF NOT EXISTS state (" ++
-    "state TEXT NOT NULL UNIQUE PRIMARY KEY, time TEXT NOT NULL, point INTEGER)"
+    "state TEXT NOT NULL UNIQUE PRIMARY KEY, time TEXT NOT NULL, point INTEGER, start TEXT, duration REAL)"
 
 data DbPatch = DbPatch
     {pPatch :: Patch, pAuthor :: String, pQueue :: UTCTime
@@ -97,10 +97,10 @@ instance ToRow DbPatch where
     toRow (DbPatch a b c d e f g h i) = toRow (a,b,c,d,e,f,g,h,i)
 
 instance ToRow DbState where
-    toRow (DbState a b c) = toRow (a,b,c)
+    toRow (DbState a b c d e) = toRow (a,b,c,d,e)
 
 instance FromRow DbState where
-    fromRow = DbState <$> field <*> field <*> field
+    fromRow = DbState <$> field <*> field <*> field <*> field <*> field
 
 instance ToRow DbReject where
     toRow (DbReject a b c) = toRow (a,b,c)

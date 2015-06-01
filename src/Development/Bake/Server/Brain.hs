@@ -91,8 +91,8 @@ react oven mem@Memory{..}
                     {fatal = ("Failed to update\n" ++ strUnpack (aStdout answer)) : fatal}
             Just s -> do
                 ovenNotify oven authors "Your patch just made it in"
-                storeSaveUpdate store s answer
-                store <- storeUpdate store $ IUState s (Just active) : map IUMerge (snd active)
+                now <- getCurrentTime
+                store <- storeUpdate store $ IUState s (Just (active, now, answer)) : map IUMerge (snd active)
                 return mem{active = (s, []), store = store}
 
     | restrictActive oven mem
@@ -162,10 +162,8 @@ update oven mem@Memory{..} (DelSkip author test)
     | otherwise = return mem{skipped = Map.delete test skipped}
 
 update oven mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
-    storeSaveTest store q a
-    store <- storeUpdate store $
-        [PUTest qCandidate aTests | aSuccess && qTest == Nothing] ++
-        [(if aSuccess then PUPass else PUFail) qCandidate qTest]
+    now <- getCurrentTime
+    store <- storeUpdate store [PURun now q a]
     let add ci = ci{ciTests = Map.insertWith (&&) (qCandidate, qTest) aSuccess $ ciTests ci}
     return mem{store = store
               ,clients = Map.adjust add qClient clients
