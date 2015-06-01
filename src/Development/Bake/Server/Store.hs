@@ -32,9 +32,9 @@ import System.FilePath
 data Cache = Cache
     {cachePatch :: Map.Map Patch (PatchId, PatchInfo)
     ,cacheState :: Map.Map State (StateId, StateInfo)
-    ,cachePoint :: Map.Map (State, [Patch]) (PointId, PointInfo)
+    ,cachePoint :: Map.Map Point (PointId, PointInfo)
     ,cacheAlive :: Maybe (Set.Set Patch)
-    ,cacheSuperset :: Maybe ((State, [Patch]), Set.Set Test)
+    ,cacheSuperset :: Maybe (Point, Set.Set Test)
     }
 
 
@@ -69,7 +69,7 @@ data PatchInfo = PatchInfo
 
 data StateInfo = StateInfo
     {stCreated :: UTCTime
-    ,stSource :: Maybe (State, [Patch])
+    ,stSource :: Maybe Point
     }
 
 data Store = Store
@@ -89,7 +89,7 @@ newStore mem path = do
     cache <- newIORef $ Cache Map.empty Map.empty Map.empty Nothing Nothing
     return $ Store conn path cache
 
-storePoint :: Store -> (State, [Patch]) -> PointInfo
+storePoint :: Store -> Point -> PointInfo
 storePoint store = snd . unsafePerformIO . storePointEx store
 
 storePointEx :: Store -> (State,[Patch]) -> IO (PointId, PointInfo)
@@ -200,17 +200,17 @@ storeSupersetPass store@Store{..} (s,ps) = unsafePerformIO $ do
             return res
 
 data Update
-    = IUState State (Maybe (State, [Patch]))
+    = IUState State (Maybe Point)
     | IUQueue Patch Author
     | IUStart Patch
     | IUDelete Patch
-    | IUReject Patch (Maybe Test) (State, [Patch])
+    | IUReject Patch (Maybe Test) Point
     | IUPlausible Patch
     | IUSupersede Patch
     | IUMerge Patch
-    | PUTest (State, [Patch]) [Test]
-    | PUPass (State, [Patch]) (Maybe Test)
-    | PUFail (State, [Patch]) (Maybe Test)
+    | PUTest Point [Test]
+    | PUPass Point (Maybe Test)
+    | PUFail Point (Maybe Test)
       deriving Show
 
 unsureState :: Store -> StateId -> IO State
@@ -225,7 +225,7 @@ unsurePatch Store{..} p = do
     [Only p] <- query conn "SELECT patch FROM patch WHERE rowid IS ?" (Only p)
     return p
 
-unsurePoint :: Store -> PointId -> IO (State, [Patch])
+unsurePoint :: Store -> PointId -> IO Point
 unsurePoint store@Store{..} pt = do
     conn <- readIORef conn
     [DbPoint{..}] <- query conn "SELECT * FROM point WHERE rowid IS ?" (Only pt)
@@ -240,7 +240,7 @@ ensureState Store{..} s = do
 ensurePatch :: Store -> Patch -> IO PatchId
 ensurePatch store = fmap fst . storePatchEx store
 
-ensurePoint :: Store -> (State, [Patch]) -> IO PointId
+ensurePoint :: Store -> Point -> IO PointId
 ensurePoint store@Store{..} (s, ps) = do
     s <- ensureState store s
     ps <- mapM (ensurePatch store) ps
@@ -336,5 +336,5 @@ storeLoadUpdate _ _ = return []
 storeSaveTest :: Store -> Question -> Answer -> IO ()
 storeSaveTest _ _ _ = return ()
 
-storeLoadTest :: Store -> (State, [Patch]) -> Maybe Test -> IO [(Question, Answer)]
+storeLoadTest :: Store -> Point -> Maybe Test -> IO [(Question, Answer)]
 storeLoadTest _ _ _ = return []

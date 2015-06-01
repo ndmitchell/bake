@@ -22,7 +22,7 @@ data ClientInfo = ClientInfo
     {ciPingTime :: UTCTime
     ,ciPing :: Ping
     ,ciAlive :: Bool
-    ,ciTests :: Map.Map ((State, [Patch]), Maybe Test) Bool -- if a single failure, set to False
+    ,ciTests :: Map.Map (Point, Maybe Test) Bool -- if a single failure, set to False
     } deriving (Eq,Show)
 
 data Memory = Memory
@@ -40,7 +40,7 @@ data Memory = Memory
         -- ^ Questions you have sent to clients and are waiting for.
     ,paused :: Bool
         -- ^ Pretend the queued is empty
-    ,active :: (State, [Patch])
+    ,active :: Point
         -- ^ the target we are working at (some may already be rejected)
     ,skipped :: Map.Map Test String
         -- ^ tests which are currently skipped
