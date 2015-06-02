@@ -169,6 +169,7 @@ storeAlive Store{..} = unsafePerformIO $ do
             return $ Set.fromList $ map fromOnly ps
     c <- readIORef cache
     case cacheAlive c of
+        -- disabled because I don't invalidate the cache
         Just s | False -> return s
         _ -> do
             res <- ans
@@ -192,6 +193,7 @@ storeSupersetPass store@Store{..} (s,ps) = unsafePerformIO $ do
             return $ Set.fromList $ map fromOnly ts
     c <- readIORef cache
     case cacheSuperset c of
+        -- disabled because I don't invalidate the cache
         Just (sps, res) | False, sps == (s,ps) -> return res
         _ -> do
             res <- ans
