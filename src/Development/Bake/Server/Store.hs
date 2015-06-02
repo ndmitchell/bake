@@ -12,7 +12,7 @@ module Development.Bake.Server.Store(
 import Development.Bake.Server.Database
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
-import qualified Data.Map as Map
+import qualified Data.HashMap.Strict as Map
 import qualified Data.Set as Set
 import Data.Time
 import Data.String
@@ -29,9 +29,9 @@ import System.FilePath
 
 
 data Cache = Cache
-    {cachePatch :: Map.Map Patch (PatchId, PatchInfo)
-    ,cacheState :: Map.Map State (StateId, StateInfo)
-    ,cachePoint :: Map.Map Point (PointId, PointInfo)
+    {cachePatch :: Map.HashMap Patch (PatchId, PatchInfo)
+    ,cacheState :: Map.HashMap State (StateId, StateInfo)
+    ,cachePoint :: Map.HashMap Point (PointId, PointInfo)
     ,cacheAlive :: Maybe (Set.Set Patch)
     ,cacheSuperset :: Maybe (Point, Set.Set Test)
     }

@@ -55,6 +55,7 @@ library
         aeson,
         sqlite-simple,
         disk-free-space,
+        unordered-containers,
         extra >= 1.1,
         wai >= 3.0.1,
         warp >= 3.0
@@ -119,6 +120,7 @@ executable bake-test
         deepseq,
         aeson,
         disk-free-space,
+        unordered-containers,
         sqlite-simple,
         extra >= 0.2,
         wai >= 3.0.1,
