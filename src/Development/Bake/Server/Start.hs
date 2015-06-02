@@ -85,7 +85,7 @@ initialise oven author extra = do
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
     when (isJust res) $ addDelayCache extra (Left state0) $ patchExtra state0 Nothing
     addHistory [(HRestart, Patch "")]
-    store <- newStore False "bake-stuff"
+    store <- newStore False "bake-store"
     mem <- newMemory store state0
     return $ mem
         {authors=[author]
