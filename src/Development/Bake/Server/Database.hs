@@ -16,6 +16,7 @@ import Database.SQLite.Simple.FromField
 import Database.SQLite.Simple.ToField
 import System.Time.Extra
 import Data.List.Extra
+import Prelude
 
 
 newtype PointId = PointId Int deriving (ToField, FromField)
