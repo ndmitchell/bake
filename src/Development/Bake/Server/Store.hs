@@ -24,6 +24,7 @@ import Data.Tuple.Extra
 import Control.Monad
 import System.Directory
 import Database.SQLite.Simple
+import qualified Data.Text.Lazy.IO as TL
 import System.FilePath
 
 
@@ -314,5 +315,8 @@ storeUpdate store xs = do
                             error "Test disagreement"
                     modifyIORef cache $ \c -> c{cachePoint = Map.insertWith together qCandidate (pt, mempty{poTodo=Just $ Set.fromList aTests}) $ cachePoint c}
                 execute conn "INSERT INTO run VALUES (?,?,?,?,?,?)" $ DbRun pt qTest aSuccess qClient t aDuration
+                [Only (x :: RunId)] <- query_ conn "SELECT last_insert_rowid()"
+                createDirectoryIfMissing True $ path </> show pt
+                TL.writeFile (path </> show pt </> show x ++ "-" ++ maybe "Prepare" fromTest qTest) aStdout
                 let val = if aSuccess then mempty{poPass=Set.singleton qTest} else mempty{poFail=Set.singleton qTest}
                 modifyIORef cache $ \c -> c{cachePoint = Map.insertWith together qCandidate (pt, val) $ cachePoint c}
