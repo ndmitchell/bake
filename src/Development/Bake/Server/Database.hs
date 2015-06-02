@@ -17,12 +17,15 @@ import System.Time.Extra
 import Data.List.Extra
 
 
-newtype PointId = Point Int deriving (ToField, FromField,Show)
-newtype RunId = Run Int deriving (ToField, FromField,Show)
-newtype StateId = StateId Int deriving (ToField, FromField, Show)
-newtype PatchId = PatchId Int deriving (ToField, FromField, Show)
+newtype PointId = PointId Int deriving (ToField, FromField)
+newtype RunId = RunId Int deriving (ToField, FromField)
+newtype StateId = StateId Int deriving (ToField, FromField)
+newtype PatchId = PatchId Int deriving (ToField, FromField)
 
-newtype PatchIds = PatchIds String deriving (ToField, FromField, Show)
+instance Show PointId where show (PointId x) = "point-" ++ show x
+instance Show RunId where show (RunId x) = "run-" ++ show x
+
+newtype PatchIds = PatchIds String deriving (ToField, FromField)
 
 patchIds :: [PatchId] -> PatchIds
 patchIds = PatchIds . concatMap (\(PatchId x) -> "[" ++ show x ++ "]")
