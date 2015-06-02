@@ -91,22 +91,25 @@ newStore mem path = do
 storePoint :: Store -> Point -> PointInfo
 storePoint store = snd . unsafePerformIO . storePointEx store
 
+{-# NOINLINE computePointEx #-}
+computePointEx store@Store{..} x = do
+    pt <- ensurePoint store x
+    conn <- readIORef conn
+    tests <- query conn "SELECT test FROM test WHERE point IS ?" $ Only pt
+    pass <- query conn "SELECT test FROM run WHERE point IS ? AND success IS 1" $ Only pt
+    fail <- query conn "SELECT test FROM run WHERE point IS ? AND success IS 0" $ Only pt
+    return $ (,) pt $ PointInfo
+        (if null tests then Nothing else Just $ Set.fromList $ mapMaybe fromOnly tests)
+        (Set.fromList $ map fromOnly pass) (Set.fromList $ map fromOnly fail)
+
+
 storePointEx :: Store -> (State,[Patch]) -> IO (PointId, PointInfo)
 storePointEx store@Store{..} x = do
-    let ans = do
-            pt <- ensurePoint store x
-            conn <- readIORef conn
-            tests <- query conn "SELECT test FROM test WHERE point IS ?" $ Only pt
-            pass <- query conn "SELECT test FROM run WHERE point IS ? AND success IS 1" $ Only pt
-            fail <- query conn "SELECT test FROM run WHERE point IS ? AND success IS 0" $ Only pt
-            return $ (,) pt $ PointInfo
-                (if null tests then Nothing else Just $ Set.fromList $ mapMaybe fromOnly tests)
-                (Set.fromList $ map fromOnly pass) (Set.fromList $ map fromOnly fail)
     c <- readIORef cache
     case Map.lookup x $ cachePoint c of
         Just res -> return res
         _ -> do
-            res <- ans
+            res <- computePointEx store x
             modifyIORef cache $ \c -> c{cachePoint = Map.insert x res $ cachePoint c}
             return res
 
