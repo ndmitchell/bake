@@ -8,6 +8,7 @@ module Development.Bake.Server.Database(
     ) where
 
 import Development.Bake.Core.Type
+import Control.Applicative
 import Data.String
 import General.Extra
 import Database.SQLite.Simple
