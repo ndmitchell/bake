@@ -76,7 +76,7 @@ data StateInfo = StateInfo
     }
 
 data Store = Store
-    {conn :: IORef Connection
+    {conn :: Connection
     ,path :: FilePath
     ,cache :: IORef Cache
     }
@@ -88,7 +88,6 @@ newStore mem path = do
     conn <- create $ if mem then ":memory:" else path </> "bake.sqlite"
     execute_ conn "PRAGMA journal_mode = WAL;"
     execute_ conn "PRAGMA synchronous = OFF;"
-    conn <- newIORef conn
     cache <- newIORef $ Cache HashMap.empty HashMap.empty HashMap.empty
     return $ Store conn path cache
 
@@ -98,7 +97,6 @@ storePoint store = snd . unsafePerformIO . storePointEx store
 {-# NOINLINE computePointEx #-}
 computePointEx store@Store{..} x = do
     pt <- ensurePoint store x
-    conn <- readIORef conn
     tests <- query conn "SELECT test FROM test WHERE point IS ?" $ Only pt
     pass <- query conn "SELECT test FROM run WHERE point IS ? AND success IS 1" $ Only pt
     fail <- query conn "SELECT test FROM run WHERE point IS ? AND success IS 0" $ Only pt
@@ -119,13 +117,11 @@ storePointEx store@Store{..} x = do
 
 storePatchList :: Store -> [Patch]
 storePatchList store@Store{..} = unsafePerformIO $ do
-    conn <- readIORef conn
     ps <- query_ conn "SELECT patch FROM patch"
     return $ map fromOnly ps
 
 storeIsPatch :: Store -> Patch -> Bool
 storeIsPatch store@Store{..} p = unsafePerformIO $ do
-    conn <- readIORef conn
     ps :: [Only Int] <- query conn "SELECT 1 FROM patch WHERE patch IS ?" $ Only p
     return $ ps /= []
 
@@ -135,7 +131,6 @@ storePatch store = snd . unsafePerformIO . storePatchEx store
 storePatchEx :: Store -> Patch -> IO (PatchId, PatchInfo)
 storePatchEx store@Store{..} p = do
     let ans = do
-            conn <- readIORef conn
             [Only row :. DbPatch{..}] <- query conn "SELECT rowid, * FROM patch WHERE patch IS ?" $ Only p
             reject <- if isNothing pReject then return Nothing else do
                 ts <- query conn "SELECT UNIQUE reject.test, run.patch FROM reject, run WHERE reject.patch IS ? AND reject.run IS run.rowid" $ Only (row :: PatchId)
@@ -155,14 +150,12 @@ storeState store = snd . unsafePerformIO . storeStateEx store
 
 storeStateList :: Store -> [State]
 storeStateList store@Store{..} = unsafePerformIO $ do
-    conn <- readIORef conn
     ss <- query_ conn "SELECT state FROM state"
     return $ map fromOnly ss
 
 storeStateEx :: Store -> State -> IO (StateId, StateInfo)
 storeStateEx store@Store{..} st = do
     let ans = do
-            conn <- readIORef conn
             [Only row :. DbState{..}] <- query conn "SELECT rowid, * FROM state WHERE state IS ?" $ Only st
             pt <- maybe (return Nothing) (fmap Just . unsurePoint store) sPoint
             return (row, StateInfo sCreate pt)
@@ -177,7 +170,6 @@ storeStateEx store@Store{..} st = do
 
 storeAlive :: Store -> Set.Set Patch
 storeAlive Store{..} = unsafePerformIO $ do
-    conn <- readIORef conn
     ps <- query_ conn "SELECT patch FROM patch WHERE delete_ IS NULL AND supersede IS NULL AND reject IS NULL AND merge IS NULL"
     return $ Set.fromList $ map fromOnly ps
 
@@ -192,7 +184,6 @@ storeSupersetPass store@Store{..} (s,ps) = unsafePerformIO $ do
             ,"WHERE run.point IS point.rowid AND run.test IS NOT NULL AND point.state IS ? AND point.patches LIKE ?"
             ,"GROUP BY run.point, run.test)"
             ,"WHERE success == 1"]
-    conn <- readIORef conn
     ts <- query conn (fromString q) (s, patchIdsSuperset ps)
     return $ Set.fromList $ map fromOnly ts
 
@@ -210,25 +201,21 @@ data Update
 
 unsureState :: Store -> StateId -> IO State
 unsureState Store{..} s = do
-    conn <- readIORef conn
     [Only s] <- query conn "SELECT state FROM state WHERE rowid IS ?" (Only s)
     return s
 
 unsurePatch :: Store -> PatchId -> IO Patch
 unsurePatch Store{..} p = do
-    conn <- readIORef conn
     [Only p] <- query conn "SELECT patch FROM patch WHERE rowid IS ?" (Only p)
     return p
 
 unsurePoint :: Store -> PointId -> IO Point
 unsurePoint store@Store{..} pt = do
-    conn <- readIORef conn
     [DbPoint{..}] <- query conn "SELECT * FROM point WHERE rowid IS ?" (Only pt)
     liftM2 (,) (unsureState store tState) (mapM (unsurePatch store) $ fromPatchIds tPatches)
 
 ensureState :: Store -> State -> IO StateId
 ensureState Store{..} s = do
-    conn <- readIORef conn
     [Only s] <- query conn "SELECT rowid FROM state WHERE state IS ?" (Only s)
     return s
 
@@ -240,7 +227,6 @@ ensurePoint store@Store{..} (s, ps) = do
     s <- ensureState store s
     ps <- mapM (ensurePatch store) ps
     let v = DbPoint s (patchIds ps)
-    conn <- readIORef conn
     res <- query conn "SELECT rowid FROM point WHERE state IS ? AND patches IS ?" v
     case res of
         [] -> do
@@ -251,22 +237,21 @@ ensurePoint store@Store{..} (s, ps) = do
         _ -> error $ "ensurePoint, multiple points found"
 
 
+-- don't inline so GHC can't tell the store is returned unchanged
+{-# NOINLINE storeUpdate #-}
 storeUpdate :: Store -> [Update] -> IO Store
 storeUpdate store xs = do
     now <- getCurrentTime
-    c <- readIORef $ conn store
 --    print $ ("Updating",xs)
-    mapM_ (f now c store) xs
+    mapM_ (f now store) xs
     -- print "Updated"
-    writeIORef (conn store) $ error "Store must be used linearly, you are using an old connection"
-    conn <- newIORef c
-    return store{conn = conn}
+    return store
     where
         execute a b c = do
             -- print b
             Database.SQLite.Simple.execute a b c
 
-        f now conn store@Store{conn=_,..} x = case x of
+        f now store@Store{..} x = case x of
             IUState s Answer{..} p -> do
                 pt <- maybe (return Nothing) (fmap Just . ensurePoint store) p
                 execute conn "INSERT INTO state VALUES (?,?,?,?)" $ DbState s now pt aDuration
