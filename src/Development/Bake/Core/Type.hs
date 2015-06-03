@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, ScopedTypeVariables, DeriveDataTypeable #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
 -- | Define a continuous integration system.
@@ -17,6 +17,7 @@ import Control.DeepSeq
 import Data.Monoid
 import Data.Aeson
 import Data.Hashable
+import Data.Typeable
 import Prelude
 
 
@@ -156,10 +157,10 @@ require :: [String] -> TestInfo test -> TestInfo test
 require xs t = t{testRequire = xs ++ testRequire t}
 
 
-newtype State = State {fromState :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData)
-newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData)
-newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData)
-newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData)
+newtype State = State {fromState :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable)
+newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable)
+newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable)
+newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable)
 
 type Point = (State, [Patch])
 
