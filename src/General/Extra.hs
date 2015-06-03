@@ -7,6 +7,7 @@ module General.Extra(
     pick,
     memo1,
     catMaybesSet,
+    whenLeft, whenRight,
     timeInit, timed, time, time_,
     eitherToMaybe,
     newCVar, readCVar, modifyCVar, modifyCVar_,
@@ -253,6 +254,12 @@ memo1 op = do
 
 catMaybesSet :: Ord a => Set.Set (Maybe a) -> Set.Set a
 catMaybesSet = Set.mapMonotonic fromJust . Set.delete Nothing
+
+whenLeft :: Applicative m => Either a b -> (a -> m ()) -> m ()
+whenLeft x f = either f (const $ pure ()) x
+
+whenRight :: Applicative m => Either a b -> (b -> m ()) -> m ()
+whenRight x f = either (const $ pure ()) f x
 
 
 ---------------------------------------------------------------------

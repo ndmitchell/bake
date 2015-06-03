@@ -56,12 +56,11 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
             failures shower mem
             progress shower mem
 
-{-
             table "No patches submitted" ["Submitted","Job","Status"] $
-                map (\p -> rowPatch shower mem argsAdmin p) $ map snd $ sortOn fst $
-                [(fst paQueued, Right p) | (p, PatchInfo{..}) <- Map.toList $ storePatches store] ++
-                [(stCreated, Left s) | (s, StateInfo{..}) <- Map.toList $ storeStates store]
--}
+                map (\p -> rowPatch shower mem argsAdmin p) $ map snd $ reverse $ sortOn fst $
+                [(fst $ paQueued pi, Right (p,pi)) | (p, pi) <- map (id &&& storePatch store) $ storePatchList store] ++
+                [(stCreated si, Left (s,si)) | (s, si) <- map (id &&& storeState store) $ storeStateList store]
+
             unless (Map.null skipped) $ do
                 h2_ $ str_ "Skipped tests"
                 ul_ $ fmap mconcat $ forM (Map.toList skipped) $ \(test,author) -> li_ $ do
@@ -266,25 +265,29 @@ template inner = do
 
 
 failures :: Shower -> Memory -> HTML
-failures Shower{..} Memory{..} = return () {- when (ts /= []) $ do
+failures Shower{..} Memory{..} = when (ts /= []) $ do
     p_ $ str_ "Tracking down failures in:"
     ul_ $ mconcat $ map (li_ . showTest) ts
     where
         ts = Set.toList $ failed `Set.difference` reject
-        failed = Set.fromList [qTest q | (_,q,a) <- history, qCandidate q == active, aSuccess a == False]
-        reject = Set.unions [Map.keysSet $ snd t | (p,t) <- Map.toList rejected, p `elem` snd active] -}
+        failed = poFail $ storePoint store active
+        reject = Set.unions $ mapMaybe (fmap (Map.keysSet . snd) . paReject . storePatch store) $ snd active
 
 
 progress :: Shower -> Memory -> HTML
-progress Shower{..} Memory{..} = return () {-
-    | Just t <- todo = p_ $ b_ (str_ "Testing") <> str_ (", done " ++ show done ++ " tests out of " ++ show (t+1))
-    | not $ null me = p_ $ b_ (str_ "Preparing") <> str_ ", getting ready to test"
+progress Shower{..} Memory{..}
+    | Just t <- poTodo = p_ $ b_ (str_ "Testing") <>
+        str_ (", done " ++ show (Set.size done) ++ " tests out of " ++ show (Set.size t + 1) ++ superset)
+    | isRunning = p_ $ b_ (str_ "Preparing") <>
+        str_ (", getting ready to test" ++ superset)
     | otherwise = return ()
     where
-        me = [(q, a) | (_, q, a) <- history, qCandidate q == active]
-        done = length $ nubOrd $ map (qTest . fst) me
-        todo = length <$> listToMaybe [aTests a | (q, a) <- me, qTest q == Nothing, aSuccess a]
--}
+        PointInfo{..} = storePoint store active
+        done = Set.union poPass poFail
+        superset = let x = storeSupersetPass store active `Set.difference` catMaybesSet done
+                   in if Set.null x then "" else ", and done " ++ show (Set.size x) ++ " in a superset"
+        isRunning = any ((==) active . qCandidate . snd) running
+
 
 showAnswer :: Maybe Answer -> HTML
 showAnswer Nothing = i_ $ str_ $ "Running..."
@@ -313,61 +316,56 @@ rowUpdate Shower{..} Memory{..} (i,Update{..}) = [showTime upTime, body, showAns
             str_ "To " <> showState upState
 -}
 
-rowPatch :: Shower -> Memory -> Bool -> Either State Patch -> (String, [HTML])
-rowPatch Shower{..} mem@Memory{..} argsAdmin patch = ("", []) {- (code, [maybe mempty showTime time, state, body <> special])
+rowPatch :: Shower -> Memory -> Bool -> Either (State, StateInfo) (Patch,PatchInfo) -> (String, [HTML])
+rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state, body <> special])
     where
-        failed = case patch of
-            Right p -> Map.lookup p rejected
-            Left s -> if null xs then Nothing else Just (minimum $ map fst xs, Map.fromList $ map ((, (s, [])) . snd) xs)
-                where xs = [(aDuration a `addSeconds` t, qTest q) | (t,q,a) <- history, not $ aSuccess a, qCandidate q == (s,[])]
+        failed = case info of
+            Right (p, PatchInfo{..}) -> fmap (second Map.toList) paReject
+            Left (s, StateInfo{..}) -> if Set.null x then Nothing else Just (stCreated, map (,(s, [])) $ Set.toList x)
+                where x = poFail $ storePoint store (s, [])
 
-        code | Right p <- patch, any (isSuffixOf [p] . snd . qCandidate . snd) running = "active"
-             | Left s <- patch, (s,[]) `elem` map (qCandidate . snd) running = "active"
+        code | Right (p,_) <- info, any (isSuffixOf [p] . snd . qCandidate . snd) running = "active"
+             | Left (s,_) <- info, (s,[]) `elem` map (qCandidate . snd) running = "active"
              | isJust failed = "fail"
-             | Right p <- patch, Map.member p superseded = "dull"
-             | Right p <- patch, Map.member p plausible = "pass"
-             | Right p <- patch, p `elem` concatMap upPrevious updates = "pass"
-             | Left s <- patch, length updates > 1 = "pass"
-             | Right p <- patch, p `elem` queued = "dull"
+             | Right (_, PatchInfo{..}) <- info, isJust paSupersede || isNothing paStart = "dull"
+             | Right (_, PatchInfo{..}) <- info, isJust paMerge || isJust paPlausible  = "pass"
+             | Left (s,_) <- info, fst active /= s = "pass"
              | otherwise = ""
 
         body
-            | Just (time, Map.toList -> xs) <- failed = do
-                span__ [class_ "bad"] $ str_ $ if isLeft patch then "Failed" else "Rejected"
+            | Just (time, xs) <- failed = do
+                span__ [class_ "bad"] $ str_ $ if isLeft info then "Failed" else "Rejected"
                 str_ " at " <> showTime time
                 when (xs /= []) br_
                 span__ [class_ "info"] $ commasLimit_ 3 [showTestAt sps t | (t,sps) <- xs]
-            | Right p <- patch, p `elem` queued = str_ "Queued"
-            | Right p <- patch, Just t <- Map.lookup p superseded = str_ "Superseded at " <> showTime t
-            | Right p <- patch, Just Update{..} <- find (elem p . upPrevious) updates = do
+            | Right (_, p) <- info, paAlive p && isNothing (paStart p) = str_ "Queued"
+            | Right (_, PatchInfo{paSupersede=Just t}) <- info = str_ "Superseded at " <> showTime t
+            | Right (_, PatchInfo{paMerge=Just t}) <- info = do
                 span__ [class_ "good"] $ str_ "Merged"
-                str_ " at " <> showTime upTime
-            | Right p <- patch, Just t <- Map.lookup p plausible = do
+                str_ " at " <> showTime t
+            | Right (_, PatchInfo{paPlausible=Just t}) <- info = do
                 span__ [class_ "good"] $ str_ "Plausible"
                 str_ " at " <> showTime t
-            | Left s <- patch, length updates > 1 = span__ [class_ "good"] $ str_ "Passed"
+            | Left (s,_) <- info, fst active /= s = span__ [class_ "good"] $ str_ "Passed"
             | otherwise = str_ "Active"
 
         special
-            | argsAdmin, Right p <- patch =
-                if p `elem` snd active || p `elem` queued then
+            | argsAdmin, Right (p, pi) <- info =
+                if paAlive pi then
                     do br_; admin (DelPatch "admin" p) $ str_ "Delete"
-                else if p `notElem` concatMap upPrevious updates then
+                else if isNothing $ paMerge pi then
                     do br_; admin (AddPatch "admin" $ Patch $ '\'' : fromPatch p) $ str_ "Retry"
                 else
                     mempty
             | otherwise = mempty
 
         state = do
-            either ((str_ "Initial state " <>) . showState) ((str_ "Patch " <>) . showPatch) patch
-            str_ $ " by " ++ commasLimit 3 (nubOrd $ Map.findWithDefault [] (either (const Nothing) Just patch) authors)
+            either ((str_ "State " <>) . showState . fst) ((str_ "Patch " <>) . showPatch . fst) info
+            whenRight info $ \(pa, PatchInfo{..}) -> str_ $ " by " ++ snd paQueued
             br_
-            span__ [class_ "info"] $ showExtra patch
+            span__ [class_ "info"] $ showExtra $ either (Left . fst) (Right . fst) info
 
-        time = case patch of
-            Right p -> fst <$> find ((==) p . snd) patches
-            Left s -> upTime <$> find ((==) s . upState) updates
-            -}
+        time = either (stCreated . snd) (fst . paQueued . snd) info
 
 
 rowClient :: Shower -> Memory -> Maybe (Client, ClientInfo) -> (String, [HTML])
@@ -377,6 +375,6 @@ rowClient Shower{..} Memory{..} (Just (c, ClientInfo{..})) = ((if ciAlive then "
     where xs = reverse [showQuestion q <> str_ " started " <> showTime t | (t,q) <- running, qClient q == c]
 rowClient Shower{..} Memory{..} Nothing = ("",) $
     [showLink "server=" $ i_ $ str_ "Server"
-    ,return ()] {- showLink ("server=" ++ show (length updates - 1))
-        (str_ $ if length updates == 1 then "Initialised" else "Updated") <>
-     str_ " finished " <> showTime (upTime $ head updates)] -}
+    ,str_ (if isNothing stSource then "Initialised" else "Updated") <>
+        str_ " finished " <> showTime stCreated]
+    where StateInfo{..} = storeState store $ fst active
