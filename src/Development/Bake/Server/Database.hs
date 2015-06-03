@@ -26,6 +26,7 @@ newtype PatchId = PatchId Int deriving (ToField, FromField)
 
 instance Show PointId where show (PointId x) = "point-" ++ show x
 instance Show RunId where show (RunId x) = "run-" ++ show x
+instance Show StateId where show (StateId x) = "state-" ++ show x
 
 newtype PatchIds = PatchIds String deriving (ToField, FromField)
 
@@ -40,10 +41,10 @@ fromPatchIds (PatchIds "") = []
 fromPatchIds (PatchIds xs) = map (PatchId . read) $ splitOn "][" $ init $ tail xs
 
 data DbState = DbState
-    {sState :: State, sCreate :: UTCTime, sPoint :: Maybe PointId, sStart :: Maybe UTCTime, sDuration :: Maybe Seconds}
+    {sState :: State, sCreate :: UTCTime, sPoint :: Maybe PointId, sDuration :: Seconds}
 
 createState = "CREATE TABLE IF NOT EXISTS state (" ++
-    "state TEXT NOT NULL UNIQUE PRIMARY KEY, time TEXT NOT NULL, point INTEGER, start TEXT, duration REAL)"
+    "state TEXT NOT NULL UNIQUE PRIMARY KEY, time TEXT NOT NULL, point INTEGER, duration REAL NOT NULL)"
 
 data DbPatch = DbPatch
     {pPatch :: Patch, pAuthor :: String, pQueue :: UTCTime
@@ -102,10 +103,10 @@ instance ToRow DbPatch where
     toRow (DbPatch a b c d e f g h i) = toRow (a,b,c,d,e,f,g,h,i)
 
 instance ToRow DbState where
-    toRow (DbState a b c d e) = toRow (a,b,c,d,e)
+    toRow (DbState a b c d) = toRow (a,b,c,d)
 
 instance FromRow DbState where
-    fromRow = DbState <$> field <*> field <*> field <*> field <*> field
+    fromRow = DbState <$> field <*> field <*> field <*> field
 
 instance ToRow DbReject where
     toRow (DbReject a b c) = toRow (a,b,c)

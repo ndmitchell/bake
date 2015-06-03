@@ -69,7 +69,7 @@ simulation
 simulation testInfo workers u step = withTempDir $ \dir -> do
     t <- getCurrentTime
     s <- newStore True dir
-    mem <- newMemory s (restate [])
+    mem <- newMemory s (restate [], Answer mempty 0 [] True)
     mem <- return mem
         {active = (restate [], [])
         ,simulated = True}

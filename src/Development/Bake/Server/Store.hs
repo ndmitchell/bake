@@ -21,7 +21,7 @@ import Data.IORef
 import Data.Monoid
 import Data.Maybe
 import Data.Tuple.Extra
-import Control.Monad
+import Control.Monad.Extra
 import System.Directory
 import Database.SQLite.Simple
 import qualified Data.Text.Lazy.IO as TL
@@ -32,8 +32,6 @@ data Cache = Cache
     {cachePatch :: Map.HashMap Patch (PatchId, PatchInfo)
     ,cacheState :: Map.HashMap State (StateId, StateInfo)
     ,cachePoint :: Map.HashMap Point (PointId, PointInfo)
-    ,cacheAlive :: Maybe (Set.Set Patch)
-    ,cacheSuperset :: Maybe (Point, Set.Set Test)
     }
 
 
@@ -85,7 +83,7 @@ newStore mem path = do
     execute_ conn "PRAGMA journal_mode = WAL;"
     execute_ conn "PRAGMA synchronous = OFF;"
     conn <- newIORef conn
-    cache <- newIORef $ Cache Map.empty Map.empty Map.empty Nothing Nothing
+    cache <- newIORef $ Cache Map.empty Map.empty Map.empty
     return $ Store conn path cache
 
 storePoint :: Store -> Point -> PointInfo
@@ -166,45 +164,27 @@ storeStateEx store@Store{..} st = do
 
 storeAlive :: Store -> Set.Set Patch
 storeAlive Store{..} = unsafePerformIO $ do
-    let ans = do
-            conn <- readIORef conn
-            ps <- query_ conn "SELECT patch FROM patch WHERE delete_ IS NULL AND supersede IS NULL AND reject IS NULL AND merge IS NULL"
-            return $ Set.fromList $ map fromOnly ps
-    c <- readIORef cache
-    case cacheAlive c of
-        -- disabled because I don't invalidate the cache
-        Just s | False -> return s
-        _ -> do
-            res <- ans
-            modifyIORef cache $ \c -> c{cacheAlive=Just res}
-            return res
+    conn <- readIORef conn
+    ps <- query_ conn "SELECT patch FROM patch WHERE delete_ IS NULL AND supersede IS NULL AND reject IS NULL AND merge IS NULL"
+    return $ Set.fromList $ map fromOnly ps
 
 storeSupersetPass :: Store -> (State,[Patch]) -> Set.Set Test
 storeSupersetPass store@Store{..} (s,ps) = unsafePerformIO $ do
-    let ans = do
-            s <- ensureState store s
-            ps <- mapM (ensurePatch store) ps
-            let q = unlines
-                    ["SELECT DISTINCT test FROM"
-                    ,"(SELECT run.test AS test, min(run.success) AS success"
-                    ,"FROM run, point"
-                    ,"WHERE run.point IS point.rowid AND run.test IS NOT NULL AND point.state IS ? AND point.patches LIKE ?"
-                    ,"GROUP BY run.point, run.test)"
-                    ,"WHERE success == 1"]
-            conn <- readIORef conn
-            ts <- query conn (fromString q) (s, patchIdsSuperset ps)
-            return $ Set.fromList $ map fromOnly ts
-    c <- readIORef cache
-    case cacheSuperset c of
-        -- disabled because I don't invalidate the cache
-        Just (sps, res) | False, sps == (s,ps) -> return res
-        _ -> do
-            res <- ans
-            modifyIORef cache $ \c -> c{cacheSuperset = Just ((s,ps),res)}
-            return res
+    s <- ensureState store s
+    ps <- mapM (ensurePatch store) ps
+    let q = unlines
+            ["SELECT DISTINCT test FROM"
+            ,"(SELECT run.test AS test, min(run.success) AS success"
+            ,"FROM run, point"
+            ,"WHERE run.point IS point.rowid AND run.test IS NOT NULL AND point.state IS ? AND point.patches LIKE ?"
+            ,"GROUP BY run.point, run.test)"
+            ,"WHERE success == 1"]
+    conn <- readIORef conn
+    ts <- query conn (fromString q) (s, patchIdsSuperset ps)
+    return $ Set.fromList $ map fromOnly ts
 
 data Update
-    = IUState State (Maybe (Point, UTCTime, Answer)) -- assumed to be success
+    = IUState State Answer (Maybe Point) -- assumed to be success
     | IUQueue Patch Author
     | IUStart Patch
     | IUDelete Patch
@@ -274,11 +254,13 @@ storeUpdate store xs = do
             Database.SQLite.Simple.execute a b c
 
         f now conn store@Store{conn=_,..} x = case x of
-            IUState s p -> do
-                pt <- maybe (return Nothing) (fmap Just . ensurePoint store . fst3) p
-                execute conn "INSERT INTO state VALUES (?,?,?,?,?)" $ DbState s now pt (fmap snd3 p) (fmap (aDuration . thd3) p)
+            IUState s Answer{..} p -> do
+                pt <- maybe (return Nothing) (fmap Just . ensurePoint store) p
+                execute conn "INSERT INTO state VALUES (?,?,?,?)" $ DbState s now pt aDuration
                 [Only x] <- query_ conn "SELECT last_insert_rowid()"
-                modifyIORef cache $ \c -> c{cacheState = Map.insert s (x, StateInfo now (fmap fst3 p)) $ cacheState c}
+                createDirectoryIfMissing True (path </> "update")
+                TL.writeFile (path </> "update" </> show x <.> "txt") aStdout
+                modifyIORef cache $ \c -> c{cacheState = Map.insert s (x, StateInfo now p) $ cacheState c}
             IUQueue p a -> do
                 execute conn "INSERT INTO patch VALUES (?,?,?,?,?,?,?,?,?)" $
                     DbPatch p a now Nothing Nothing Nothing Nothing Nothing Nothing

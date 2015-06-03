@@ -46,9 +46,9 @@ data Memory = Memory
         -- ^ tests which are currently skipped
     }
 
-newMemory :: Store -> State -> IO Memory
-newMemory store state = do
-    store <- storeUpdate store [IUState state Nothing]
+newMemory :: Store -> (State, Answer) -> IO Memory
+newMemory store (state, answer) = do
+    store <- storeUpdate store [IUState state answer Nothing]
     return $ Memory False [] store [] Map.empty [] False (state, []) Map.empty
 
 instance NFData Memory where

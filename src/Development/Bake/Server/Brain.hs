@@ -91,8 +91,7 @@ react oven mem@Memory{..}
                     {fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
             Just s -> do
                 ovenNotify oven authors "Your patch just made it in"
-                now <- getCurrentTime
-                store <- storeUpdate store $ IUState s (Just (active, now, answer)) : map IUMerge (snd active)
+                store <- storeUpdate store $ IUState s answer (Just active) : map IUMerge (snd active)
                 return mem{active = (s, []), store = store}
 
     | restrictActive oven mem
@@ -163,11 +162,13 @@ update oven mem@Memory{..} (DelSkip author test)
 
 update oven mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
     now <- getCurrentTime
-    store <- storeUpdate store [PURun now q a]
+    let (eq,neq) = partition ((==) q . snd) running
+    let time = head $ map fst eq ++ [now]
+    store <- storeUpdate store [PURun time q a]
     let add ci = ci{ciTests = Map.insertWith (&&) (qCandidate, qTest) aSuccess $ ciTests ci}
     return mem{store = store
               ,clients = Map.adjust add qClient clients
-              ,running = filter ((/=) q . snd) running}
+              ,running = neq}
 
 update oven mem (Reinit s) = return mem -- already handled
 

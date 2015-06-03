@@ -86,7 +86,7 @@ initialise oven author extra = do
     when (isJust res) $ addDelayCache extra (Left state0) $ patchExtra state0 Nothing
     addHistory [(HRestart, Patch "")]
     store <- newStore False "bake-store"
-    mem <- newMemory store state0
+    mem <- newMemory store (state0, answer)
     return $ mem
         {authors=[author]
 --        ,updates=[Update now answer state0 []]
