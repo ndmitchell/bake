@@ -378,7 +378,6 @@ storeExtra store@Store{..} sp = unsafePerformIO $ do
 
 storeExtraAdd :: Store -> Either State Patch -> (T.Text, TL.Text) -> IO ()
 storeExtraAdd store@Store{..} sp (short, long) = do
-    print ("storeExtraAdd", sp)
     prefix <- storeExtraFile store sp
     createDirectoryIfMissing True prefix
     T.writeFile (prefix </> "extra-short.html") short
