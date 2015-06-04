@@ -7,7 +7,6 @@ module Development.Bake.Server.Start(
 
 import Development.Bake.Core.Type
 import General.Web
-import General.Str
 import General.HTML
 import Development.Bake.Core.Message
 import Development.Bake.Core.Run
@@ -25,7 +24,6 @@ import Data.List.Extra
 import Data.Maybe
 import Data.Tuple.Extra
 import Control.Monad.Extra
-import System.Directory
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
 import qualified Data.Text as T
@@ -37,10 +35,6 @@ import Prelude
 startServer :: (Stringy state, Stringy patch, Stringy test)
             => Port -> FilePath -> Author -> String -> Double -> String -> Oven state patch test -> IO ()
 startServer port datadir author name timeout admin (concrete -> (prettys, oven)) = do
-    do
-        dir <- getCurrentDirectory
-        strInit (dir </> "bake-string") (25 * 1024 * 1024) -- use at most 25Mb for strings
-
     extra <- newWorker
     var <- newCVar =<< initialise oven author extra
 

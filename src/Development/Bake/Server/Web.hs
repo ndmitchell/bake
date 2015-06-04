@@ -14,7 +14,6 @@ import Development.Bake.Core.Message
 import General.Web
 import General.Extra
 import General.HTML
-import General.Str
 import Data.Hashable
 import Data.List.Extra
 import Data.Tuple.Extra

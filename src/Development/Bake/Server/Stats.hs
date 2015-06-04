@@ -16,7 +16,6 @@ import Data.Monoid
 import Data.List.Extra
 import General.HTML
 import General.Extra
-import General.Str
 import GHC.Stats
 import System.IO.Unsafe
 import System.Time.Extra
@@ -61,7 +60,6 @@ stats Prettys{..} Memory{..} = do
     getGCStatsEnabled <- getGCStatsEnabled
 #endif
     stats <- if getGCStatsEnabled then Just <$> getGCStats else return Nothing
-    info <- strInfo
     rel <- relativeTime
     return $ do
         {-
