@@ -8,7 +8,6 @@ import Development.Bake.Core.Type hiding (Client)
 import Development.Bake.Core.Message
 import Development.Shake.Command
 import Control.Exception.Extra
-import General.Str
 import General.Extra
 import System.Time.Extra
 import Control.DeepSeq
@@ -18,6 +17,7 @@ import System.Environment.Extra
 import System.FilePath
 import Data.Maybe
 import System.Exit
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
 
@@ -36,8 +36,8 @@ runTest s ps t = do
     (ex, ans) <- runAll "test" (state s : map patch ps) (map test $ maybeToList t) (map Test . read)
     return $ maybe ans (\ex -> ans{aTests=ex}) (if t == Nothing then ex else Nothing)
 
-runExtra :: State -> Maybe Patch -> IO (Maybe (Str, Str), Answer)
-runExtra s ps = runAll "extra" (state s : map patch (maybeToList ps)) [] (both strPack . read)
+runExtra :: State -> Maybe Patch -> IO (Maybe (T.Text, TL.Text), Answer)
+runExtra s ps = runAll "extra" (state s : map patch (maybeToList ps)) [] ((T.pack *** TL.pack) . read)
 
 
 runAll :: NFData a => String -> [String] -> [String] -> (String -> a) -> IO (Maybe a, Answer)

@@ -69,7 +69,7 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
                                 case v of
                                     AddPatch _ p -> extra $ do
                                         res <- patchExtra (fst $ active s) $ Just p
-                                        storeExtraAdd (store s) (Right p) $ both (T.pack . strUnpack) res
+                                        storeExtraAdd (store s) (Right p) res
                                     _ -> return ()
                                 recordIO $ (["brain"],) <$> prod oven (prune s) v
                     )
@@ -89,9 +89,8 @@ initialise oven author extra = do
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
     addHistory [(HRestart, Patch "")]
     store <- newStore False "bake-store"
-    when (isJust res) $ extra $ do
-        res <- patchExtra state0 Nothing
-        storeExtraAdd store (Left state0) $ both (T.pack . strUnpack) res
+    when (isJust res) $
+        extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing
     mem <- newMemory store (state0, answer)
     return $ mem
         {authors=[author]
@@ -101,9 +100,9 @@ initialise oven author extra = do
 
 
 -- | Get information about a patch
-patchExtra :: State -> Maybe Patch -> IO (Str, Str)
+patchExtra :: State -> Maybe Patch -> IO (T.Text, TL.Text)
 patchExtra s p = do
     (ex,ans) <- runExtra s p
-    let failSummary = renderHTML $ i_ $ str_ "Error when computing patch information"
-    let failDetail = renderHTML $ pre_ $ str_ $ TL.unpack $ aStdout ans
-    return $ fromMaybe (strPack failSummary, strPack failDetail) ex
+    let failSummary = T.pack $ renderHTML $ i_ $ str_ "Error when computing patch information"
+    let failDetail = TL.pack $ renderHTML $ pre_ $ str_ $ TL.unpack $ aStdout ans
+    return $ fromMaybe (failSummary, failDetail) ex

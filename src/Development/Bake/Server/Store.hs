@@ -31,6 +31,7 @@ import System.Directory
 import Database.SQLite.Simple
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
+import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 import System.FilePath
 import Prelude
@@ -334,10 +335,10 @@ storeExtra Store{..} sp = unsafePerformIO $ do
     return $ (,prefix </> "extra-long.html") <$> short
 
 
-storeExtraAdd :: Store -> Either State Patch -> (T.Text, T.Text) -> IO ()
+storeExtraAdd :: Store -> Either State Patch -> (T.Text, TL.Text) -> IO ()
 storeExtraAdd Store{..} sp (short, long) = do
     let prefix = path </> either show show sp
     createDirectoryIfMissing True prefix
     T.writeFile (prefix </> "extra-short.html") short
-    T.writeFile (prefix </> "extra-long.html") long
+    TL.writeFile (prefix </> "extra-long.html") long
     modifyIORef cache $ \c -> c{cacheExtra = HashMap.insert sp (Just short) $ cacheExtra c}
