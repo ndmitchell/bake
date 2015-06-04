@@ -256,8 +256,8 @@ storeUpdate store xs = do
                 pt <- maybe (return Nothing) (fmap Just . ensurePoint store) p
                 execute conn "INSERT INTO state VALUES (?,?,?,?)" $ DbState s now pt aDuration
                 [Only x] <- query_ conn "SELECT last_insert_rowid()"
-                createDirectoryIfMissing True (path </> "update")
-                TL.writeFile (path </> "update" </> show x <.> "txt") aStdout
+                createDirectoryIfMissing True (path </> show x)
+                TL.writeFile (path </> show x </> "update.txt") aStdout
                 modifyIORef cache $ \c -> c{cacheState = HashMap.insert s (x, StateInfo now p) $ cacheState c}
             IUQueue p a -> do
                 execute conn "INSERT INTO patch VALUES (?,?,?,?,?,?,?,?,?)" $
