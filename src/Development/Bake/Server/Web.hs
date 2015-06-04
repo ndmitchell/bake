@@ -14,7 +14,6 @@ import Development.Bake.Core.Message
 import General.Web
 import General.Extra
 import General.HTML
-import General.DelayCache
 import General.Str
 import Data.Hashable
 import Data.List.Extra
@@ -27,15 +26,15 @@ import Control.Applicative
 import Control.Monad.Extra
 import Data.Monoid
 import Paths_bake
+import qualified Data.Text as T
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Prelude
 
 
-web :: DelayCache (Either State Patch) (Str,Str) -> Prettys -> String -> [(String, String)] -> Memory -> IO String
-web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
-    extra <- askDelayCache extra
-    shower@Shower{..} <- shower extra prettys argsAdmin
+web :: Prettys -> String -> [(String, String)] -> Memory -> IO String
+web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
+    shower@Shower{..} <- shower store prettys argsAdmin
     stats <- if argsStats then stats prettys mem else return mempty
     now <- getCurrentTime
     return $ (valueHTML &&& renderHTML . void) $ template $ do
@@ -193,8 +192,8 @@ data Shower = Shower
     ,showThreads :: Int -> HTML
     }
 
-shower :: (Either State Patch -> Maybe (Str, Str)) -> Prettys -> Bool -> IO Shower
-shower extra Prettys{..} argsAdmin = do
+shower :: Store -> Prettys -> Bool -> IO Shower
+shower store Prettys{..} argsAdmin = do
     showRel <- showRelativeTime
     let shwState (State "") = span__ [class_ "bad" ] $ str_ $ "invalid state"
         shwState s = shwLink ("state=" ++ fromState s) $ str_ $ prettyState s
@@ -206,7 +205,7 @@ shower extra Prettys{..} argsAdmin = do
         ,showCandidate = \(s,ps) -> do
             shwState s
             when (not $ null ps) $ str_ " plus " <> commas_ (map shwPatch ps)
-        ,showExtra = \e -> raw_ $ maybe "" (strUnpack . fst) $ extra e
+        ,showExtra = \e -> raw_ $ maybe mempty (T.unpack . fst) $ storeExtra store e
         ,showClient = \c -> shwLink ("client=" ++ url_ (fromClient c)) $ str_ $ fromClient c
         ,showTest = f Nothing Nothing []
         ,showTestAt = \(s,ps) -> f Nothing (Just s) ps

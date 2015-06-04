@@ -12,6 +12,7 @@ module General.Extra(
     eitherToMaybe,
     newCVar, readCVar, modifyCVar, modifyCVar_,
     registerMaster, forkSlave,
+    Worker, newWorker,
     makeRelativeEx,
     transitiveClosure, findCycle,
     putBlock,
@@ -112,7 +113,6 @@ time act = do
     tot <- logTime
     putStrLn $ "[BAKE-TIME] " ++ showDuration tim ++ " (total of " ++ showDuration tot ++ "): " ++ msg
     return res
-
 
 makeRelativeEx :: FilePath -> FilePath -> IO FilePath
 makeRelativeEx x y = do
@@ -215,6 +215,13 @@ forkSlave act = forkFinally act $ \v -> case v of
         m <- readIORef master
         whenJust m $ flip throwTo e
     _ -> return ()
+
+type Worker = IO () -> IO ()
+
+newWorker :: IO Worker
+newWorker = do
+    lock <- newLock
+    return $ \act -> void $ forkIO $ withLock lock act
 
 
 ---------------------------------------------------------------------

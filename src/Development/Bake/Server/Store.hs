@@ -7,6 +7,7 @@ module Development.Bake.Server.Store(
     PointInfo(..), poTest, storePoint, storeSupersetPass,
     StateInfo(..), storeStateList, storeState,
     storeItemsDate,
+    storeExtra, storeExtraAdd,
     Update(..), storeUpdate
     ) where
 
@@ -28,6 +29,8 @@ import Control.Applicative
 import Control.Monad.Extra
 import System.Directory
 import Database.SQLite.Simple
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy.IO as TL
 import System.FilePath
 import Prelude
@@ -37,6 +40,7 @@ data Cache = Cache
     {cachePatch :: HashMap.HashMap Patch (PatchId, PatchInfo)
     ,cacheState :: HashMap.HashMap State (StateId, StateInfo)
     ,cachePoint :: HashMap.HashMap Point (PointId, PointInfo)
+    ,cacheExtra :: HashMap.HashMap (Either State Patch) (Maybe T.Text)
     }
 
 
@@ -90,7 +94,7 @@ newStore mem path = do
     conn <- create $ if mem then ":memory:" else path </> "bake.sqlite"
     execute_ conn "PRAGMA journal_mode = WAL;"
     execute_ conn "PRAGMA synchronous = OFF;"
-    cache <- newIORef $ Cache HashMap.empty HashMap.empty HashMap.empty
+    cache <- newIORef $ Cache HashMap.empty HashMap.empty HashMap.empty HashMap.empty
     return $ Store conn path cache
 
 storePoint :: Store -> Point -> PointInfo
@@ -315,3 +319,25 @@ storeUpdate store xs = do
                 TL.writeFile (path </> show pt </> show x ++ "-" ++ maybe "Prepare" fromTest qTest) aStdout
                 let val = if aSuccess then mempty{poPass=Set.singleton qTest} else mempty{poFail=Set.singleton qTest}
                 modifyIORef cache $ \c -> c{cachePoint = HashMap.insertWith together qCandidate (pt, val) $ cachePoint c}
+
+
+storeExtra :: Store -> Either State Patch -> Maybe (T.Text, FilePath)
+storeExtra Store{..} sp = unsafePerformIO $ do
+    c <- readIORef cache
+    let prefix = path </> either show show sp
+    short <- case HashMap.lookup sp $ cacheExtra c of
+        Just v -> return v
+        Nothing -> do
+            short <- ifM (doesFileExist $ prefix </> "extra-short.html") (fmap Just $ T.readFile $ prefix </> "extra-short.html") (return Nothing)
+            modifyIORef cache $ \c -> c{cacheExtra = HashMap.insert sp short $ cacheExtra c}
+            return short
+    return $ (,prefix </> "extra-long.html") <$> short
+
+
+storeExtraAdd :: Store -> Either State Patch -> (T.Text, T.Text) -> IO ()
+storeExtraAdd Store{..} sp (short, long) = do
+    let prefix = path </> either show show sp
+    createDirectoryIfMissing True prefix
+    T.writeFile (prefix </> "extra-short.html") short
+    T.writeFile (prefix </> "extra-long.html") long
+    modifyIORef cache $ \c -> c{cacheExtra = HashMap.insert sp (Just short) $ cacheExtra c}

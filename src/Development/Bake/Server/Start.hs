@@ -18,16 +18,17 @@ import Development.Bake.Server.Stats
 import Development.Bake.Server.History
 import Development.Bake.Server.Memory
 import Development.Bake.Server.Store
-import General.DelayCache
 import Control.Applicative
 import Control.DeepSeq
 import Control.Exception.Extra
 import Data.List.Extra
 import Data.Maybe
+import Data.Tuple.Extra
 import Control.Monad.Extra
 import System.Directory
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.ByteString.Char8 as BS
 import Prelude
@@ -39,7 +40,8 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
     do
         dir <- getCurrentDirectory
         strInit (dir </> "bake-string") (25 * 1024 * 1024) -- use at most 25Mb for strings
-    extra <- newDelayCache
+
+    extra <- newWorker
     var <- newCVar =<< initialise oven author extra
 
     server port $ \i@Input{..} -> do
@@ -50,7 +52,7 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
             res <-
                 if null inputURL then do
                     -- prune but don't save, will reprune on the next ping
-                    fmap OutputHTML $ web extra prettys admin inputArgs . prune =<< readCVar var
+                    fmap OutputHTML $ web prettys admin inputArgs . prune =<< readCVar var
                 else if ["history"] `isPrefixOf` inputURL then
                     fmap (OutputString . BS.unpack) readHistory 
                 else if ["html"] `isPrefixOf` inputURL then
@@ -65,7 +67,9 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
                             evaluate $ rnf v
                             fmap questionToOutput $ modifyCVar var $ \s -> do
                                 case v of
-                                    AddPatch _ p -> addDelayCache extra (Right p) $ patchExtra (fst $ active s) $ Just p
+                                    AddPatch _ p -> extra $ do
+                                        res <- patchExtra (fst $ active s) $ Just p
+                                        storeExtraAdd (store s) (Right p) $ both (T.pack . strUnpack) res
                                     _ -> return ()
                                 recordIO $ (["brain"],) <$> prod oven (prune s) v
                     )
@@ -74,7 +78,7 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
             evaluate $ force res
 
 
-initialise :: Oven State Patch Test -> String -> DelayCache (Either State Patch) (Str, Str) -> IO Memory
+initialise :: Oven State Patch Test -> String -> Worker -> IO Memory
 initialise oven author extra = do
     now <- getCurrentTime
     putStrLn "Initialising server, computing initial state..."
@@ -83,9 +87,11 @@ initialise oven author extra = do
         ovenNotify oven [author] "Failed to initialise, pretty serious"
     let state0 = fromMaybe stateFailure res
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
-    when (isJust res) $ addDelayCache extra (Left state0) $ patchExtra state0 Nothing
     addHistory [(HRestart, Patch "")]
     store <- newStore False "bake-store"
+    when (isJust res) $ extra $ do
+        res <- patchExtra state0 Nothing
+        storeExtraAdd store (Left state0) $ both (T.pack . strUnpack) res
     mem <- newMemory store (state0, answer)
     return $ mem
         {authors=[author]
