@@ -38,12 +38,9 @@ garbageCollect bytes ratio limit dirs@(d:_) = do
                 return $ Right done
             else do
                 putStr $ "[BAKE-GC] Deleting " ++ gPath g ++ "..."
-                res <- try_ $
-                    if gDirectory g then do
-                        renameDirectory (gPath g) (gPath g <.> "gc")
-                        removeDirectoryRecursive (gPath g <.> "gc")
-                    else
-                        removeFile (gPath g)
+                res <- try_ $ do
+                    renameDirectory (gPath g) (gPath g <.> "gc")
+                    removeDirectoryRecursive (gPath g <.> "gc")
                 putStrLn $ either (\e -> "FAILED\n" ++ show e) (const "success") res
                 return $ Left (True,gs)
     when done $
@@ -52,7 +49,6 @@ garbageCollect bytes ratio limit dirs@(d:_) = do
 
 data Garbage = Garbage
     {gPath :: FilePath
-    ,gDirectory :: Bool
     ,gAge :: Seconds -- ^ Age in seconds, will be positive (unless clock adjustments)
     }
 
@@ -67,8 +63,4 @@ garbageQuery dirs = do
 
     fmap (concatMap catMaybes) $ forM dirs $ \dir -> do
         dirs <- listContents dir
-        dirs <- forM dirs $ \dir -> f (Garbage dir True) $ dir </> ".bake.name"
-
-        files <- listFiles (dir </> "bake-string") `catch_` const (return [])
-        files <- forM files $ \file -> f (Garbage file False) file
-        return $ dirs ++ files
+        forM dirs $ \dir -> f (Garbage dir) $ dir </> ".bake.name"
