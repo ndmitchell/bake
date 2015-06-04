@@ -341,7 +341,7 @@ storeRunList store@Store{..} client test state patches run = unsafePerformIO $ d
                [("run.point IS ?", toField x) | Just x <- [point]] ++
                [("run.rowid IS ?", toField x) | Just x <- [run]]
     let str = "SELECT run.rowid, run.* FROM run" ++ (if isJust patches then ", point" else "") ++ " WHERE " ++
-              intercalate " AND " (map fst filt) ++ " ORDER BY date(run.start) DESC"
+              intercalate " AND " (map fst filt) ++ " ORDER BY datetime(run.start) DESC"
     xs :: [Only RunId :. DbRun] <- query conn (fromString str) $ map snd filt
     forM xs $ \(Only run :. DbRun{..}) -> do
         pt <- unsurePoint store rPoint
