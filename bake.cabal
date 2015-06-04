@@ -84,7 +84,6 @@ library
         Development.Bake.Server.Stats
         Development.Bake.Server.Store
         Development.Bake.Server.Web
-        General.DelayCache
         General.Equal
         General.Extra
         General.HTML
