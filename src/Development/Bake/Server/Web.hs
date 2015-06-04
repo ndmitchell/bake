@@ -37,6 +37,7 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
     extra <- askDelayCache extra
     shower@Shower{..} <- shower extra prettys argsAdmin
     stats <- if argsStats then stats prettys mem else return mempty
+    now <- getCurrentTime
     return $ (valueHTML &&& renderHTML . void) $ template $ do
         let noargs = argsEmpty a
 
@@ -57,9 +58,9 @@ web extra prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fma
             progress shower mem
 
             table "No patches submitted" ["Submitted","Job","Status"] $
-                map (\p -> rowPatch shower mem argsAdmin p) $ map snd $ reverse $ sortOn fst $
-                [(fst $ paQueued pi, Right (p,pi)) | (p, pi) <- map (id &&& storePatch store) $ storePatchList store] ++
-                [(stCreated si, Left (s,si)) | (s, si) <- map (id &&& storeState store) $ storeStateList store]
+                map (\p -> rowPatch shower mem argsAdmin p) $
+                map (either (Left . (id &&& storeState store)) (Right . (id &&& storePatch store))) $
+                storeItemsDate store (addSeconds (-24*60*60) now, now)
 
             unless (Map.null skipped) $ do
                 h2_ $ str_ "Skipped tests"

@@ -6,6 +6,7 @@ module Development.Bake.Server.Store(
     PatchInfo(..), paAlive, storePatchList, storeIsPatch, storePatch, storeAlive,
     PointInfo(..), poTest, storePoint, storeSupersetPass,
     StateInfo(..), storeStateList, storeState,
+    storeItemsDate,
     Update(..), storeUpdate
     ) where
 
@@ -16,6 +17,7 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Time
+import Data.List.Extra
 import Data.String
 import System.IO.Unsafe
 import Data.IORef
@@ -166,6 +168,14 @@ storeStateEx store@Store{..} st = do
             res <- ans
             modifyIORef cache $ \c -> c{cacheState = HashMap.insert st res $ cacheState c}
             return res
+
+
+storeItemsDate :: Store -> (UTCTime, UTCTime) -> [Either State Patch]
+storeItemsDate store (start, end) =
+    map snd $ reverse $ sortOn fst $
+    [(fst $ paQueued pi, Right p) | (p, pi) <- map (id &&& storePatch store) $ storePatchList store] ++
+    [(stCreated si, Left s) | (s, si) <- map (id &&& storeState store) $ storeStateList store]
+
 
 
 storeAlive :: Store -> Set.Set Patch
