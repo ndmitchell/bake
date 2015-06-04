@@ -20,13 +20,16 @@ import Prelude
 
 
 newtype PointId = PointId Int deriving (ToField, FromField)
-newtype RunId = RunId Int deriving (ToField, FromField)
+newtype RunId = RunId Int deriving (ToField, FromField, Eq)
 newtype StateId = StateId Int deriving (ToField, FromField)
 newtype PatchId = PatchId Int deriving (ToField, FromField)
 
 instance Show PointId where show (PointId x) = "point-" ++ show x
 instance Show RunId where show (RunId x) = "run-" ++ show x
 instance Show StateId where show (StateId x) = "state-" ++ show x
+instance Show PatchId where show (PatchId x) = "patch-" ++ show x
+
+instance Read RunId where readsPrec i s = [x | Just s <- [stripPrefix "run-" s], x <- readsPrec i s]
 
 newtype PatchIds = PatchIds String deriving (ToField, FromField)
 
@@ -113,6 +116,9 @@ instance ToRow DbReject where
 
 instance ToRow DbRun where
     toRow (DbRun a b c d e f) = toRow (a,b,c,d,e,f)
+
+instance FromRow DbRun where
+    fromRow = DbRun <$> field <*> field <*> field <*> field <*> field <*> field
 
 instance ToRow DbPoint where
     toRow (DbPoint a b) = toRow (a,b)

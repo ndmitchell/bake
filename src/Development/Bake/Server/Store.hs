@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, OverloadedStrings, ScopedTypeVariables, TupleSections #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings, ScopedTypeVariables, TupleSections, TypeOperators #-}
 
 -- Stuff on disk on the server
 module Development.Bake.Server.Store(
@@ -6,6 +6,7 @@ module Development.Bake.Server.Store(
     PatchInfo(..), paAlive, storePatchList, storeIsPatch, storePatch, storeAlive,
     PointInfo(..), poTest, storePoint, storeSupersetPass,
     StateInfo(..), storeStateList, storeState,
+    RunId, storeRunList, storeStateFile, storeRunFile,
     storeItemsDate,
     storeExtra, storeExtraAdd,
     Update(..), storeUpdate
@@ -29,6 +30,7 @@ import Control.Applicative
 import Control.Monad.Extra
 import System.Directory
 import Database.SQLite.Simple
+import Database.SQLite.Simple.ToField
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
@@ -198,7 +200,7 @@ storeSupersetPass store@Store{..} (s,ps) = unsafePerformIO $ do
             ,"FROM run, point"
             ,"WHERE run.point IS point.rowid AND run.test IS NOT NULL AND point.state IS ? AND point.patches LIKE ?"
             ,"GROUP BY run.point, run.test)"
-            ,"WHERE success == 1"]
+            ,"WHERE success IS 1"]
     ts <- query conn (fromString q) (s, patchIdsSuperset ps)
     return $ Set.fromList $ map fromOnly ts
 
@@ -317,27 +319,67 @@ storeUpdate store xs = do
                 execute conn "INSERT INTO run VALUES (?,?,?,?,?,?)" $ DbRun pt qTest aSuccess qClient t aDuration
                 [Only (x :: RunId)] <- query_ conn "SELECT last_insert_rowid()"
                 createDirectoryIfMissing True $ path </> show pt
-                TL.writeFile (path </> show pt </> show x ++ "-" ++ maybe "Prepare" fromTest qTest) aStdout
+                TL.writeFile (path </> show pt </> show x ++ "-" ++ maybe "Prepare" fromTest qTest <.> "txt") aStdout
                 let val = if aSuccess then mempty{poPass=Set.singleton qTest} else mempty{poFail=Set.singleton qTest}
                 modifyIORef cache $ \c -> c{cachePoint = HashMap.insertWith together qCandidate (pt, val) $ cachePoint c}
 
 
-storeExtra :: Store -> Either State Patch -> Maybe (T.Text, FilePath)
-storeExtra Store{..} sp = unsafePerformIO $ do
+storeStateFile :: Store -> State -> Maybe String
+storeStateFile store@Store{..} st = unsafePerformIO $ do
+    st <- ensureState store st
+    let file = path </> show st </> "update.txt"
+    ifM (doesFileExist file) (Just <$> readFile file) (return Nothing)
+
+
+storeRunList :: Store -> Maybe Client -> Maybe (Maybe Test) -> Maybe State -> [Patch] -> Maybe RunId -> [(RunId, UTCTime, Question, Answer)]
+storeRunList store@Store{..} client test state patches run = unsafePerformIO $ do
+    point <- maybe (return Nothing) (fmap Just . ensurePoint store . (, patches)) state
+    patches <- if isNothing state && patches /= [] then Just <$> mapM (ensurePatch store) patches else return Nothing
+    let filt = [("run.client IS ?", toField x) | Just x <- [client]] ++
+               [("run.test IS ?", toField x) | Just x <- [test]] ++
+               [("point.rowid IS run.point AND point.patches LIKE ?", toField $ patchIdsSuperset x) | Just x <- [patches]] ++
+               [("run.point IS ?", toField x) | Just x <- [point]] ++
+               [("run.rowid IS ?", toField x) | Just x <- [run]]
+    let str = "SELECT run.rowid, run.* FROM run" ++ (if isJust patches then ", point" else "") ++ " WHERE " ++
+              intercalate " AND " (map fst filt) ++ " ORDER BY date(run.start) DESC"
+    xs :: [Only RunId :. DbRun] <- query conn (fromString str) $ map snd filt
+    forM xs $ \(Only run :. DbRun{..}) -> do
+        pt <- unsurePoint store rPoint
+        return (run, rStart, Question pt rTest 0 rClient, Answer mempty rDuration [] rSuccess)
+
+
+storeRunFile :: Store -> RunId -> Maybe String
+storeRunFile store@Store{..} run = unsafePerformIO $ do
+    [DbRun{..}] <- query conn "SELECT * FROM run WHERE rowid IS ?" $ Only run
+    let file = path </> show rPoint </> show run ++ "-" ++ maybe "Prepare" fromTest rTest <.> "txt"
+    ifM (doesFileExist file) (Just <$> readFile file) (return Nothing)
+
+
+storeExtraFile :: Store -> Either State Patch -> IO FilePath
+storeExtraFile store@Store{..} x = (path </>) <$> either (fmap show . ensureState store) (fmap show . ensurePatch store) x
+
+
+storeExtra :: Store -> Either State Patch -> Maybe (String, String)
+storeExtra store@Store{..} sp = unsafePerformIO $ do
     c <- readIORef cache
-    let prefix = path </> either show show sp
+    prefix <- storeExtraFile store sp
     short <- case HashMap.lookup sp $ cacheExtra c of
         Just v -> return v
         Nothing -> do
             short <- ifM (doesFileExist $ prefix </> "extra-short.html") (fmap Just $ T.readFile $ prefix </> "extra-short.html") (return Nothing)
             modifyIORef cache $ \c -> c{cacheExtra = HashMap.insert sp short $ cacheExtra c}
             return short
-    return $ (,prefix </> "extra-long.html") <$> short
+    case short of
+        Nothing -> return Nothing
+        Just short -> do
+            long <- unsafeInterleaveIO $ readFile $ prefix </> "extra-long.html"
+            return $ Just (T.unpack short, long)
 
 
 storeExtraAdd :: Store -> Either State Patch -> (T.Text, TL.Text) -> IO ()
-storeExtraAdd Store{..} sp (short, long) = do
-    let prefix = path </> either show show sp
+storeExtraAdd store@Store{..} sp (short, long) = do
+    print ("storeExtraAdd", sp)
+    prefix <- storeExtraFile store sp
     createDirectoryIfMissing True prefix
     T.writeFile (prefix </> "extra-short.html") short
     TL.writeFile (prefix </> "extra-long.html") long

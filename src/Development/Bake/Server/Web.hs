@@ -93,40 +93,38 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
 
          else if isJust argsServer then do
             let s = fromJust argsServer
-            {-
-            table "No server operations" ["Time","Job","Status"] $
+            table "No server operations" ["Time","Job"] $
                 map (("",) . rowUpdate shower mem) $
-                    filter (maybe (const True) (==) s . fst) $
-                    reverse $ zip [0..] $ reverse updates
+                    map (id &&& storeState store) $ storeStateList store
             whenJust s $ \s -> do
                 h2_ $ str_ "Output"
-                pre_ $ str_ $ strUnpack $ aStdout $ upAnswer $ reverse updates !! s
-            -}
+                case storeStateFile store s of
+                    Nothing -> p_ $ i_ $ str_ "File missing"
+                    Just src -> pre_ $ str_ src
             return "server"
 
          else do
-            return "list" {-
-            let xs = filter (argsFilter a . snd3) $
-                    map (\(t,q) -> (t,q,Nothing)) running ++ map (\(t,q,a) -> (t,q,Just a)) history
+            let xs = map (\(t,q) -> (Nothing,t,q,Nothing)) (filter (argsFilter a . snd) running) ++
+                     map (\(a,b,c,d) -> (Just a,b,c,Just d)) (storeRunList store argsClient argsTest argsState argsPatch argsRun)
             table "No runs" ["Time","Job","Status"] $
-                map (("",) . rowHistory shower mem) xs
+                map (rowHistory shower mem) xs
 
             case xs of
                 _ | Just s <- argsState, argsEmpty a{argsState=Nothing} ->
-                    maybe' (extra $ Left s) (return "list") $ \(_, e) -> do
-                        h2_ $ str_ "State information"; raw_ $ strUnpack e
+                    maybe' (storeExtra store $ Left s) (return "list") $ \(_, e) -> do
+                        h2_ $ str_ "State information"; raw_ e
                         return "state"
                 _ | [p] <- argsPatch, argsEmpty a{argsPatch=[]} ->
-                    maybe' (extra $ Right p) (return "list") $ \(_, e) -> do
-                        h2_ $ str_ "Patch information"; raw_ $ strUnpack e
+                    maybe' (storeExtra store $ Right p) (return "list") $ \(_, e) -> do
+                        h2_ $ str_ "Patch information"; raw_ e
                         return "patch"
-                [(_,Question{..},Just Answer{..})] -> do
+                [(Just run,_,Question{..},Just Answer{..})] -> do
                     when (argsAdmin && not aSuccess) $ whenJust qTest $ \t ->
                         p_ $ admin (AddSkip "admin" t) $ str_ "Skip test"
                     h2_ $ str_ "Output"
-                    pre_ $ str_ $ strUnpack aStdout
+                    pre_ $ str_ $ fromMaybe "Missing" $ storeRunFile store run
                     return "output"
-                _ -> return "list" -}
+                _ -> return "list"
 
 
 data Args = Args
@@ -134,7 +132,8 @@ data Args = Args
     ,argsPatch :: [Patch]
     ,argsClient :: Maybe Client
     ,argsTest :: Maybe (Maybe Test)
-    ,argsServer :: Maybe (Maybe Int)
+    ,argsRun :: Maybe RunId
+    ,argsServer :: Maybe (Maybe State)
     ,argsAdmin :: Bool
     ,argsStats :: Bool
     ,argsRaw :: Bool
@@ -150,7 +149,8 @@ args admn xs = Args
     (map Patch $ ask "patch")
     (listToMaybe $ map Client $ ask "client")
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ Test x) $ ask "test")
-    (listToMaybe $ map (\x -> if null x then Nothing else Just $ read x) $ ask "server")
+    (listToMaybe $ map read $ ask "run")
+    (listToMaybe $ map (\x -> if null x then Nothing else Just $ State x) $ ask "server")
     (any (if null admn then const True else (==) admn . show . hash) $ ask "admin")
     (not $ null $ ask "stats")
     (not $ null $ ask "raw")
@@ -158,6 +158,7 @@ args admn xs = Args
 
 argsFilter :: Args -> Question -> Bool
 argsFilter Args{..} Question{..} =
+    isNothing argsRun &&
     maybe True (== qClient) argsClient &&
     maybe True (== qTest) argsTest &&
     case argsState of
@@ -204,7 +205,7 @@ shower store Prettys{..} argsAdmin = do
         ,showCandidate = \(s,ps) -> do
             shwState s
             when (not $ null ps) $ str_ " plus " <> commas_ (map shwPatch ps)
-        ,showExtra = \e -> raw_ $ maybe mempty (T.unpack . fst) $ storeExtra store e
+        ,showExtra = \e -> raw_ $ maybe "" fst $ storeExtra store e
         ,showClient = \c -> shwLink ("client=" ++ url_ (fromClient c)) $ str_ $ fromClient c
         ,showTest = f Nothing Nothing []
         ,showTestAt = \(s,ps) -> f Nothing (Just s) ps
@@ -295,8 +296,8 @@ showAnswer (Just Answer{..}) =
                 else span__ [class_ "bad" ] $ str_ $ "Failed in "    ++ showDuration aDuration
 
 
-rowHistory :: Shower -> Memory -> (UTCTime, Question, Maybe Answer) -> [HTML]
-rowHistory Shower{..} Memory{..} (t, q@Question{..}, a) = [showTime t, body, showAnswer a]
+rowHistory :: Shower -> Memory -> (Maybe RunId, UTCTime, Question, Maybe Answer) -> (String, [HTML])
+rowHistory Shower{..} Memory{..} (run, t, q@Question{..}, a) = ("", [showTime t, body, showAnswer a])
     where
         body = do
             str_ "With " <> showCandidate qCandidate
@@ -304,16 +305,16 @@ rowHistory Shower{..} Memory{..} (t, q@Question{..}, a) = [showTime t, body, sho
             str_ "Test " <> showQuestion q <> str_ " on " <> showClient qClient
             str_ " with " <> showThreads qThreads
 
-{-
-rowUpdate :: Shower -> Memory -> (Int,Update) -> [HTML]
-rowUpdate Shower{..} Memory{..} (i,Update{..}) = [showTime upTime, body, showAnswer $ Just upAnswer]
+
+rowUpdate :: Shower -> Memory -> (State,StateInfo) -> [HTML]
+rowUpdate Shower{..} Memory{..} (s,StateInfo{..}) = [showTime stCreated, body]
     where
         body = do
-            showLink ("server=" ++ show i) $ str_ $ if null upPrevious then "Initialised" else "Updated"
+            showLink ("server=" ++ fromState s) $ str_ $ if null stSource then "Initialised" else "Updated"
             br_
-            unless (null upPrevious) $ str_ "With " <> commas_ (map showPatch upPrevious)
-            str_ "To " <> showState upState
--}
+            whenJust stSource $ \src -> str_ "With " <> commas_ (map showPatch $ snd src)
+            str_ "To " <> showState s
+
 
 rowPatch :: Shower -> Memory -> Bool -> Either (State, StateInfo) (Patch,PatchInfo) -> (String, [HTML])
 rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state, body <> special])
@@ -374,6 +375,6 @@ rowClient Shower{..} Memory{..} (Just (c, ClientInfo{..})) = ((if ciAlive then "
     where xs = reverse [showQuestion q <> str_ " started " <> showTime t | (t,q) <- running, qClient q == c]
 rowClient Shower{..} Memory{..} Nothing = ("",) $
     [showLink "server=" $ i_ $ str_ "Server"
-    ,str_ (if isNothing stSource then "Initialised" else "Updated") <>
+    ,showLink ("server=" ++ fromState (fst active)) (str_ $ if isNothing stSource then "Initialised" else "Updated") <>
         str_ " finished " <> showTime stCreated]
     where StateInfo{..} = storeState store $ fst active

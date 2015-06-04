@@ -62,6 +62,7 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
                             fmap questionToOutput $ modifyCVar var $ \s -> do
                                 case v of
                                     AddPatch _ p -> extra $ do
+                                        print ("Calatuing AddPatch ",p)
                                         res <- patchExtra (fst $ active s) $ Just p
                                         storeExtraAdd (store s) (Right p) res
                                     _ -> return ()
@@ -83,8 +84,11 @@ initialise oven author extra = do
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
     addHistory [(HRestart, Patch "")]
     store <- newStore False "bake-store"
-    when (isJust res) $
-        extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing
+    when (isJust res) $ do
+        print ("Registering AddState ",state0)
+        extra $ do
+            print ("Running addstate ",state0)
+            storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing
     mem <- newMemory store (state0, answer)
     return $ mem
         {authors=[author]
