@@ -37,6 +37,8 @@ import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 import System.FilePath
+import Control.DeepSeq
+import Control.Exception
 import Prelude
 
 
@@ -279,6 +281,9 @@ ensurePoint store@Store{..} (s, ps) = do
 {-# NOINLINE storeUpdate #-}
 storeUpdate :: Store -> [Update] -> IO Store
 storeUpdate store xs = do
+    -- important so that if the updates depend on the current store they are forced first
+    -- the perils of impurity!
+    evaluate $ rnf $ show xs
     now <- getCurrentTime
 --    print $ ("Updating",xs)
     mapM_ (f now store) xs
