@@ -60,9 +60,9 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
                 map (either (Left . (id &&& storeState store)) (Right . (id &&& storePatch store))) $
                 storeItemsDate store (addSeconds (-24*60*60) now, now)
 
-            unless (Map.null skipped) $ do
+            unless (Map.null $ storeSkip store) $ do
                 h2_ $ str_ "Skipped tests"
-                ul_ $ fmap mconcat $ forM (Map.toList skipped) $ \(test,author) -> li_ $ do
+                ul_ $ fmap mconcat $ forM (Map.toList $ storeSkip store) $ \(test,author) -> li_ $ do
                     showTest (Just test) <> str_ (", by " ++ author ++ ".")
                     when argsAdmin $ str_ " " <> admin (DelSkip "admin" test) (str_ "Remove")
             h2_ $ str_ "Clients"

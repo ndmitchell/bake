@@ -3,7 +3,7 @@
 -- Stuff on disk on the server
 module Development.Bake.Server.Database(
     PointId, RunId, StateId, PatchId, patchIds, fromPatchIds, patchIdsSuperset,
-    DbState(..), DbPatch(..), DbReject(..), DbPoint(..), DbRun(..), DbTest(..),
+    DbState(..), DbPatch(..), DbReject(..), DbPoint(..), DbRun(..), DbTest(..), DbSkip(..),
     create
     ) where
 
@@ -85,6 +85,12 @@ data DbTest = DbTest
 createTests = "CREATE TABLE IF NOT EXISTS test (" ++
     "point INTEGER NOT NULL, test TEXT)"
 
+data DbSkip = DbSkip
+    {kTest :: Test, kComment :: String}
+
+createSkip = "CREATE TABLE IF NOT EXISTS skip (" ++
+    "test TEXT NOT NULL PRIMARY KEY, comment TEXT NOT NULL)"
+
 create :: String -> IO Connection
 create file = do
     c <- open file
@@ -94,6 +100,7 @@ create file = do
     execute_ c $ fromString createPoint
     execute_ c $ fromString createRun
     execute_ c $ fromString createTests
+    execute_ c $ fromString createSkip
     return c
 
 instance FromRow DbPatch where
@@ -122,6 +129,12 @@ instance FromRow DbRun where
 
 instance ToRow DbPoint where
     toRow (DbPoint a b) = toRow (a,b)
+
+instance ToRow DbSkip where
+    toRow (DbSkip a b) = toRow (a,b)
+
+instance FromRow DbSkip where
+    fromRow = DbSkip <$> field <*> field
 
 instance FromField Patch where fromField = fmap Patch . fromField
 instance ToField Patch where toField = toField . fromPatch

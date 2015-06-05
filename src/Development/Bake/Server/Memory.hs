@@ -42,14 +42,12 @@ data Memory = Memory
         -- ^ Pretend the queued is empty
     ,active :: Point
         -- ^ the target we are working at (some may already be rejected)
-    ,skipped :: Map.Map Test String
-        -- ^ tests which are currently skipped
     }
 
 newMemory :: Store -> (State, Answer) -> IO Memory
 newMemory store (state, answer) = do
     store <- storeUpdate store [IUState state answer Nothing]
-    return $ Memory False [] store [] Map.empty [] False (state, []) Map.empty
+    return $ Memory False [] store [] Map.empty [] False (state, [])
 
 instance NFData Memory where
     rnf Memory{..} = ()

@@ -42,7 +42,7 @@ prod oven mem msg = do
     mem <- reacts oven mem
     case msg of
         Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p ->
-            if maybe False (`Map.member` skipped mem) $ qTest q then
+            if maybe False (`Map.member` storeSkip (store mem)) $ qTest q then
                 prod oven mem $ Finished q $ Answer (TL.pack "Skipped due to being on the skip list") 0 [] True
             else do
                 now <- getCurrentTime
@@ -153,12 +153,16 @@ update oven mem@Memory{..} (Pinged ping) = do
     return mem{clients = Map.alter (Just . ClientInfo now ping True . maybe Map.empty ciTests) (pClient ping) clients}
 
 update oven mem@Memory{..} (AddSkip author test)
-    | test `Map.member` skipped = error "already skipped"
-    | otherwise = return mem{skipped = Map.insert test author skipped}
+    | test `Map.member` storeSkip store = error "already skipped"
+    | otherwise = do
+        store <- storeUpdate store [SUAdd test author]
+        return mem{store = store}
 
 update oven mem@Memory{..} (DelSkip author test)
-    | test `Map.notMember` skipped = error "already not skipped"
-    | otherwise = return mem{skipped = Map.delete test skipped}
+    | test `Map.notMember` storeSkip store = error "already not skipped"
+    | otherwise = do
+        store <- storeUpdate store [SUDel test]
+        return mem{store = store}
 
 update oven mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
     now <- getCurrentTime

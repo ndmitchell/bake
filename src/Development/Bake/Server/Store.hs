@@ -8,6 +8,7 @@ module Development.Bake.Server.Store(
     StateInfo(..), storeStateList, storeState,
     RunId, storeRunList, storeStateFile, storeRunFile,
     storeItemsDate,
+    storeSkip,
     storeExtra, storeExtraAdd,
     Update(..), storeUpdate
     ) where
@@ -44,6 +45,7 @@ data Cache = Cache
     ,cacheState :: HashMap.HashMap State (StateId, StateInfo)
     ,cachePoint :: HashMap.HashMap Point (PointId, PointInfo)
     ,cacheExtra :: HashMap.HashMap (Either State Patch) (Maybe T.Text)
+    ,cacheSkip :: Maybe (Map.Map Test String)
     }
 
 
@@ -97,7 +99,7 @@ newStore mem path = do
     conn <- create $ if mem then ":memory:" else path </> "bake.sqlite"
     execute_ conn "PRAGMA journal_mode = WAL;"
     execute_ conn "PRAGMA synchronous = OFF;"
-    cache <- newIORef $ Cache HashMap.empty HashMap.empty HashMap.empty HashMap.empty
+    cache <- newIORef $ Cache HashMap.empty HashMap.empty HashMap.empty HashMap.empty Nothing
     return $ Store conn path cache
 
 storePoint :: Store -> Point -> PointInfo
@@ -189,6 +191,18 @@ storeItemsDate store (start, end) = reverse $ merge
 
         paMaxTime PatchInfo{..} = maximum $ fst paQueued : catMaybes [paStart,paDelete,paSupersede,fmap fst paReject,paPlausible,paMerge]
 
+storeSkip :: Store -> Map.Map Test String
+storeSkip Store{..} = unsafePerformIO $ do
+    let ans = do
+            xs <- query_ conn "SELECT * FROM skip"
+            return $ Map.fromList [(kTest, kComment) | DbSkip{..} <- xs]
+    c <- readIORef cache
+    case cacheSkip c of
+        Just res -> return res
+        _ -> do
+            res <- ans
+            modifyIORef cache $ \c -> c{cacheSkip = Just res}
+            return res
 
 storeAlive :: Store -> Set.Set Patch
 storeAlive Store{..} = unsafePerformIO $ do
@@ -218,6 +232,8 @@ data Update
     | IUPlausible Patch
     | IUSupersede Patch
     | IUMerge Patch
+    | SUAdd Test String
+    | SUDel Test
     | PURun UTCTime Question Answer
       deriving Show
 
@@ -310,6 +326,12 @@ storeUpdate store xs = do
                 let add Nothing = (now, Map.singleton t pt)
                     add (Just (a,b)) = (a, b `Map.union` Map.singleton t pt)
                 modifyIORef cache $ \c -> c{cachePatch = HashMap.adjust (second $ \pa -> pa{paReject = Just $ add $ paReject pa}) p $ cachePatch c}
+            SUAdd t msg -> do
+                execute conn "INSERT INTO skip VALUES (?,?)" $ DbSkip t msg
+                modifyIORef cache $ \c -> c{cacheSkip = Map.insert t msg <$> cacheSkip c}
+            SUDel t -> do
+                execute conn "DELETE FROM skip WHERE test IS ?" $ Only t
+                modifyIORef cache $ \c -> c{cacheSkip = Map.delete t <$> cacheSkip c}
             PURun t Question{..} Answer{..} -> do
                 let together (x1,y1) (x2,y2) = (x1, y1 <> y2)
                 pt <- ensurePoint store qCandidate
