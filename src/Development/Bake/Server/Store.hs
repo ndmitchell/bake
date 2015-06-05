@@ -20,6 +20,7 @@ import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import Data.Time
+import Data.Char
 import Data.List.Extra
 import Data.String
 import System.IO.Unsafe
@@ -358,9 +359,14 @@ storeUpdate store xs = do
                 execute conn "INSERT INTO run VALUES (?,?,?,?,?,?)" $ DbRun pt qTest aSuccess qClient t aDuration
                 [Only (x :: RunId)] <- query_ conn "SELECT last_insert_rowid()"
                 createDirectoryIfMissing True $ path </> show pt
-                TL.writeFile (path </> show pt </> show x ++ "-" ++ maybe "Prepare" fromTest qTest <.> "txt") aStdout
+                TL.writeFile (path </> show pt </> show x ++ "-" ++ maybe "Prepare" (safely . fromTest) qTest <.> "txt") aStdout
                 let val = if aSuccess then mempty{poPass=Set.singleton qTest} else mempty{poFail=Set.singleton qTest}
                 modifyIORef cache $ \c -> c{cachePoint = HashMap.insertWith together qCandidate (pt, val) $ cachePoint c}
+
+safely :: String -> String
+safely = map f . take 100
+    where f x | isAlphaNum x || x `elem` ".-_" = x
+          f x = '_'
 
 
 storeStateFile :: Store -> State -> Maybe String
@@ -390,7 +396,7 @@ storeRunList store@Store{..} client test state patches run = unsafePerformIO $ d
 storeRunFile :: Store -> RunId -> Maybe String
 storeRunFile store@Store{..} run = unsafePerformIO $ do
     [DbRun{..}] <- query conn "SELECT * FROM run WHERE rowid IS ?" $ Only run
-    let file = path </> show rPoint </> show run ++ "-" ++ maybe "Prepare" fromTest rTest <.> "txt"
+    let file = path </> show rPoint </> show run ++ "-" ++ maybe "Prepare" (safely . fromTest) rTest <.> "txt"
     ifM (doesFileExist file) (Just <$> readFile file) (return Nothing)
 
 
