@@ -127,7 +127,7 @@ update oven mem@Memory{..} (AddPatch author p) =
         let queued = storeAlive store `Set.difference` Set.fromList (snd active)
             supersede = filter (\old -> ovenSupersede oven old p) $ Set.toList queued
         store <- storeUpdate store $ IUQueue p author : map IUSupersede supersede
-        return mem{store = store, fatal = [show (p, queued, supersede) | supersede /= []] ++ fatal }
+        return mem{store = store}
 
 update oven mem@Memory{..} (DelPatch _ p) =
     if not $ p `Set.member` storeAlive store then
