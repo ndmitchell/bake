@@ -311,7 +311,7 @@ rowUpdate :: Shower -> Memory -> (State,StateInfo) -> [HTML]
 rowUpdate Shower{..} Memory{..} (s,StateInfo{..}) = [showTime stCreated, body]
     where
         body = do
-            showLink ("server=" ++ fromState s) $ str_ $ if null stSource then "Initialised" else "Updated"
+            showLink ("server=" ++ fromState s) $ str_ $ if isNothing stSource then "Initialised" else "Updated"
             br_
             whenJust stSource $ \src -> str_ "With " <> commas_ (map showPatch $ snd src)
             str_ "To " <> showState s
