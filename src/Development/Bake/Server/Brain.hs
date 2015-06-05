@@ -103,7 +103,8 @@ react oven mem@Memory{..}
     = Just $ do
         return mem{active = (fst active, keep)}
 
-    | extendActive mem
+    | not paused
+    , extendActive mem
     , add@(_:_) <- Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
     = Just $ do
         store <- storeUpdate store $ map IUStart add
