@@ -178,6 +178,10 @@ update oven mem@Memory{..} (DelSkip author test)
         store <- storeUpdate store [SUDel test]
         return mem{store = store}
 
+update oven mem@Memory{..} (ClearSkip author) = do
+    store <- storeUpdate store $ map SUDel $ Map.keys $ storeSkip store
+    return mem{store = store}
+
 update oven mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
     now <- getCurrentTime
     let (eq,neq) = partition ((==) q . snd) running

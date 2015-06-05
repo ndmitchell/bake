@@ -28,6 +28,7 @@ data Message
     | Unpause Author
     | AddSkip Author Test
     | DelSkip Author Test
+    | ClearSkip Author
     -- Sent by the client
     | Pinged Ping
     | Finished {question :: Question, answer :: Answer}
@@ -43,6 +44,7 @@ instance NFData Message where
     rnf (Unpause x) = rnf x
     rnf (AddSkip x y) = rnf x `seq` rnf y
     rnf (DelSkip x y) = rnf x `seq` rnf y
+    rnf (ClearSkip x) = rnf x
     rnf (Pinged x) = rnf x
     rnf (Finished x y) = rnf x `seq` rnf y
 
@@ -130,6 +132,7 @@ messageToInput (Pause author) = Input ["api","pause"] [("author",author)] ""
 messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
 messageToInput (AddSkip author (Test test)) = Input ["api","addskip"] [("author",author),("test",test)] ""
 messageToInput (DelSkip author (Test test)) = Input ["api","delskip"] [("author",author),("test",test)] ""
+messageToInput (ClearSkip author) = Input ["api","clearskip"] [("author",author)] ""
 messageToInput (Pinged Ping{..}) = Input ["api","ping"] 
     ([("client",fromClient pClient),("author",pAuthor)] ++
      [("provide",x) | x <- pProvide] ++
@@ -145,6 +148,7 @@ messageFromInput (Input [msg] args body)
     | msg == "delall" = DelAllPatches <$> str "author"
     | msg == "addskip" = AddSkip <$> str "author" <*> (Test <$> str "test")
     | msg == "delskip" = DelSkip <$> str "author" <*> (Test <$> str "test")
+    | msg == "clearskip" = ClearSkip <$> str "author"
     | msg == "requeue" = Requeue <$> str "author"
     | msg == "set" = SetState <$> str "author" <*> (State <$> str "state")
     | msg == "pause" = Pause <$> str "author"
