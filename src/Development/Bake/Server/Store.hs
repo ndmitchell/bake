@@ -365,7 +365,7 @@ storeUpdate store xs = do
 
 safely :: String -> String
 safely = map f . take 100
-    where f x | isAlphaNum x || x `elem` ".-_" = x
+    where f x | isAlphaNum x || x `elem` (".-_" :: String) = x
           f x = '_'
 
 
