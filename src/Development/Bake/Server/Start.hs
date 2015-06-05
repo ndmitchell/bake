@@ -65,7 +65,11 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
                                         res <- patchExtra (fst $ active s) $ Just p
                                         storeExtraAdd (store s) (Right p) res
                                     _ -> return ()
-                                recordIO $ (["brain"],) <$> prod oven (prune s) v
+                                (s2,q) <- recordIO $ (["brain"],) <$> prod oven (prune s) v
+                                when (fst (active s2) /= fst (active s)) $ extra $ do
+                                    res <- patchExtra (fst $ active s2) Nothing
+                                    storeExtraAdd (store s2) (Left $ fst $ active s2) res
+                                return (s2,q)
                     )
                 else
                     return OutputMissing
