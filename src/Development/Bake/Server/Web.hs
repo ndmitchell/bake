@@ -276,6 +276,7 @@ failures Shower{..} Memory{..} = when (ts /= []) $ do
 
 progress :: Shower -> Memory -> HTML
 progress Shower{..} Memory{..}
+    | null (snd active), Just todo <- poTodo, Set.size done == Set.size todo + 1 = return () -- Idle on a state
     | Just t <- poTodo = p_ $ b_ (str_ "Testing") <>
         str_ (", done " ++ show (Set.size done) ++ " tests out of " ++ show (Set.size t + 1) ++ superset)
     | isRunning = p_ $ b_ (str_ "Preparing") <>
@@ -330,6 +331,8 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state
              | Right (_, PatchInfo{..}) <- info, isJust paSupersede || isNothing paStart = "dull"
              | Right (_, PatchInfo{..}) <- info, isJust paMerge || isJust paPlausible  = "pass"
              | Left (s,_) <- info, fst active /= s = "pass"
+             | Left (s,_) <- info, PointInfo{poTodo=Just todo,..} <- storePoint store (s,[])
+                 , Set.size todo + 1 == Set.size (poPass `Set.union` poFail)  = "pass"
              | otherwise = ""
 
         body
@@ -347,6 +350,8 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state
                 span__ [class_ "good"] $ str_ "Plausible"
                 str_ " at " <> showTime t
             | Left (s,_) <- info, fst active /= s = span__ [class_ "good"] $ str_ "Passed"
+            | Left (s,_) <- info, PointInfo{poTodo=Just todo,..} <- storePoint store (s,[])
+                , Set.size todo + 1 == Set.size (poPass `Set.union` poFail)  = span__ [class_ "good"] $ str_ "Passed"
             | otherwise = str_ "Active"
 
         special
