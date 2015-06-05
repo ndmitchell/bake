@@ -116,7 +116,7 @@ react oven mem@Memory{..}
     where
         notify people msg = do
             res <- try_ $ ovenNotify oven people msg
-            return [show e | Left e <- [res]]
+            return ["Notification failure: " ++ show e | Left e <- [res]]
 
 
 
