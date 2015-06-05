@@ -133,6 +133,13 @@ update oven mem@Memory{..} (DelAllPatches author) = do
     store <- storeUpdate store $ map IUDelete $ Set.toList $ storeAlive store
     return mem{store = store, active = (fst active, [])}
 
+update oven mem@Memory{..} (SetState author s) = 
+    if fst active == s then
+        error "state is already at that value"
+    else do
+        store <- storeUpdate store [IUState s (Answer (TL.pack $ "From SetState by " ++ author) 0 [] True) Nothing]
+        return mem{store = store, active = (s, snd active)}
+
 update oven mem@Memory{..} (Requeue author) = do
     let add = Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
     store <- storeUpdate store $ map IUStart add
@@ -173,8 +180,6 @@ update oven mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
     return mem{store = store
               ,clients = Map.adjust add qClient clients
               ,running = neq}
-
-update oven mem (Reinit s) = return mem -- already handled
 
 
 -- | Given a state, figure out what you should do next.

@@ -34,7 +34,7 @@ data Bake
     | DelPatch {host :: Host, port :: Port, author :: Author, name :: String}
     | DelPatches {host :: Host, port :: Port, author :: Author}
     | Requeue {host :: Host, port :: Port, author :: Author}
-    | Reinit {host :: Host, port :: Port, author :: Author}
+    | SetState {host :: Host, port :: Port, author :: Author, state :: String}
     | Pause {host :: Host, port :: Port, author :: Author}
     | Unpause {host :: Host, port :: Port, author :: Author}
     | GC {bytes :: Integer, ratio :: Double, days :: Double, dirs :: [FilePath]}
@@ -53,7 +53,7 @@ bakeMode = cmdArgsMode $ modes
     ,DelPatch{}
     ,DelPatches{}
     ,Requeue{}
-    ,Reinit{}
+    ,SetState{state = ""}
     ,Pause{}
     ,Unpause{}
     ,GC 0 0 7 ([] &= args)
@@ -88,7 +88,7 @@ bake_ oven@Oven{..} = do
         DelPatch{..} -> sendDelPatch (getHostPort host port) author =<< check "patch" (undefined :: patch) name
         DelPatches{..} -> sendDelAllPatches (getHostPort host port) author
         Requeue{..} -> sendRequeue (getHostPort host port) author
-        Reinit{..} -> sendReinit (getHostPort host port) author
+        SetState{..} -> sendSetState (getHostPort host port) author state
         Pause{..} -> sendPause (getHostPort host port) author
         Unpause{..} -> sendUnpause (getHostPort host port) author
         GC{..} -> garbageCollect bytes ratio (days * 24*60*60) (if null dirs then ["."] else dirs)

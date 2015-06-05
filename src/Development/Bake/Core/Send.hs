@@ -4,7 +4,7 @@ module Development.Bake.Core.Send(
     sendPause, sendUnpause,
     sendAddPatch, sendDelPatch, sendDelAllPatches, sendRequeue,
     sendAddSkip, sendDelSkip,
-    sendReinit
+    sendSetState
     ) where
 
 import Control.Monad
@@ -35,5 +35,5 @@ sendAddSkip hp author x = void $ sendMessage hp $ AddSkip author $ Test x
 sendDelSkip :: (Host,Port) -> Author -> String -> IO ()
 sendDelSkip hp author x = void $ sendMessage hp $ DelSkip author $ Test x
 
-sendReinit :: (Host,Port) -> Author -> IO ()
-sendReinit hp author = void $ sendMessage hp $ Reinit author
+sendSetState :: (Host,Port) -> Author -> String -> IO ()
+sendSetState hp author x = void $ sendMessage hp $ SetState author $ State x

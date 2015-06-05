@@ -54,9 +54,6 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
                 else if ["api"] `isPrefixOf` inputURL then
                     (case messageFromInput i{inputURL = drop 1 inputURL} of
                         Left e -> return $ OutputError e
-                        Right (Reinit v) -> do
-                            modifyCVar_ var $ const $ initialise oven author extra
-                            return $ questionToOutput Nothing
                         Right v -> do
                             evaluate $ rnf v
                             fmap questionToOutput $ modifyCVar var $ \s -> do

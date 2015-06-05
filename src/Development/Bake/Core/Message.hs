@@ -23,7 +23,7 @@ data Message
     | DelPatch Author Patch
     | DelAllPatches Author
     | Requeue Author
-    | Reinit Author
+    | SetState Author State
     | Pause Author
     | Unpause Author
     | AddSkip Author Test
@@ -38,7 +38,7 @@ instance NFData Message where
     rnf (DelPatch x y) = rnf x `seq` rnf y
     rnf (DelAllPatches x) = rnf x
     rnf (Requeue x) = rnf x
-    rnf (Reinit x) = rnf x
+    rnf (SetState x y) = rnf x `seq` rnf y
     rnf (Pause x) = rnf x
     rnf (Unpause x) = rnf x
     rnf (AddSkip x y) = rnf x `seq` rnf y
@@ -125,7 +125,7 @@ messageToInput (AddPatch author (Patch patch)) = Input ["api","add"] [("author",
 messageToInput (DelPatch author (Patch patch)) = Input ["api","del"] [("author",author),("patch",patch)] ""
 messageToInput (DelAllPatches author) = Input ["api","delall"] [("author",author)] ""
 messageToInput (Requeue author) = Input ["api","requeue"] [("author",author)] ""
-messageToInput (Reinit author) = Input ["api","reinit"] [("author",author)] ""
+messageToInput (SetState author (State state)) = Input ["api","set"] [("author",author),("state",state)] ""
 messageToInput (Pause author) = Input ["api","pause"] [("author",author)] ""
 messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
 messageToInput (AddSkip author (Test test)) = Input ["api","addskip"] [("author",author),("test",test)] ""
@@ -146,7 +146,7 @@ messageFromInput (Input [msg] args body)
     | msg == "addskip" = AddSkip <$> str "author" <*> (Test <$> str "test")
     | msg == "delskip" = DelSkip <$> str "author" <*> (Test <$> str "test")
     | msg == "requeue" = Requeue <$> str "author"
-    | msg == "reinit" = Reinit <$> str "author"
+    | msg == "set" = SetState <$> str "author" <*> (State <$> str "state")
     | msg == "pause" = Pause <$> str "author"
     | msg == "unpause" = Unpause <$> str "author"
     | msg == "ping" = Pinged <$> (Ping <$> (Client <$> str "client") <*>
