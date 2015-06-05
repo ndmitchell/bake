@@ -21,6 +21,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Development.Bake.Server.Store
 import qualified Data.Text.Lazy as TL
+import Control.Exception.Extra
 import Prelude
 
 import Development.Bake.Server.Memory
@@ -64,17 +65,20 @@ react oven mem@Memory{..}
     | xs <- rejectable mem
     , xs@(_:_) <- filter (\(p,t) -> t `Map.notMember` maybe Map.empty snd (paReject $ storePatch store p)) xs
     = Just $ do
-        -- print $ "Rejecting: " ++ show xs
-        -- print $ storePoint store (fst active, take 1 $ snd active)
+        let authors = map (snd . paQueued . storePatch store . fst) xs
+        bad <- notify authors $ "Your patch has been rejected\n" ++ unlines
+            [fromPatch p ++ " due to " ++ maybe "Preparing" fromTest t | (p,t) <- xs]
         store <- storeUpdate store
             [IUReject p t (fst active, takeWhile (/= p) (snd active) ++ [p]) | (p,t) <- xs]
-        return mem{store = store}
+        return mem{store = store, fatal = bad ++ fatal}
 
     | plausible mem
     , xs@(_:_) <- filter (isNothing . paPlausible . storePatch store) $ snd active
     = Just $ do
+        let authors = map (snd . paQueued . storePatch store) xs
+        bad <- notify authors $ "Your patch is now plausible\n" ++ unlines (map fromPatch $ snd active)
         store <- storeUpdate store $ map IUPlausible xs
-        return mem{store = store}
+        return mem{store = store, fatal = bad ++ fatal}
 
     | mergeable mem
     , not $ null $ snd active
@@ -86,19 +90,17 @@ react oven mem@Memory{..}
         let pauthors = map (snd . paQueued . storePatch store) $ snd active
         case s of
             Nothing -> do
-                ovenNotify oven (authors ++ pauthors) "Failed to update, pretty serious"
+                notify authors $ "Failed to update, pretty serious\n" ++ TL.unpack (aStdout answer)
                 return mem
                     {fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
             Just s -> do
-                ovenNotify oven authors "Your patch just made it in"
+                bad <- notify pauthors $ "Your patch was merged\n" ++ unlines (map fromPatch $ snd active)
                 store <- storeUpdate store $ IUState s answer (Just active) : map IUMerge (snd active)
-                return mem{active = (s, []), store = store}
+                return mem{active = (s, []), store = store, fatal = bad ++ fatal}
 
     | restrictActive oven mem
     , (reject@(_:_), keep) <- partition (isJust . paReject . storePatch store) $ snd active
     = Just $ do
-        let authors = map (snd . paQueued . storePatch store) reject
-        ovenNotify oven authors "Rejected"
         return mem{active = (fst active, keep)}
 
     | extendActive mem
@@ -110,6 +112,11 @@ react oven mem@Memory{..}
             ,store = store}
 
     | otherwise = Nothing
+    where
+        notify people msg = do
+            res <- try_ $ ovenNotify oven people msg
+            return [show e | Left e <- [res]]
+
 
 
 update :: Oven State Patch Test -> Memory -> Message -> IO Memory
