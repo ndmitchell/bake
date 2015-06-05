@@ -292,8 +292,15 @@ storeUpdate store xs = do
         f now store@Store{..} x = case x of
             IUState s Answer{..} p -> do
                 pt <- maybe (return Nothing) (fmap Just . ensurePoint store) p
-                execute conn "INSERT INTO state VALUES (?,?,?,?)" $ DbState s now pt aDuration
-                [Only x] <- query_ conn "SELECT last_insert_rowid()"
+                prev :: [Only StateId] <- query conn "SELECT rowid FROM state WHERE state IS ?" $ Only s
+                x <- case prev of
+                    [] -> do
+                        execute conn "INSERT INTO state VALUES (?,?,?,?)" $ DbState s now pt aDuration
+                        [Only x] <- query_ conn "SELECT last_insert_rowid()"
+                        return x
+                    Only x:_ -> do
+                        execute conn "UPDATE state SET time=?, point=?, duration=? WHERE rowid IS ?" (now, pt, aDuration, x)
+                        return x
                 createDirectoryIfMissing True (path </> show x)
                 TL.writeFile (path </> show x </> "update.txt") aStdout
                 modifyIORef cache $ \c -> c{cacheState = HashMap.insert s (x, StateInfo now p) $ cacheState c}
