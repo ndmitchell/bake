@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, OverloadedStrings, ScopedTypeVariables, TupleSections, TypeOperators #-}
+{-# LANGUAGE RecordWildCards, OverloadedStrings, ScopedTypeVariables, TupleSections, TypeOperators, ViewPatterns #-}
 
 -- Stuff on disk on the server
 module Development.Bake.Server.Store(
@@ -178,11 +178,16 @@ storeStateEx store@Store{..} st = do
 
 
 storeItemsDate :: Store -> (UTCTime, UTCTime) -> [Either State Patch]
-storeItemsDate store (start, end) =
-    map snd $ reverse $ sortOn fst $
-    [(fst $ paQueued pi, Right p) | (p, pi) <- map (id &&& storePatch store) $ storePatchList store] ++
-    [(stCreated si, Left s) | (s, si) <- map (id &&& storeState store) $ storeStateList store]
+storeItemsDate store (start, end) = reverse $ merge
+    (sortOn (stCreated . snd) $ map (id &&& storeState store) $ storeStateList store)
+    (sortOn (paQueued . snd) $ map (id &&& storePatch store) $ storePatchList store)
+    where
+        merge (s:ss) o@(span (isJust . paReject . snd) -> (reject, p:ps))
+            | stCreated (snd s) < paMaxTime (snd p) = Left (fst s) : merge ss o
+            | otherwise = map (Right . fst) (reject ++ [p]) ++ merge (s:ss) ps
+        merge ss ps = map (Left . fst) ss ++ map (Right . fst) ps
 
+        paMaxTime PatchInfo{..} = maximum $ fst paQueued : catMaybes [paStart,paDelete,paSupersede,fmap fst paReject,paPlausible,paMerge]
 
 
 storeAlive :: Store -> Set.Set Patch
