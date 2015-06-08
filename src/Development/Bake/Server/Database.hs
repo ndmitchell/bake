@@ -3,7 +3,10 @@
 -- Stuff on disk on the server
 module Development.Bake.Server.Database(
     PointId, RunId, StateId, PatchId, patchIds, fromPatchIds, patchIdsSuperset,
-    DbState(..), DbPatch(..), DbReject(..), DbPoint(..), DbRun(..), DbTest(..), DbSkip(..),
+    DbPatch(..), DbReject(..), DbPoint(..), DbRun(..),
+    stTable, stId, stState, stCreate, stPoint, stDuration,
+    skTable, skTest, skComment,
+    tsTable, tsPoint, tsTest,
     create
     ) where
 
@@ -16,6 +19,7 @@ import Database.SQLite.Simple.FromField
 import Database.SQLite.Simple.ToField
 import System.Time.Extra
 import Data.List.Extra
+import General.Database
 import Prelude
 
 
@@ -43,11 +47,14 @@ fromPatchIds :: PatchIds -> [PatchId]
 fromPatchIds (PatchIds "") = []
 fromPatchIds (PatchIds xs) = map (PatchId . read) $ splitOn "][" $ init $ tail xs
 
-data DbState = DbState
-    {sState :: State, sCreate :: UTCTime, sPoint :: Maybe PointId, sDuration :: Seconds}
 
-createState = "CREATE TABLE IF NOT EXISTS state (" ++
-    "state TEXT NOT NULL UNIQUE PRIMARY KEY, time TEXT NOT NULL, point INTEGER, duration REAL NOT NULL)"
+stTable = table "state" stId (stState,stCreate,stPoint,stDuration)
+stId = rowid stTable :: Column StateId
+stState = column stTable "state" "TEXT NOT NULL UNIQUE PRIMARY KEY" :: Column State
+stCreate = column stTable "time" "TEXT NOT NULL" :: Column UTCTime
+stPoint = column stTable "point" "INTEGER" :: Column (Maybe PointId)
+stDuration = column stTable "duration" "REAL NOT NULL" :: Column Seconds
+
 
 data DbPatch = DbPatch
     {pPatch :: Patch, pAuthor :: String, pQueue :: UTCTime
@@ -78,29 +85,24 @@ createRun = "CREATE TABLE IF NOT EXISTS run (" ++
     "point INTEGER NOT NULL, test TEXT, success INTEGER NOT NULL, " ++
     "client TEXT NOT NULL, start TEXT NOT NULL, duration REAL NOT NULL)"
 
-data DbTest = DbTest
-    {tPoint :: PointId, tTest :: Maybe Test}
-    -- include the Nothing result so that if something has no tests it is still recorded
+tsTable = table "test" norowid (tsPoint, tsTest)
+tsPoint = column tsTable "point" "INTEGER NOT NULL" :: Column PointId
+tsTest = column tsTable "test" "TEXT" :: Column (Maybe Test)
 
-createTests = "CREATE TABLE IF NOT EXISTS test (" ++
-    "point INTEGER NOT NULL, test TEXT)"
-
-data DbSkip = DbSkip
-    {kTest :: Test, kComment :: String}
-
-createSkip = "CREATE TABLE IF NOT EXISTS skip (" ++
-    "test TEXT NOT NULL PRIMARY KEY, comment TEXT NOT NULL)"
+skTable = table "skip" norowid (skTest, skComment)
+skTest = column skTable "test" "TEXT NOT NULL PRIMARY KEY" :: Column Test
+skComment = column skTable "comment" "TEXT NOT NULL" :: Column String
 
 create :: String -> IO Connection
 create file = do
     c <- open file
-    execute_ c $ fromString createState
+    sqlCreateNotExists c stTable
     execute_ c $ fromString createPatch
     execute_ c $ fromString createReject
     execute_ c $ fromString createPoint
     execute_ c $ fromString createRun
-    execute_ c $ fromString createTests
-    execute_ c $ fromString createSkip
+    sqlCreateNotExists c tsTable
+    sqlCreateNotExists c skTable
     return c
 
 instance FromRow DbPatch where
@@ -111,12 +113,6 @@ instance FromRow DbPoint where
 
 instance ToRow DbPatch where
     toRow (DbPatch a b c d e f g h i) = toRow (a,b,c,d,e,f,g,h,i)
-
-instance ToRow DbState where
-    toRow (DbState a b c d) = toRow (a,b,c,d)
-
-instance FromRow DbState where
-    fromRow = DbState <$> field <*> field <*> field <*> field
 
 instance ToRow DbReject where
     toRow (DbReject a b c) = toRow (a,b,c)
@@ -129,12 +125,6 @@ instance FromRow DbRun where
 
 instance ToRow DbPoint where
     toRow (DbPoint a b) = toRow (a,b)
-
-instance ToRow DbSkip where
-    toRow (DbSkip a b) = toRow (a,b)
-
-instance FromRow DbSkip where
-    fromRow = DbSkip <$> field <*> field
 
 instance FromField Patch where fromField = fmap Patch . fromField
 instance ToField Patch where toField = toField . fromPatch

@@ -14,6 +14,7 @@ module Development.Bake.Server.Store(
     ) where
 
 import Development.Bake.Server.Database
+import General.Database
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import qualified Data.HashMap.Strict as HashMap
@@ -31,7 +32,7 @@ import Data.Tuple.Extra
 import Control.Applicative
 import Control.Monad.Extra
 import System.Directory
-import Database.SQLite.Simple
+import Database.SQLite.Simple hiding (NamedParam(..))
 import Database.SQLite.Simple.ToField
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -170,7 +171,7 @@ storeStateList store@Store{..} = unsafePerformIO $ do
 storeStateEx :: Store -> State -> IO (StateId, StateInfo)
 storeStateEx store@Store{..} st = do
     let ans = do
-            [Only row :. DbState{..}] <- query conn "SELECT rowid, * FROM state WHERE state IS ?" $ Only st
+            [(row, sCreate, sPoint)] <- sqlSelect conn (stId, stCreate, stPoint) [stState %== st]
             pt <- maybe (return Nothing) (fmap Just . unsurePoint store) sPoint
             return (row, StateInfo sCreate pt)
     c <- readIORef cache
@@ -197,8 +198,7 @@ storeItemsDate store (start, end) = reverse $ merge
 storeSkip :: Store -> Map.Map Test String
 storeSkip Store{..} = unsafePerformIO $ do
     let ans = do
-            xs <- query_ conn "SELECT * FROM skip"
-            return $ Map.fromList [(kTest, kComment) | DbSkip{..} <- xs]
+            Map.fromList <$> sqlSelect conn (skTest, skComment) []
     c <- readIORef cache
     case cacheSkip c of
         Just res -> return res
@@ -242,7 +242,7 @@ data Update
 
 unsureState :: Store -> StateId -> IO State
 unsureState Store{..} s = do
-    [Only s] <- query conn "SELECT state FROM state WHERE rowid IS ?" (Only s)
+    [Only s] <- sqlSelect conn (Only stState) [stId %== s]
     return s
 
 unsurePatch :: Store -> PatchId -> IO Patch
@@ -257,7 +257,7 @@ unsurePoint store@Store{..} pt = do
 
 ensureState :: Store -> State -> IO StateId
 ensureState Store{..} s = do
-    [Only s] <- query conn "SELECT rowid FROM state WHERE state IS ?" (Only s)
+    [Only s] <- sqlSelect conn (Only stId) [stState %== s]
     return s
 
 ensurePatch :: Store -> Patch -> IO PatchId
@@ -298,14 +298,12 @@ storeUpdate store xs = do
         f now store@Store{..} x = case x of
             IUState s Answer{..} p -> do
                 pt <- maybe (return Nothing) (fmap Just . ensurePoint store) p
-                prev :: [Only StateId] <- query conn "SELECT rowid FROM state WHERE state IS ?" $ Only s
+                prev <- sqlSelect conn stId [stState %== s]
                 x <- case prev of
-                    [] -> do
-                        execute conn "INSERT INTO state VALUES (?,?,?,?)" $ DbState s now pt aDuration
-                        [Only x] <- query_ conn "SELECT last_insert_rowid()"
-                        return x
+                    [] ->
+                        sqlInsert conn stTable (s,now,pt,aDuration)
                     Only x:_ -> do
-                        execute conn "UPDATE state SET time=?, point=?, duration=? WHERE rowid IS ?" (now, pt, aDuration, x)
+                        sqlUpdate conn [stCreate := now, stPoint := pt, stDuration := aDuration] [stId %== x]
                         return x
                 createDirectoryIfMissing True (path </> show x)
                 TL.writeFile (path </> show x </> "update.txt") aStdout
@@ -340,18 +338,19 @@ storeUpdate store xs = do
                     add (Just (a,b)) = (a, b `Map.union` Map.singleton t pt)
                 modifyIORef cache $ \c -> c{cachePatch = HashMap.adjust (second $ \pa -> pa{paReject = Just $ add $ paReject pa}) p $ cachePatch c}
             SUAdd t msg -> do
-                execute conn "INSERT INTO skip VALUES (?,?)" $ DbSkip t msg
+                sqlInsert conn skTable (t, msg)
                 modifyIORef cache $ \c -> c{cacheSkip = Map.insert t msg <$> cacheSkip c}
             SUDel t -> do
-                execute conn "DELETE FROM skip WHERE test IS ?" $ Only t
+                sqlDelete conn skTable [skTest %== t]
                 modifyIORef cache $ \c -> c{cacheSkip = Map.delete t <$> cacheSkip c}
             PURun t Question{..} Answer{..} -> do
                 let together (x1,y1) (x2,y2) = (x1, y1 <> y2)
                 pt <- ensurePoint store qCandidate
                 when (qTest == Nothing) $ do
-                    res :: [Only (Maybe Test)] <- query conn "SELECT test FROM test WHERE point=?" $ Only pt
-                    if null res then
-                        forM_ aTests $ \t -> execute conn "INSERT INTO test VALUES (?,?)" (pt, t)
+                    res :: [Only (Maybe Test)] <- sqlSelect conn tsTest [tsPoint %== pt]
+                    if null res then do
+                        sqlInsert conn tsTable (pt, Nothing)
+                        forM_ aTests $ \t -> sqlInsert conn tsTable (pt, Just t)
                     else
                         when (Set.fromList (mapMaybe fromOnly res) /= Set.fromList aTests) $
                             error "Test disagreement"
