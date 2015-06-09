@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 
 module General.Database(
-    Pred, (%==), nullP,
+    Pred, (%==), (%==%), (%&&), nullP, likeP, orderDatetimeDesc, distinct,
     Upd(..),
     TypeField(..),
     Table, table, Column, column, rowid, norowid,
@@ -13,6 +13,7 @@ import Data.List.Extra
 import Data.String
 import Data.Maybe
 import Data.Time.Clock
+import Data.Tuple.Extra
 import Database.SQLite.Simple hiding ((:=))
 import Database.SQLite.Simple.FromField
 import Database.SQLite.Simple.ToField
@@ -29,10 +30,11 @@ type instance Uncolumns (Column a, Column b, Column c, Column d, Column e) = (a,
 type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f) = (a, b, c, d, e, f)
 type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f, Column g) = (a, b, c, d, e, f, g)
 type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f, Column g, Column h) = (a, b, c, d, e, f, g, h)
+type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f, Column g, Column h, Column i) = (a, b, c, d, e, f, g, h, i)
 
 data Table rowid cs = Table {tblName :: String, tblKeys :: [Column_], tblCols :: [Column_]}
 
-data Column c = Column {colTable :: String, colName :: String, colSqlType :: String}
+data Column c = Column {colTable :: String, colName :: String, colSqlType :: String} deriving Eq
 
 type Column_ = Column ()
 
@@ -95,7 +97,7 @@ sqlInsert conn tbl val = do
 sqlUpdate :: Connection -> [Upd] -> [Pred] -> IO ()
 sqlUpdate conn upd pred = do
     let (updCs, updVs) = unzip $ map unupdate upd
-    let (prdStr, prdCs, prdVs) = unpred pred
+    let (prdStr, _, prdCs, prdVs) = unpred pred
     let tbl = nubOrd $ map colTable $ updCs ++ prdCs
     case tbl of
         _ | null upd -> fail "Must update at least one column"
@@ -107,7 +109,7 @@ sqlUpdate conn upd pred = do
 
 sqlDelete :: Connection -> Table rowid cs -> [Pred] -> IO ()
 sqlDelete conn tbl pred = do
-    let (prdStr, prdCs, prdVs) = unpred pred
+    let (prdStr, _, prdCs, prdVs) = unpred pred
     case nubOrd $ tblName tbl : map colName prdCs of
         [t] -> do
             let str = "DELETE FROM " ++ t ++ " WHERE " ++ prdStr
@@ -118,8 +120,8 @@ sqlDelete conn tbl pred = do
 sqlSelect :: (FromRow (Uncolumns cs), Columns cs) => Connection -> cs -> [Pred] -> IO [Uncolumns cs]
 sqlSelect conn cols pred = do
     let outCs = columns cols
-    let (prdStr, prdCs, prdVs) = unpred pred
-    let str = "SELECT " ++ intercalate ", " [colTable ++ "." ++ colName | Column{..} <- outCs] ++ " " ++
+    let (prdStr, prdDs, prdCs, prdVs) = unpred pred
+    let str = "SELECT " ++ intercalate ", " [(if c `elem` prdDs then "DISTINCT " else "") ++ colTable ++ "." ++ colName | c@Column{..} <- outCs] ++ " " ++
               "FROM " ++ intercalate ", " (nubOrd $ map colTable $ outCs ++ prdCs) ++ " WHERE " ++ prdStr
     query conn (fromString str) prdVs
 
@@ -141,27 +143,56 @@ unupdate (c := v) = (column_ c, toField v)
 data Pred
     = PNull Column_
     | PEq Column_ SQLData
+    | PEqP Column_ Column_
+    | PLike Column_ SQLData
     | PAnd [Pred]
+    | PDistinct Column_
+    | POrder Column_ String
+
+distinct :: Column c -> Pred
+distinct c = PDistinct (column_ c)
+
+orderDatetimeDesc :: Column UTCTime -> Pred
+orderDatetimeDesc c = POrder (column_ c) $ "datetime(" ++ colTable c ++ "." ++ colName c ++ ") DESC"
 
 nullP :: Column (Maybe c) -> Pred
 nullP c = PNull (column_ c)
+
+likeP :: ToField c => Column c -> c -> Pred
+likeP (column_ -> c) (toField -> v) = PLike c v
+
+(%&&) :: Pred -> Pred -> Pred
+(%&&) a b = PAnd [a,b]
 
 (%==) :: ToField c => Column c -> c -> Pred
 (%==) (column_ -> c) (toField -> v)
     | v == SQLNull = PNull c
     | otherwise = PEq c v
 
-unpred :: [Pred] -> (String, [Column_], [SQLData])
-unpred = f . PAnd
+(%==%) :: ToField c => Column c -> Column c -> Pred
+(%==%) c1 c2 = PEqP (column_ c1) (column_ c2)
+
+unpred :: [Pred] -> (String, [Column_], [Column_], [SQLData])
+unpred ps =
+    let (a,b,c) = f $ PAnd pred
+    in (a ++ (if null order then "" else "ORDER BY " ++ unwords [x | POrder _ x <- order]),
+       [x | PDistinct x <- dist], b ++ [x | POrder x _ <- order], c)
     where
+        isDistinct PDistinct{} = True; isDistinct _ = False
+        isOrder POrder{} = True; isOrder _ = False
+        (dist, (order, pred)) = second (partition isOrder) $ partition isDistinct ps
+
         g Column{..} = colTable ++ "." ++ colName
 
         f (PNull c) = (g c ++ " IS NULL", [c], [])
         f (PEq c v) = (g c ++ " = ?", [c], [v]) -- IS always works, but is a LOT slower
+        f (PEqP c1 c2) = (g c1 ++ " = " ++ g c2, [c1,c2], [])
+        f (PLike c v) = (g c ++ " LIKE ?", [c], [v])
         f (PAnd []) = ("NULL IS NULL", [], [])
         f (PAnd [x]) = f x
         f (PAnd xs) = (intercalate " AND " ["(" ++ s ++ ")" | s <- ss], concat cs, concat vs)
             where (ss,cs,vs) = unzip3 $ map f xs
+        f _ = error "Unrecognised Pred"
 
 instance FromField () where
     fromField _ = return ()
