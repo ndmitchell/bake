@@ -26,8 +26,7 @@ import Prelude
 
 simulate :: IO ()
 simulate = withBuffering stdout NoBuffering $ do
-    (t,_) <- duration $ performance 200
-    putStrLn $ "Performance test took " ++ showDuration t
+    performance 200
     basic
     bisect
     newTest
@@ -225,7 +224,7 @@ newTest = do
     putStrLn "Success at newtest"
 
 performance :: Int -> IO ()
-performance nTests = do
+performance nTests = timed $ do
     -- TODO: ping the website regularly
     -- 1000 tests, 50 submissions, 7 failing, spawn about every 200 tests
     let nPatches = 50
@@ -249,3 +248,7 @@ performance nTests = do
                 in ((patch, tick+1), True, Reply q pass tests)
           | otherwise -> ((patch, tick), patch /= nPatches, Request client)
     putStrLn $ "Success at performance"
+    where
+        timed act = do
+            (t, _) <- duration act
+            putStrLn $ "Performance test took " ++ showDuration t
