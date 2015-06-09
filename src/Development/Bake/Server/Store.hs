@@ -268,7 +268,7 @@ ensurePoint store@Store{..} (s, ps) = do
     s <- ensureState store s
     ps <- mapM (ensurePatch store) ps
     let v = DbPoint s (patchIds ps)
-    res <- query conn "SELECT rowid FROM point WHERE state IS ? AND patches IS ?" v
+    res <- query conn "SELECT rowid FROM point WHERE state = ? AND patches = ?" v
     case res of
         [] -> do
             execute conn "INSERT INTO point VALUES (?,?)" v
