@@ -23,10 +23,10 @@ import General.Database
 import Prelude
 
 
-newtype PointId = PointId Int deriving (ToField, FromField)
-newtype RunId = RunId Int deriving (ToField, FromField, Eq)
-newtype StateId = StateId Int deriving (ToField, FromField)
-newtype PatchId = PatchId Int deriving (ToField, FromField)
+newtype PointId = PointId Int deriving (ToField, FromField, TypeField)
+newtype RunId = RunId Int deriving (Eq, ToField, FromField, TypeField)
+newtype StateId = StateId Int deriving (ToField, FromField, TypeField)
+newtype PatchId = PatchId Int deriving (ToField, FromField, TypeField)
 
 instance Show PointId where show (PointId x) = "point-" ++ show x
 instance Show RunId where show (RunId x) = "run-" ++ show x
@@ -50,10 +50,10 @@ fromPatchIds (PatchIds xs) = map (PatchId . read) $ splitOn "][" $ init $ tail x
 
 stTable = table "state" stId stState (stState,stCreate,stPoint,stDuration)
 stId = rowid stTable :: Column StateId
-stState = column stTable "state" "TEXT NOT NULL" :: Column State
-stCreate = column stTable "time" "TEXT NOT NULL" :: Column UTCTime
-stPoint = column stTable "point" "INTEGER" :: Column (Maybe PointId)
-stDuration = column stTable "duration" "REAL NOT NULL" :: Column Seconds
+stState = column stTable "state" :: Column State
+stCreate = column stTable "time" :: Column UTCTime
+stPoint = column stTable "point" :: Column (Maybe PointId)
+stDuration = column stTable "duration" :: Column Seconds
 
 
 data DbPatch = DbPatch
@@ -86,12 +86,12 @@ createRun = "CREATE TABLE IF NOT EXISTS run (" ++
     "client TEXT NOT NULL, start TEXT NOT NULL, duration REAL NOT NULL)"
 
 tsTable = table "test" norowid () (tsPoint, tsTest)
-tsPoint = column tsTable "point" "INTEGER NOT NULL" :: Column PointId
-tsTest = column tsTable "test" "TEXT" :: Column (Maybe Test)
+tsPoint = column tsTable "point" :: Column PointId
+tsTest = column tsTable "test" :: Column (Maybe Test)
 
 skTable = table "skip" norowid skTest (skTest, skComment)
-skTest = column skTable "test" "TEXT NOT NULL" :: Column Test
-skComment = column skTable "comment" "TEXT NOT NULL" :: Column String
+skTest = column skTable "test" :: Column Test
+skComment = column skTable "comment" :: Column String
 
 create :: String -> IO Connection
 create file = do

@@ -1,15 +1,18 @@
 {-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns, RankNTypes, TypeOperators, TypeFamilies, ExistentialQuantification #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 
 module General.Database(
     Pred, (%==), nullP,
     Upd(..),
+    TypeField(..),
     Table, table, Column, column, rowid, norowid,
     sqlInsert, sqlUpdate, sqlSelect, sqlDelete, sqlCreateNotExists,
     ) where
 
 import Data.List.Extra
 import Data.String
+import Data.Maybe
+import Data.Time.Clock
 import Database.SQLite.Simple hiding ((:=))
 import Database.SQLite.Simple.FromField
 import Database.SQLite.Simple.ToField
@@ -36,6 +39,18 @@ type Column_ = Column ()
 column_ :: Column c -> Column_
 column_ Column{..} = Column{..}
 
+class TypeField field where
+    typeField :: field -> String
+
+instance TypeField String where typeField _ = "TEXT NOT NULL"
+instance TypeField UTCTime where typeField _ = "TEXT NOT NULL"
+instance TypeField Int where typeField _ = "INTEGER NOT NULL"
+instance TypeField Double where typeField _ = "REAL NOT NULL"
+instance TypeField a => TypeField (Maybe a) where
+    typeField x | Just s <- stripSuffix " NOT NULL" s = s
+                | otherwise = error "Can't remove the NULL constraint"
+        where s = typeField $ fromJust x
+
 class Columns cs where columns :: cs -> [Column_]
 instance Columns () where columns () = []
 instance Columns (Column c1) where columns c1 = [column_ c1]
@@ -53,8 +68,8 @@ table name rowid (columns -> keys) (columns -> cols) = Table name (check keys) (
                 | colName rowid `notElem` ["","rowid"] = error "Rowid column must have name rowid"
                 | otherwise = x
 
-column :: Table rowid cs -> String -> String -> Column c
-column tbl row typ = Column (tblName tbl) row typ
+column :: forall c rowid cs . TypeField c => Table rowid cs -> String -> Column c
+column tbl row = Column (tblName tbl) row (typeField (undefined :: c))
 
 rowid :: Table rowid cs -> Column rowid
 rowid tbl = Column (tblName tbl) "rowid" ""
