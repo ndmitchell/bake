@@ -288,8 +288,9 @@ storeUpdate store xs = do
     now <- getCurrentTime
 --    print $ ("Updating",xs)
     mapM_ (f now store) xs
+    cache <- newIORef $ Cache HashMap.empty HashMap.empty HashMap.empty HashMap.empty Nothing
     -- print "Updated"
-    return store
+    return store{cache=cache}
     where
         execute a b c = do
             -- print b
