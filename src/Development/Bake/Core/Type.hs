@@ -7,7 +7,12 @@ module Development.Bake.Core.Type(
     Stringy(..),
     Oven(..), TestInfo(..), defaultOven, ovenTest, ovenNotifyStdout,
     threads, threadsAll, depend, run, require, priority,
-    State(..), Patch(..), Point, Test(..), Client(..), concrete, Prettys(..),
+    State, toState, fromState,
+    Patch, toPatch, fromPatch,
+    Test, toTest, fromTest,
+    Client, toClient, fromClient,
+    Point,
+    concrete, Prettys(..),
     Author
     ) where
 
@@ -163,6 +168,11 @@ newtype State = State {fromState :: String} deriving (Show,Eq,Ord,ToJSON,FromJSO
 newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField)
 newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField)
 newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField)
+
+toState :: String -> State; toState = State
+toPatch :: String -> Patch; toPatch = Patch
+toTest :: String -> Test; toTest = Test
+toClient :: String -> Client; toClient = Client
 
 type Point = (State, [Patch])
 

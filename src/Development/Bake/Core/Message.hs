@@ -123,15 +123,15 @@ instance FromJSON Answer where
 
 
 messageToInput :: Message -> Input
-messageToInput (AddPatch author (Patch patch)) = Input ["api","add"] [("author",author),("patch",patch)] ""
-messageToInput (DelPatch author (Patch patch)) = Input ["api","del"] [("author",author),("patch",patch)] ""
+messageToInput (AddPatch author patch) = Input ["api","add"] [("author",author),("patch",fromPatch patch)] ""
+messageToInput (DelPatch author patch) = Input ["api","del"] [("author",author),("patch",fromPatch patch)] ""
 messageToInput (DelAllPatches author) = Input ["api","delall"] [("author",author)] ""
 messageToInput (Requeue author) = Input ["api","requeue"] [("author",author)] ""
-messageToInput (SetState author (State state)) = Input ["api","set"] [("author",author),("state",state)] ""
+messageToInput (SetState author state) = Input ["api","set"] [("author",author),("state",fromState state)] ""
 messageToInput (Pause author) = Input ["api","pause"] [("author",author)] ""
 messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
-messageToInput (AddSkip author (Test test)) = Input ["api","addskip"] [("author",author),("test",test)] ""
-messageToInput (DelSkip author (Test test)) = Input ["api","delskip"] [("author",author),("test",test)] ""
+messageToInput (AddSkip author test) = Input ["api","addskip"] [("author",author),("test",fromTest test)] ""
+messageToInput (DelSkip author test) = Input ["api","delskip"] [("author",author),("test",fromTest test)] ""
 messageToInput (ClearSkip author) = Input ["api","clearskip"] [("author",author)] ""
 messageToInput (Pinged Ping{..}) = Input ["api","ping"] 
     ([("client",fromClient pClient),("author",pAuthor)] ++
@@ -143,17 +143,17 @@ messageToInput x@Finished{} = Input ["api","finish"] [] $ encode x
 -- return either an error message (not a valid message), or a message
 messageFromInput :: Input -> Either String Message
 messageFromInput (Input [msg] args body)
-    | msg == "add" = AddPatch <$> str "author" <*> (Patch <$> str "patch")
-    | msg == "del" = DelPatch <$> str "author" <*> (Patch <$> str "patch")
+    | msg == "add" = AddPatch <$> str "author" <*> (toPatch <$> str "patch")
+    | msg == "del" = DelPatch <$> str "author" <*> (toPatch <$> str "patch")
     | msg == "delall" = DelAllPatches <$> str "author"
-    | msg == "addskip" = AddSkip <$> str "author" <*> (Test <$> str "test")
-    | msg == "delskip" = DelSkip <$> str "author" <*> (Test <$> str "test")
+    | msg == "addskip" = AddSkip <$> str "author" <*> (toTest <$> str "test")
+    | msg == "delskip" = DelSkip <$> str "author" <*> (toTest <$> str "test")
     | msg == "clearskip" = ClearSkip <$> str "author"
     | msg == "requeue" = Requeue <$> str "author"
-    | msg == "set" = SetState <$> str "author" <*> (State <$> str "state")
+    | msg == "set" = SetState <$> str "author" <*> (toState <$> str "state")
     | msg == "pause" = Pause <$> str "author"
     | msg == "unpause" = Unpause <$> str "author"
-    | msg == "ping" = Pinged <$> (Ping <$> (Client <$> str "client") <*>
+    | msg == "ping" = Pinged <$> (Ping <$> (toClient <$> str "client") <*>
         str "author" <*> strs "provide" <*> int "maxthreads" <*> int "nowthreads")
     | msg == "finish" = eitherDecode body
     where strs x = Right $ map snd $ filter ((==) x . fst) args

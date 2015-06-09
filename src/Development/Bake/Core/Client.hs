@@ -20,8 +20,8 @@ import qualified Data.Text.Lazy as TL
 -- given server, name, threads
 startClient :: (Stringy state, Stringy patch, Stringy test)
             => (Host,Port) -> Author -> String -> Int -> [String] -> Double -> Oven state patch test -> IO ()
-startClient hp author (Client -> client) maxThreads provide ping (concrete -> (prettys, oven)) = do
-    when (client == Client "") $ error "You must give a name to the client, typically with --name"
+startClient hp author (toClient -> client) maxThreads provide ping (concrete -> (prettys, oven)) = do
+    when (client == toClient "") $ error "You must give a name to the client, typically with --name"
     queue <- newChan
     nowThreads <- newIORef maxThreads
 

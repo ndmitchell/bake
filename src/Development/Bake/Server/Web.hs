@@ -145,12 +145,12 @@ argsEmpty x = x{argsAdmin=False} == args "" []
 
 args :: String -> [(String, String)] -> Args
 args admn xs = Args
-    (listToMaybe $ map State $ ask "state")
-    (map Patch $ ask "patch")
-    (listToMaybe $ map Client $ ask "client")
-    (listToMaybe $ map (\x -> if null x then Nothing else Just $ Test x) $ ask "test")
+    (listToMaybe $ map toState $ ask "state")
+    (map toPatch $ ask "patch")
+    (listToMaybe $ map toClient $ ask "client")
+    (listToMaybe $ map (\x -> if null x then Nothing else Just $ toTest x) $ ask "test")
     (listToMaybe $ map read $ ask "run")
-    (listToMaybe $ map (\x -> if null x then Nothing else Just $ State x) $ ask "server")
+    (listToMaybe $ map (\x -> if null x then Nothing else Just $ toState x) $ ask "server")
     (any (if null admn then const True else (==) admn . show . hash) $ ask "admin")
     (not $ null $ ask "stats")
     (not $ null $ ask "raw")
@@ -195,7 +195,7 @@ data Shower = Shower
 shower :: Store -> Prettys -> Bool -> IO Shower
 shower store Prettys{..} argsAdmin = do
     showRel <- showRelativeTime
-    let shwState (State "") = span__ [class_ "bad" ] $ str_ $ "invalid state"
+    let shwState s | s == toState "" = span__ [class_ "bad" ] $ str_ $ "invalid state"
         shwState s = shwLink ("state=" ++ fromState s) $ str_ $ prettyState s
     let shwPatch p = shwLink ("patch=" ++ fromPatch p) $ str_ $ prettyPatch p
     return $ Shower
@@ -359,7 +359,7 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state
                 if paAlive pi then
                     do br_; admin (DelPatch "admin" p) $ str_ "Delete"
                 else if isNothing $ paMerge pi then
-                    do br_; admin (AddPatch "admin" $ Patch $ '\'' : fromPatch p) $ str_ "Retry"
+                    do br_; admin (AddPatch "admin" $ toPatch $ '\'' : fromPatch p) $ str_ "Retry"
                 else
                     mempty
             | otherwise = mempty

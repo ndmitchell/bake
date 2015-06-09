@@ -82,7 +82,7 @@ initialise oven author extra = do
         ovenNotify oven [author] "Failed to initialise, pretty serious"
     let state0 = fromMaybe stateFailure res
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
-    addHistory [(HRestart, Patch "")]
+    addHistory [(HRestart, toPatch "")]
     store <- newStore False "bake-store"
     when (isJust res) $ do
         extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing

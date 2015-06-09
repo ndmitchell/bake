@@ -12,7 +12,7 @@ import Data.Time
 import Development.Bake.Core.Message
 import Control.DeepSeq
 
-stateFailure = State ""
+stateFailure = toState ""
 
 
 ---------------------------------------------------------------------

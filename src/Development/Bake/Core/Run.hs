@@ -26,14 +26,14 @@ patch x = "--patch=" ++ fromPatch x
 test  x = "--test="  ++ fromTest  x
 
 runInit :: IO (Maybe State, Answer)
-runInit = runAll "init" [] [] State
+runInit = runAll "init" [] [] toState
 
 runUpdate :: State -> [Patch] -> IO (Maybe State, Answer)
-runUpdate s ps = runAll "update" (state s : map patch ps) [] State
+runUpdate s ps = runAll "update" (state s : map patch ps) [] toState
 
 runTest :: State -> [Patch] -> Maybe Test -> IO Answer
 runTest s ps t = do
-    (ex, ans) <- runAll "test" (state s : map patch ps) (map test $ maybeToList t) (map Test . read)
+    (ex, ans) <- runAll "test" (state s : map patch ps) (map test $ maybeToList t) (map toTest . read)
     return $ maybe ans (\ex -> ans{aTests=ex}) (if t == Nothing then ex else Nothing)
 
 runExtra :: State -> Maybe Patch -> IO (Maybe (T.Text, TL.Text), Answer)
