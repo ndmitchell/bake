@@ -125,12 +125,3 @@ instance FromRow DbRun where
 
 instance ToRow DbPoint where
     toRow (DbPoint a b) = toRow (a,b)
-
-instance FromField Patch where fromField = fmap Patch . fromField
-instance ToField Patch where toField = toField . fromPatch
-instance FromField State where fromField = fmap State . fromField
-instance ToField State where toField = toField . fromState
-instance FromField Test where fromField = fmap Test . fromField
-instance ToField Test where toField = toField . fromTest
-instance FromField Client where fromField = fmap Client . fromField
-instance ToField Client where toField = toField . fromClient

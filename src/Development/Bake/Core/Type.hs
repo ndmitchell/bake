@@ -18,6 +18,8 @@ import Data.Monoid
 import Data.Aeson
 import Data.Hashable
 import Data.Typeable
+import Database.SQLite.Simple.FromField
+import Database.SQLite.Simple.ToField
 import Prelude
 
 
@@ -157,10 +159,10 @@ require :: [String] -> TestInfo test -> TestInfo test
 require xs t = t{testRequire = xs ++ testRequire t}
 
 
-newtype State = State {fromState :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable)
-newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable)
-newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable)
-newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable)
+newtype State = State {fromState :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField)
+newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField)
+newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField)
+newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField)
 
 type Point = (State, [Patch])
 
