@@ -85,6 +85,7 @@ library
         Development.Bake.Server.Stats
         Development.Bake.Server.Store
         Development.Bake.Server.Web
+        General.Database
         General.Equal
         General.Extra
         General.HTML
