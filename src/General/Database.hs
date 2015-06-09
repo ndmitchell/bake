@@ -139,28 +139,28 @@ unupdate :: Upd -> (Column_, SQLData)
 unupdate (c := v) = (column_ c, toField v)
 
 data Pred
-    = NullP Column_
+    = PNull Column_
     | PEq Column_ SQLData
-    | AndP [Pred]
+    | PAnd [Pred]
 
 nullP :: Column (Maybe c) -> Pred
-nullP c = NullP (column_ c)
+nullP c = PNull (column_ c)
 
 (%==) :: ToField c => Column c -> c -> Pred
 (%==) (column_ -> c) (toField -> v)
-    | v == SQLNull = NullP c
+    | v == SQLNull = PNull c
     | otherwise = PEq c v
 
 unpred :: [Pred] -> (String, [Column_], [SQLData])
-unpred = f . AndP
+unpred = f . PAnd
     where
         g Column{..} = colTable ++ "." ++ colName
 
-        f (NullP c) = (g c ++ " IS NULL", [c], [])
+        f (PNull c) = (g c ++ " IS NULL", [c], [])
         f (PEq c v) = (g c ++ " = ?", [c], [v]) -- IS always works, but is a LOT slower
-        f (AndP []) = ("NULL IS NULL", [], [])
-        f (AndP [x]) = f x
-        f (AndP xs) = (intercalate " AND " ["(" ++ s ++ ")" | s <- ss], concat cs, concat vs)
+        f (PAnd []) = ("NULL IS NULL", [], [])
+        f (PAnd [x]) = f x
+        f (PAnd xs) = (intercalate " AND " ["(" ++ s ++ ")" | s <- ss], concat cs, concat vs)
             where (ss,cs,vs) = unzip3 $ map f xs
 
 instance FromField () where
