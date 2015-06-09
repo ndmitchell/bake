@@ -11,6 +11,8 @@ import Development.Bake.Core.Type
 import Data.Time
 import Development.Bake.Core.Message
 import Control.DeepSeq
+import qualified Data.Set as Set
+import Data.List.Extra
 
 stateFailure = toState ""
 
@@ -47,7 +49,8 @@ data Memory = Memory
 newMemory :: Store -> (State, Answer) -> IO Memory
 newMemory store (state, answer) = do
     store <- storeUpdate store [IUState state answer Nothing]
-    return $ Memory False [] store [] Map.empty [] False (state, [])
+    let ps = sortOn (paQueued . storePatch store) $ Set.toList $ storeAlive store
+    return $ Memory False [] store [] Map.empty [] False (state, ps)
 
 instance NFData Memory where
     rnf Memory{..} = ()
