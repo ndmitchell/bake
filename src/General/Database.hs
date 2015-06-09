@@ -15,17 +15,17 @@ import Database.SQLite.Simple.FromField
 import Database.SQLite.Simple.ToField
 
 
-type family Uncolumns cs where
-    Uncolumns () = ()
-    Uncolumns (Column a) = Only a
-    Uncolumns (Only (Column a)) = Only a
-    Uncolumns (Column a, Column b) = (a, b)
-    Uncolumns (Column a, Column b, Column c) = (a, b, c)
-    Uncolumns (Column a, Column b, Column c, Column d) = (a, b, c, d)
-    Uncolumns (Column a, Column b, Column c, Column d, Column e) = (a, b, c, d, e)
-    Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f) = (a, b, c, d, e, f)
-    Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f, Column g) = (a, b, c, d, e, f, g)
-    Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f, Column g, Column h) = (a, b, c, d, e, f, g, h)
+type family Uncolumns cs
+type instance Uncolumns () = ()
+type instance Uncolumns (Column a) = Only a
+type instance Uncolumns (Only (Column a)) = Only a
+type instance Uncolumns (Column a, Column b) = (a, b)
+type instance Uncolumns (Column a, Column b, Column c) = (a, b, c)
+type instance Uncolumns (Column a, Column b, Column c, Column d) = (a, b, c, d)
+type instance Uncolumns (Column a, Column b, Column c, Column d, Column e) = (a, b, c, d, e)
+type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f) = (a, b, c, d, e, f)
+type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f, Column g) = (a, b, c, d, e, f, g)
+type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f, Column g, Column h) = (a, b, c, d, e, f, g, h)
 
 data Table rowid cs = Table {tblName :: String, tblCols :: [Column_]}
 
