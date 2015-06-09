@@ -43,9 +43,10 @@ class TypeField field where
     typeField :: field -> String
 
 instance TypeField String where typeField _ = "TEXT NOT NULL"
-instance TypeField UTCTime where typeField _ = "TEXT NOT NULL"
 instance TypeField Int where typeField _ = "INTEGER NOT NULL"
 instance TypeField Double where typeField _ = "REAL NOT NULL"
+instance TypeField UTCTime where typeField _ = "TEXT NOT NULL"
+instance TypeField Bool where typeField _ = "INTEGER NOT NULL"
 instance TypeField a => TypeField (Maybe a) where
     typeField x | Just s <- stripSuffix " NOT NULL" s = s
                 | otherwise = error "Can't remove the NULL constraint"
@@ -58,6 +59,11 @@ instance Columns (Only (Column c1)) where columns (Only c1) = [column_ c1]
 instance Columns (Column c1, Column c2) where columns (c1, c2) = [column_ c1, column_ c2]
 instance Columns (Column c1, Column c2, Column c3) where columns (c1, c2, c3) = [column_ c1, column_ c2, column_ c3]
 instance Columns (Column c1, Column c2, Column c3, Column c4) where columns (c1, c2, c3, c4) = [column_ c1, column_ c2, column_ c3, column_ c4]
+instance Columns (Column c1, Column c2, Column c3, Column c4, Column c5) where columns (c1, c2, c3, c4, c5) = [column_ c1, column_ c2, column_ c3, column_ c4, column_ c5]
+instance Columns (Column c1, Column c2, Column c3, Column c4, Column c5, Column c6) where columns (c1, c2, c3, c4, c5, c6) = [column_ c1, column_ c2, column_ c3, column_ c4, column_ c5, column_ c6]
+instance Columns (Column c1, Column c2, Column c3, Column c4, Column c5, Column c6, Column c7) where columns (c1, c2, c3, c4, c5, c6, c7) = [column_ c1, column_ c2, column_ c3, column_ c4, column_ c5, column_ c6, column_ c7]
+instance Columns (Column c1, Column c2, Column c3, Column c4, Column c5, Column c6, Column c7, Column c8) where columns (c1, c2, c3, c4, c5, c6, c7, c8) = [column_ c1, column_ c2, column_ c3, column_ c4, column_ c5, column_ c6, column_ c7, column_ c8]
+instance Columns (Column c1, Column c2, Column c3, Column c4, Column c5, Column c6, Column c7, Column c8, Column c9) where columns (c1, c2, c3, c4, c5, c6, c7, c8, c9) = [column_ c1, column_ c2, column_ c3, column_ c4, column_ c5, column_ c6, column_ c7, column_ c8, column_ c9]
 
 table :: (Columns keys, Columns cols) => String -> Column rowid -> keys -> cols -> Table rowid (Uncolumns cols)
 -- important to produce name before looking at columns
