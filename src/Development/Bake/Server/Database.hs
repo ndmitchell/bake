@@ -48,9 +48,9 @@ fromPatchIds (PatchIds "") = []
 fromPatchIds (PatchIds xs) = map (PatchId . read) $ splitOn "][" $ init $ tail xs
 
 
-stTable = table "state" stId (stState,stCreate,stPoint,stDuration)
+stTable = table "state" stId stState (stState,stCreate,stPoint,stDuration)
 stId = rowid stTable :: Column StateId
-stState = column stTable "state" "TEXT NOT NULL UNIQUE PRIMARY KEY" :: Column State
+stState = column stTable "state" "TEXT NOT NULL" :: Column State
 stCreate = column stTable "time" "TEXT NOT NULL" :: Column UTCTime
 stPoint = column stTable "point" "INTEGER" :: Column (Maybe PointId)
 stDuration = column stTable "duration" "REAL NOT NULL" :: Column Seconds
@@ -85,12 +85,12 @@ createRun = "CREATE TABLE IF NOT EXISTS run (" ++
     "point INTEGER NOT NULL, test TEXT, success INTEGER NOT NULL, " ++
     "client TEXT NOT NULL, start TEXT NOT NULL, duration REAL NOT NULL)"
 
-tsTable = table "test" norowid (tsPoint, tsTest)
+tsTable = table "test" norowid () (tsPoint, tsTest)
 tsPoint = column tsTable "point" "INTEGER NOT NULL" :: Column PointId
 tsTest = column tsTable "test" "TEXT" :: Column (Maybe Test)
 
-skTable = table "skip" norowid (skTest, skComment)
-skTest = column skTable "test" "TEXT NOT NULL PRIMARY KEY" :: Column Test
+skTable = table "skip" norowid skTest (skTest, skComment)
+skTest = column skTable "test" "TEXT NOT NULL" :: Column Test
 skComment = column skTable "comment" "TEXT NOT NULL" :: Column String
 
 create :: String -> IO Connection

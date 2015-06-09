@@ -27,7 +27,7 @@ type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Colum
 type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f, Column g) = (a, b, c, d, e, f, g)
 type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Column f, Column g, Column h) = (a, b, c, d, e, f, g, h)
 
-data Table rowid cs = Table {tblName :: String, tblCols :: [Column_]}
+data Table rowid cs = Table {tblName :: String, tblKeys :: [Column_], tblCols :: [Column_]}
 
 data Column c = Column {colTable :: String, colName :: String, colSqlType :: String}
 
@@ -44,8 +44,14 @@ instance Columns (Column c1, Column c2) where columns (c1, c2) = [column_ c1, co
 instance Columns (Column c1, Column c2, Column c3) where columns (c1, c2, c3) = [column_ c1, column_ c2, column_ c3]
 instance Columns (Column c1, Column c2, Column c3, Column c4) where columns (c1, c2, c3, c4) = [column_ c1, column_ c2, column_ c3, column_ c4]
 
-table :: Columns cs => String -> Column rowid -> cs -> Table rowid (Uncolumns cs)
-table name _ cs = Table name $ map column_ $ columns cs
+table :: (Columns keys, Columns cols) => String -> Column rowid -> keys -> cols -> Table rowid (Uncolumns cols)
+-- important to produce name before looking at columns
+table name rowid (columns -> keys) (columns -> cols) = Table name (check keys) (check cols)
+    where
+        check x | nubOrd (map colTable $ keys ++ cols) /= [name] = error "Column with the wrong table"
+                | not $ null $ map colName keys \\ map colName cols = error "Key column which is not one of the normal columns"
+                | colName rowid `notElem` ["","rowid"] = error "Rowid column must have name rowid"
+                | otherwise = x
 
 column :: Table rowid cs -> String -> String -> Column c
 column tbl row typ = Column (tblName tbl) row typ
@@ -99,7 +105,9 @@ sqlSelect conn cols pred = do
 
 sqlCreateNotExists :: Connection -> Table rowid cs -> IO ()
 sqlCreateNotExists conn Table{..} = do
-    let fields = intercalate ", " [colName ++ " " ++ colSqlType | Column{..} <- tblCols]
+    let fields = intercalate ", " $
+            [colName ++ " " ++ colSqlType | Column{..} <- tblCols] ++
+            ["PRIMARY KEY (" ++ intercalate ", " (map colName tblKeys) ++ ")" | not $ null tblKeys]
     let str = "CREATE TABLE IF NOT EXISTS " ++ tblName ++ "(" ++ fields ++ ")"
     execute_ conn $ fromString str
 
