@@ -100,8 +100,6 @@ newStore mem path = do
     time <- getCurrentTime
     createDirectoryIfMissing True path
     conn <- create $ if mem then ":memory:" else path </> "bake.sqlite"
-    execute_ conn "PRAGMA journal_mode = WAL;"
-    execute_ conn "PRAGMA synchronous = OFF;"
     cache <- newIORef $ Cache HashMap.empty HashMap.empty HashMap.empty HashMap.empty Nothing
     return $ Store conn path cache
 

@@ -98,12 +98,14 @@ skComment = column skTable "comment" :: Column String
 
 create :: String -> IO Connection
 create file = do
-    c <- open file
-    sqlCreateNotExists c stTable
-    sqlCreateNotExists c pcTable
-    sqlCreateNotExists c rjTable
-    sqlCreateNotExists c ptTable
-    sqlCreateNotExists c rnTable
-    sqlCreateNotExists c tsTable
-    sqlCreateNotExists c skTable
-    return c
+    conn <- open file
+    execute_ conn $ fromString "PRAGMA journal_mode = WAL;"
+    execute_ conn $ fromString "PRAGMA synchronous = OFF;"
+    sqlCreateNotExists conn stTable
+    sqlCreateNotExists conn pcTable
+    sqlCreateNotExists conn rjTable
+    sqlCreateNotExists conn ptTable
+    sqlCreateNotExists conn rnTable
+    sqlCreateNotExists conn tsTable
+    sqlCreateNotExists conn skTable
+    return conn
