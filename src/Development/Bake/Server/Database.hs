@@ -20,12 +20,13 @@ import Database.SQLite.Simple
 import Database.SQLite.Simple.FromField
 import Database.SQLite.Simple.ToField
 import System.Time.Extra
+import Data.Hashable
 import Data.List.Extra
 import General.Database
 import Prelude
 
 
-newtype PointId = PointId Int deriving (ToField, FromField, TypeField)
+newtype PointId = PointId Int deriving (ToField, FromField, TypeField, Eq, Hashable)
 newtype RunId = RunId Int deriving (Eq, ToField, FromField, TypeField)
 newtype StateId = StateId Int deriving (ToField, FromField, TypeField)
 newtype PatchId = PatchId Int deriving (ToField, FromField, TypeField)
