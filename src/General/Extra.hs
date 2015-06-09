@@ -5,7 +5,7 @@ module General.Extra(
     createDir,
     withFileLock,
     pick,
-    memo1,
+    memoIO0, memoIO1,
     catMaybesSet,
     whenLeft, whenRight,
     timeInit, timed, time, time_,
@@ -42,6 +42,7 @@ import Data.Time.Format
 #if __GLASGOW_HASKELL__< 710
 import System.Locale
 #endif
+import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Set as Set
 import Prelude
 
@@ -246,17 +247,18 @@ findCycle follow = firstJust $ \x ->
     in if x `elem` children then Just (x : delete x children) else Nothing
 
 
-memo1 :: Eq a => (a -> IO b) -> IO (a -> IO b)
-memo1 op = do
-    ref <- newIORef Nothing
-    return $ \v -> do
-        old <- readIORef ref
-        case old of
-            Just (a,b) | a == v -> return b
-            _ -> do
-                new <- op v
-                writeIORef ref $ Just (v, new)
-                return new
+memoIO0 :: IO b -> IO (IO b)
+memoIO0 act = return $ unsafeInterleaveIO act
+
+memoIO1 :: (Hashable a, Eq a) => (a -> IO b) -> IO (a -> IO b)
+memoIO1 op = do
+    var <- newVar HashMap.empty
+    return $ \k -> modifyVar var $ \mp ->
+        case HashMap.lookup k mp of
+            Just v -> return (mp, v)
+            Nothing -> do
+                v <- op k
+                return (HashMap.insert k v mp, v)
 
 
 catMaybesSet :: Ord a => Set.Set (Maybe a) -> Set.Set a
