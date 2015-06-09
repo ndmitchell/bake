@@ -23,12 +23,11 @@ ovenStepGit
     :: IO [FilePath] -- ^ Function that does a compile and returns the pieces that should be available at test time
     -> String -- ^ Git repo you are using
     -> String -- ^ Branch used as the initial starting point
-    -> String -- ^ Branch updates are written to (usually the same as the starting point)
     -> Maybe FilePath -- ^ Path under which the git will be checked out
     -> Oven () () test -- ^ Normal oven
     -> Oven SHA1 SHA1 test
-ovenStepGit act repo branchIn branchOut path o = o
-    {ovenInit = gitInit repo branchIn
+ovenStepGit act repo branch path o = o
+    {ovenInit = gitInit repo branch
     ,ovenUpdate = stepUpdate
     ,ovenPrepare = \s ps -> do stepPrepare s ps; ovenPrepare o () $ map (const ()) ps
     ,ovenSupersede = \_ _ -> False
@@ -39,7 +38,7 @@ ovenStepGit act repo branchIn branchOut path o = o
         failure = unsafePerformIO $ do
             t <- getCurrentTime
             return $ "failure-" ++ showUTCTime "%Y-%m-%dT%H-%M-%S%Q" t <.> "txt"
-        root = createDir "../bake-step-git" [repo,branchOut]
+        root = createDir "../bake-step-git" [repo,branch]
 
         gitEnsure = do
             root <- root
@@ -60,7 +59,7 @@ ovenStepGit act repo branchIn branchOut path o = o
             return git
 
         gitSetState git s = do
-            time_ $ cmd (Cwd git) "git checkout --force -B" [branchOut] [fromSHA1 s]
+            time_ $ cmd (Cwd git) "git checkout --force -B" [branch] [fromSHA1 s]
 
         gitApplyPatch git p = do
             time_ $ cmd (Cwd git) "git merge" [fromSHA1 p]
@@ -78,11 +77,8 @@ ovenStepGit act repo branchIn branchOut path o = o
             withFileLock (root </> ".bake-lock") $ do
                 gitSetState git s
                 forM_ ps $ gitApplyPatch git
-                Stdout x <- time $ cmd (Cwd git) "git rev-parse" [branchOut]
-                when (branchIn /= branchOut) $ do
-                    -- the branch may not already exist, so remote deleting it may fail
-                    Exit _ <- time $ cmd (Cwd git) "git push" [repo] [":" ++ branchOut]; return ()
-                time_ $ cmd (Cwd git) "git push" [repo] [branchOut ++ ":" ++ branchOut]
+                Stdout x <- time $ cmd (Cwd git) "git rev-parse" [branch]
+                time_ $ cmd (Cwd git) "git push" [repo] [branch ++ ":" ++ branch]
                 return $ sha1 $ trim x
 
         stepPrepare s ps = do
