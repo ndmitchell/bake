@@ -144,8 +144,8 @@ newCache conn = do
         s <- fst <$> cacheState s
         ps <- mapM (fmap fst . cachePatch) ps
         let f success = do
-            xs <- sqlSelect conn rnTest [rnPoint %==% ptId, ptState %== s, likeP ptPatches $ patchIdsSuperset ps, rnSuccess %== success]
-            return $ Set.fromList $ mapMaybe fromOnly xs
+                xs <- sqlSelect conn rnTest [rnPoint %==% ptId, ptState %== s, likeP ptPatches $ patchIdsSuperset ps, rnSuccess %== success]
+                return $ Set.fromList $ mapMaybe fromOnly xs
         liftM2 Set.difference (f True) (f False)
 
     return Cache{..}
