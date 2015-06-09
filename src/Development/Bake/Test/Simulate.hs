@@ -26,9 +26,8 @@ import Prelude
 
 simulate :: IO ()
 simulate = withBuffering stdout NoBuffering $ do
-    when False $ do
-        (t,_) <- duration $ performance 200
-        putStrLn $ "Performance test took " ++ showDuration t
+    (t,_) <- duration $ performance 200
+    putStrLn $ "Performance test took " ++ showDuration t
     basic
     bisect
     newTest
@@ -250,4 +249,3 @@ performance nTests = do
                 in ((patch, tick+1), True, Reply q pass tests)
           | otherwise -> ((patch, tick), patch /= nPatches, Request client)
     putStrLn $ "Success at performance"
-    error "stop"
