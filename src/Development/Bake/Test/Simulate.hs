@@ -214,16 +214,22 @@ basic = do
 
 newTest :: IO ()
 newTest = do
-    -- had test x,y all along. Introduce z at patch 12, and that fails always
+    -- had test x,y all along. Introduce z/q at newPatch, and z either always fails or always passes
     let info t = mempty
     let client = toClient "c"
-    simulation info [(client,1)] (map (toPatch . show) [1..20 :: Int]) $ \active patches -> return $ case () of
-        _ | p:patches <- patches -> (patches, True, Submit p (p /= toPatch "12") (\t -> p == toPatch "12" && t == Just (toTest "z")))
-          | q:_ <- active, let isZ = qTest q == Just (toTest "z"), let has12 = toPatch "12" `elem` snd (qCandidate q) ->
-                if isZ && not has12 then error $ "Running a test that doesn't exist, " ++ show q
-                else ([], True, Reply q (not isZ) (map toTest $ ["x","y"] ++ ["z" | has12]))
-          | otherwise -> ([], False, Request client)
-    putStrLn "Success at newtest"
+    let tests = map toTest ["x","y"]
+    let patches = map (toPatch . show) [1..20 :: Int]
+    let newTest = toTest "z"
+    let newPatch = toPatch "12"
+
+    forM_ [False,True] $ \pass -> do
+        simulation info [(client,1)] patches $ \active patches -> return $ case () of
+            _ | p:patches <- patches -> (patches, True, Submit p (p /= newPatch || pass) (\t -> not pass && p == newPatch && t == Just newTest))
+              | q:_ <- active, let isTest = qTest q == Just newTest, let isPatch = newPatch `elem` snd (qCandidate q) ->
+                    if isTest && not isPatch then error $ "Running a test that doesn't exist, " ++ show q
+                    else ([], True, Reply q (not isTest || pass) (tests ++ [newTest | isPatch] ++ [toTest "q" | isPatch]))
+              | otherwise -> ([], False, Request client)
+        putStrLn "Success at newtest"
 
 performance :: Int -> IO ()
 performance nTests = timed $ do
