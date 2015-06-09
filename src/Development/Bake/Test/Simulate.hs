@@ -30,7 +30,7 @@ simulate = withBuffering stdout NoBuffering $ do
     basic
     bisect
     newTest
-    when False quickPlausible
+    quickPlausible
     replicateM_ 20 randomSimple
 
 ---------------------------------------------------------------------
@@ -173,20 +173,20 @@ quickPlausible = do
     -- start, process 2 tests, add a patch, then process the rest
     -- expect to see 1, X, 1, rest, X
 
-    forM_ [False,True] $ \initialPatch -> do
-        done <- simulation info [(client,1)] [] $ \active seen -> return $ case () of
-            _ | length seen == 0, initialPatch -> (seen ++ [toTest ""], True, Submit (toPatch "0") True (const False))
-              | length seen == 3 -> (seen ++ [toTest ""], True, Submit (toPatch "1") True (const False))
-              | q:_ <- active -> (maybeToList (qTest q) ++ seen, True, Reply q True tests)
-              | otherwise -> (seen ++ [toTest "" | null seen], False, Request client)
+    let todo = [Paused True
+               ,Submit (toPatch "0") True (const False)
+               ,Submit (toPatch "1") False (== Just (toTest "3"))
+               ,Submit (toPatch "2") True (const False)
+               ,Paused False
+               ,Submit (toPatch "3") True (const False)]
 
-        case dropWhile null $ map fromTest $ reverse done of
-            "3":x:"3":ys
-                | [x,"1"] `isSuffixOf` ys
-                , sort ys == ["1","2","4","5"]
-                -> return ()
-            xs -> error $ "quickPlausible wrong test sequence: " ++ show xs
-        putStrLn $ "Success at quickPlausible " ++ show initialPatch
+    simulation info [(client,1)] todo $ \active todo -> return $ case () of
+        _ | t:odo <- todo -> (odo, True, t)
+          | q@Question{..}:_ <- active ->
+              if snd qCandidate == [toPatch "0",toPatch "2"] && qTest `notElem` [Nothing, Just $ toTest "3"] then error "bad quickPlausible"
+              else (todo, True, Reply q (not $ qTest == Just (toTest "3") && toPatch "1" `elem` unstate (fst qCandidate) ++ snd qCandidate) tests)
+          | otherwise -> (todo, False, Request client)
+    putStrLn $ "Success at quickPlausible"
 
 
 bisect :: IO ()
