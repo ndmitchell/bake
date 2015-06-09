@@ -146,7 +146,7 @@ storePatch store = snd . unsafePerformIO . storePatchEx store
 storePatchEx :: Store -> Patch -> IO (PatchId, PatchInfo)
 storePatchEx store@Store{..} p = do
     let ans = do
-            [Only row :. DbPatch{..}] <- query conn "SELECT rowid, * FROM patch WHERE patch IS ?" $ Only p
+            [Only row :. DbPatch{..}] <- query conn "SELECT rowid, * FROM patch WHERE patch = ?" $ Only p
             reject <- if isNothing pReject then return Nothing else do
                 ts <- query conn "SELECT DISTINCT reject.test, run.point FROM reject, run WHERE reject.patch IS ? AND reject.run IS run.rowid" $ Only (row :: PatchId)
                 ts <- mapM (\(a,b) -> (a,) <$> unsurePoint store b) ts
