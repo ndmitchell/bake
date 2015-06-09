@@ -14,7 +14,6 @@ import General.Extra
 import Development.Bake.Server.Brain
 import Development.Bake.Server.Web
 import Development.Bake.Server.Stats
-import Development.Bake.Server.History
 import Development.Bake.Server.Memory
 import Development.Bake.Server.Store
 import Control.Applicative
@@ -28,7 +27,6 @@ import System.Console.CmdArgs.Verbosity
 import System.FilePath
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import qualified Data.ByteString.Char8 as BS
 import Prelude
 
 
@@ -47,8 +45,6 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
                 if null inputURL then do
                     -- prune but don't save, will reprune on the next ping
                     fmap OutputHTML $ web prettys admin inputArgs . prune =<< readCVar var
-                else if ["history"] `isPrefixOf` inputURL then
-                    fmap (OutputString . BS.unpack) readHistory 
                 else if ["html"] `isPrefixOf` inputURL then
                     return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if ["api"] `isPrefixOf` inputURL then
@@ -82,7 +78,6 @@ initialise oven author extra = do
         ovenNotify oven [author] "Failed to initialise, pretty serious"
     let state0 = fromMaybe stateFailure res
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
-    addHistory [(HRestart, toPatch "")]
     store <- newStore False "bake-store"
     when (isJust res) $ do
         extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing

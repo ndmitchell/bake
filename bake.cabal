@@ -78,7 +78,6 @@ library
         Development.Bake.Pretty
         Development.Bake.Server.Brain
         Development.Bake.Server.Database
-        Development.Bake.Server.History
         Development.Bake.Server.Memory
         Development.Bake.Server.Property
         Development.Bake.Server.Start
