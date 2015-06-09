@@ -33,7 +33,6 @@ import Control.Applicative
 import Control.Monad.Extra
 import System.Directory
 import Database.SQLite.Simple hiding (NamedParam(..))
-import Database.SQLite.Simple.ToField
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
@@ -146,12 +145,14 @@ storePatch store = snd . unsafePerformIO . storePatchEx store
 storePatchEx :: Store -> Patch -> IO (PatchId, PatchInfo)
 storePatchEx store@Store{..} p = do
     let ans = do
-            [Only row :. DbPatch{..}] <- query conn "SELECT rowid, * FROM patch WHERE patch = ?" $ Only p
-            reject <- if isNothing pReject then return Nothing else do
+            [(row, paAuthor, paQueue, paStart, paDelete, paSupersede, paReject, paPlausible, paMerge)] <-
+                sqlSelect conn (pcId,pcAuthor,pcQueue,pcStart,pcDelete,pcSupersede,pcReject,pcPlausible,pcMerge)
+                [pcPatch %== p]
+            reject <- if isNothing paReject then return Nothing else do
                 ts <- query conn "SELECT DISTINCT reject.test, run.point FROM reject, run WHERE reject.patch IS ? AND reject.run IS run.rowid" $ Only (row :: PatchId)
                 ts <- mapM (\(a,b) -> (a,) <$> unsurePoint store b) ts
-                return (Just (fromJust pReject, Map.fromList ts))
-            return (row, PatchInfo (pQueue, pAuthor) pStart pDelete pSupersede reject pPlausible pMerge)
+                return (Just (fromJust paReject, Map.fromList ts))
+            return (row, PatchInfo (paQueue, paAuthor) paStart paDelete paSupersede reject paPlausible paMerge)
     c <- readIORef cache
     case HashMap.lookup p $ cachePatch c of
         Just res -> return res
@@ -252,8 +253,8 @@ unsurePatch Store{..} p = do
 
 unsurePoint :: Store -> PointId -> IO Point
 unsurePoint store@Store{..} pt = do
-    [DbPoint{..}] <- query conn "SELECT * FROM point WHERE rowid IS ?" (Only pt)
-    liftM2 (,) (unsureState store tState) (mapM (unsurePatch store) $ fromPatchIds tPatches)
+    [(state, patches)] <- sqlSelect conn (ptState, ptPatches) [ptId %== pt]
+    liftM2 (,) (unsureState store state) (mapM (unsurePatch store) $ fromPatchIds patches)
 
 ensureState :: Store -> State -> IO StateId
 ensureState Store{..} s = do
@@ -266,14 +267,10 @@ ensurePatch store = fmap fst . storePatchEx store
 ensurePoint :: Store -> Point -> IO PointId
 ensurePoint store@Store{..} (s, ps) = do
     s <- ensureState store s
-    ps <- mapM (ensurePatch store) ps
-    let v = DbPoint s (patchIds ps)
-    res <- query conn "SELECT rowid FROM point WHERE state = ? AND patches = ?" v
+    ps <- patchIds <$> mapM (ensurePatch store) ps
+    res <- sqlSelect conn ptId [ptState %== s, ptPatches %== ps]
     case res of
-        [] -> do
-            execute conn "INSERT INTO point VALUES (?,?)" v
-            [Only x] <- query_ conn "SELECT last_insert_rowid()"
-            return x
+        [] -> sqlInsert conn ptTable (s, ps)
         [Only x] -> return x
         _ -> error $ "ensurePoint, multiple points found"
 
@@ -310,9 +307,7 @@ storeUpdate store xs = do
                 TL.writeFile (path </> show x </> "update.txt") aStdout
                 modifyIORef cache $ \c -> c{cacheState = HashMap.insert s (x, StateInfo now p) $ cacheState c}
             IUQueue p a -> do
-                execute conn "INSERT INTO patch VALUES (?,?,?,?,?,?,?,?,?)" $
-                    DbPatch p a now Nothing Nothing Nothing Nothing Nothing Nothing
-                [Only x] <- query_ conn "SELECT last_insert_rowid()"
+                x <- sqlInsert conn pcTable (p,a,now,Nothing,Nothing,Nothing,Nothing,Nothing,Nothing)
                 modifyIORef cache $ \c -> c{cachePatch = HashMap.insert p (x, PatchInfo (now,a) Nothing Nothing Nothing Nothing Nothing Nothing) $ cachePatch c}
             IUStart p -> do
                 execute conn "UPDATE patch SET start=? WHERE patch IS ?" (now, p)
@@ -334,7 +329,7 @@ storeUpdate store xs = do
                 [Only run] <- query conn "SELECT rowid FROM run WHERE success IS ? AND point IS ? AND test IS ?" (False, pt2, t)
                 execute conn "UPDATE patch SET reject=? WHERE patch IS ?" (now, p)
                 pa <- ensurePatch store p
-                execute conn "INSERT INTO reject VALUES (?,?,?)" $ DbReject pa t run
+                sqlInsert conn rjTable (pa, t, run)
                 let add Nothing = (now, Map.singleton t pt)
                     add (Just (a,b)) = (a, b `Map.union` Map.singleton t pt)
                 modifyIORef cache $ \c -> c{cachePatch = HashMap.adjust (second $ \pa -> pa{paReject = Just $ add $ paReject pa}) p $ cachePatch c}
@@ -356,8 +351,7 @@ storeUpdate store xs = do
                         when (Set.fromList (mapMaybe fromOnly res) /= Set.fromList aTests) $
                             error "Test disagreement"
                     modifyIORef cache $ \c -> c{cachePoint = HashMap.insertWith together qCandidate (pt, mempty{poTodo=Just $ Set.fromList aTests}) $ cachePoint c}
-                execute conn "INSERT INTO run VALUES (?,?,?,?,?,?)" $ DbRun pt qTest aSuccess qClient t aDuration
-                [Only (x :: RunId)] <- query_ conn "SELECT last_insert_rowid()"
+                x <- sqlInsert conn rnTable (pt,qTest,aSuccess,qClient,t,aDuration)
                 createDirectoryIfMissing True $ path </> show pt
                 TL.writeFile (path </> show pt </> show x ++ "-" ++ maybe "Prepare" (safely . fromTest) qTest <.> "txt") aStdout
                 let val = if aSuccess then mempty{poPass=Set.singleton qTest} else mempty{poFail=Set.singleton qTest}
@@ -380,22 +374,20 @@ storeRunList :: Store -> Maybe Client -> Maybe (Maybe Test) -> Maybe State -> [P
 storeRunList store@Store{..} client test state patches run = unsafePerformIO $ do
     point <- maybe (return Nothing) (fmap Just . ensurePoint store . (, patches)) state
     patches <- if isNothing state && patches /= [] then Just <$> mapM (ensurePatch store) patches else return Nothing
-    let filt = [("run.client IS ?", toField x) | Just x <- [client]] ++
-               [("run.test IS ?", toField x) | Just x <- [test]] ++
-               [("point.rowid IS run.point AND point.patches LIKE ?", toField $ patchIdsSuperset x) | Just x <- [patches]] ++
-               [("run.point IS ?", toField x) | Just x <- [point]] ++
-               [("run.rowid IS ?", toField x) | Just x <- [run]]
-    let str = "SELECT run.rowid, run.* FROM run" ++ (if isJust patches then ", point" else "") ++ " WHERE " ++
-              intercalate " AND " (map fst filt) ++ " ORDER BY datetime(run.start) DESC"
-    xs :: [Only RunId :. DbRun] <- query conn (fromString str) $ map snd filt
-    forM xs $ \(Only run :. DbRun{..}) -> do
-        pt <- unsurePoint store rPoint
-        return (run, rStart, Question pt rTest 0 rClient, Answer mempty rDuration [] rSuccess)
+    let filt = [rnClient %== x | Just x <- [client]] ++
+               [rnTest %== x | Just x <- [test]] ++
+               [ptId %==% rnPoint %&& likeP ptPatches (patchIdsSuperset x) | Just x <- [patches]] ++
+               [rnPoint %== x | Just x <- [point]] ++
+               [rnId %== x | Just x <- [run]]
+    xs <- sqlSelect conn (rnId, rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration) (orderDatetimeDesc rnStart : filt)
+    forM xs $ \(rnId, rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration) -> do
+        pt <- unsurePoint store rnPoint
+        return (rnId, rnStart, Question pt rnTest 0 rnClient, Answer mempty rnDuration [] rnSuccess)
 
 
 storeRunFile :: Store -> RunId -> Maybe String
 storeRunFile store@Store{..} run = unsafePerformIO $ do
-    [DbRun{..}] <- query conn "SELECT * FROM run WHERE rowid IS ?" $ Only run
+    [(rPoint, rTest)] <- sqlSelect conn (rnPoint, rnTest) [rnId %== run]
     let file = path </> show rPoint </> show run ++ "-" ++ maybe "Prepare" (safely . fromTest) rTest <.> "txt"
     ifM (doesFileExist file) (Just <$> readFile file) (return Nothing)
 

@@ -3,15 +3,17 @@
 -- Stuff on disk on the server
 module Development.Bake.Server.Database(
     PointId, RunId, StateId, PatchId, patchIds, fromPatchIds, patchIdsSuperset,
-    DbPatch(..), DbReject(..), DbPoint(..), DbRun(..),
     stTable, stId, stState, stCreate, stPoint, stDuration,
+    pcTable, pcId, pcPatch, pcAuthor, pcQueue, pcStart, pcDelete, pcSupersede, pcReject, pcPlausible, pcMerge,
+    rjTable, rjPatch, rjTest, rjRun,
+    ptTable, ptId, ptState, ptPatches,
     skTable, skTest, skComment,
     tsTable, tsPoint, tsTest,
+    rnTable, rnId, rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration,
     create
     ) where
 
 import Development.Bake.Core.Type
-import Control.Applicative
 import Data.String
 import General.Extra
 import Database.SQLite.Simple
@@ -35,7 +37,7 @@ instance Show PatchId where show (PatchId x) = "patch-" ++ show x
 
 instance Read RunId where readsPrec i s = [x | Just s <- [stripPrefix "run-" s], x <- readsPrec i s]
 
-newtype PatchIds = PatchIds String deriving (ToField, FromField)
+newtype PatchIds = PatchIds String deriving (ToField, FromField, TypeField)
 
 patchIds :: [PatchId] -> PatchIds
 patchIds = PatchIds . concatMap (\(PatchId x) -> "[" ++ show x ++ "]")
@@ -55,35 +57,36 @@ stCreate = column stTable "time" :: Column UTCTime
 stPoint = column stTable "point" :: Column (Maybe PointId)
 stDuration = column stTable "duration" :: Column Seconds
 
+pcTable = table "patch" pcId pcPatch (pcPatch, pcAuthor, pcQueue, pcStart, pcDelete, pcSupersede, pcReject, pcPlausible, pcMerge)
+pcId = rowid pcTable :: Column PatchId
+pcPatch = column pcTable "patch" :: Column Patch
+pcAuthor = column pcTable "author" :: Column String
+pcQueue = column pcTable "queue" :: Column UTCTime
+pcStart = column pcTable "start" :: Column (Maybe UTCTime)
+pcDelete = column pcTable "delete_" :: Column (Maybe UTCTime)
+pcSupersede = column pcTable "supersede" :: Column (Maybe UTCTime)
+pcReject = column pcTable "reject" :: Column (Maybe UTCTime)
+pcPlausible = column pcTable "plausible" :: Column (Maybe UTCTime)
+pcMerge = column pcTable "merge" :: Column (Maybe UTCTime)
 
-data DbPatch = DbPatch
-    {pPatch :: Patch, pAuthor :: String, pQueue :: UTCTime
-    ,pStart :: Maybe UTCTime, pDelete :: Maybe UTCTime, pSupersede :: Maybe UTCTime, pReject :: Maybe UTCTime
-    ,pPlausible :: Maybe UTCTime, pMerge :: Maybe UTCTime}
+rjTable = table "reject" norowid () (rjPatch, rjTest, rjRun)
+rjPatch = column rjTable "patch" :: Column PatchId
+rjTest = column rjTable "test" :: Column (Maybe Test)
+rjRun = column rjTable "run" :: Column RunId
 
-createPatch = "CREATE TABLE IF NOT EXISTS patch (" ++
-    "patch TEXT NOT NULL UNIQUE PRIMARY KEY, author TEXT NOT NULL, queue TEXT NOT NULL, " ++
-    "start TEXT, delete_ TEXT, supersede TEXT, reject TEXT, plausible TEXT, merge TEXT)"
+ptTable = table "point" ptId (ptState, ptPatches) (ptState, ptPatches)
+ptId = rowid ptTable :: Column PointId
+ptState = column ptTable "state" :: Column StateId
+ptPatches = column ptTable "patches" :: Column PatchIds
 
-data DbReject = DbReject
-    {jPatch :: PatchId, jTest :: Maybe Test, jRun :: RunId}
-
-createReject = "CREATE TABLE IF NOT EXISTS reject (" ++
-    "patch INTEGER NOT NULL, test TEXT, run INTEGER NOT NULL)"
-
-data DbPoint = DbPoint
-    {tState :: StateId, tPatches :: PatchIds} -- surrounded by /
-
-createPoint = "CREATE TABLE IF NOT EXISTS point (" ++
-    "state INTEGER NOT NULL, patches TEXT NOT NULL, PRIMARY KEY (state, patches))"
-
-data DbRun = DbRun
-    {rPoint :: PointId, rTest :: Maybe Test, rSuccess :: Bool
-    ,rClient :: Client, rStart :: UTCTime, rDuration :: Seconds}
-
-createRun = "CREATE TABLE IF NOT EXISTS run (" ++
-    "point INTEGER NOT NULL, test TEXT, success INTEGER NOT NULL, " ++
-    "client TEXT NOT NULL, start TEXT NOT NULL, duration REAL NOT NULL)"
+rnTable = table "run" rnId () (rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration)
+rnId = rowid rnTable :: Column RunId
+rnPoint = column rnTable "point" :: Column PointId
+rnTest = column rnTable "test" :: Column (Maybe Test)
+rnSuccess = column rnTable "success" :: Column Bool
+rnClient = column rnTable "client" :: Column Client
+rnStart = column rnTable "start" :: Column UTCTime
+rnDuration = column rnTable "duration" :: Column Seconds
 
 tsTable = table "test" norowid () (tsPoint, tsTest)
 tsPoint = column tsTable "point" :: Column PointId
@@ -97,31 +100,10 @@ create :: String -> IO Connection
 create file = do
     c <- open file
     sqlCreateNotExists c stTable
-    execute_ c $ fromString createPatch
-    execute_ c $ fromString createReject
-    execute_ c $ fromString createPoint
-    execute_ c $ fromString createRun
+    sqlCreateNotExists c pcTable
+    sqlCreateNotExists c rjTable
+    sqlCreateNotExists c ptTable
+    sqlCreateNotExists c rnTable
     sqlCreateNotExists c tsTable
     sqlCreateNotExists c skTable
     return c
-
-instance FromRow DbPatch where
-    fromRow = DbPatch <$> field <*> field <*> field <*> field <*> field <*> field <*> field <*> field <*> field
-
-instance FromRow DbPoint where
-    fromRow = DbPoint <$> field <*> field
-
-instance ToRow DbPatch where
-    toRow (DbPatch a b c d e f g h i) = toRow (a,b,c,d,e,f,g,h,i)
-
-instance ToRow DbReject where
-    toRow (DbReject a b c) = toRow (a,b,c)
-
-instance ToRow DbRun where
-    toRow (DbRun a b c d e f) = toRow (a,b,c,d,e,f)
-
-instance FromRow DbRun where
-    fromRow = DbRun <$> field <*> field <*> field <*> field <*> field <*> field
-
-instance ToRow DbPoint where
-    toRow (DbPoint a b) = toRow (a,b)
