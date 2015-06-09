@@ -118,7 +118,9 @@ nullP :: Column (Maybe c) -> Pred
 nullP c = NullP (column_ c)
 
 (%==) :: ToField c => Column c -> c -> Pred
-(%==) c v = PEq (column_ c) (toField v)
+(%==) (column_ -> c) (toField -> v)
+    | v == SQLNull = NullP c
+    | otherwise = PEq c v
 
 unpred :: [Pred] -> (String, [Column_], [SQLData])
 unpred = f . AndP
@@ -126,7 +128,7 @@ unpred = f . AndP
         g Column{..} = colTable ++ "." ++ colName
 
         f (NullP c) = (g c ++ " IS NULL", [c], [])
-        f (PEq c v) = (g c ++ " IS ?", [c], [v])
+        f (PEq c v) = (g c ++ " = ?", [c], [v]) -- IS always works, but is a LOT slower
         f (AndP []) = ("NULL IS NULL", [], [])
         f (AndP [x]) = f x
         f (AndP xs) = (intercalate " AND " ["(" ++ s ++ ")" | s <- ss], concat cs, concat vs)
