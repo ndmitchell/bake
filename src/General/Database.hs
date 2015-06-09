@@ -102,7 +102,7 @@ sqlUpdate conn upd pred = do
     case tbl of
         _ | null upd -> fail "Must update at least one column"
         [t] -> do
-            let str = "UPDATE " ++ t ++ " SET " ++ intercalate ", " (map ((++ "=?") . colTable) updCs) ++ " WHERE " ++ prdStr
+            let str = "UPDATE " ++ t ++ " SET " ++ intercalate ", " (map ((++ "=?") . colName) updCs) ++ " WHERE " ++ prdStr
             execute conn (fromString str) (updVs ++ prdVs)
         _ -> fail "Must update all in the same column"
 
