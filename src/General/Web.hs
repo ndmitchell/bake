@@ -73,12 +73,16 @@ server port act = runSettings (setOnException exception $ setPort port defaultSe
             [(BS.unpack a, maybe "" BS.unpack b) | (a,b) <- queryString req]
             bod
     res <- act pay
+    -- from http://stackoverflow.com/questions/49547/making-sure-a-web-page-is-not-cached-across-all-browsers
+    let nocache = [("Cache-Control","no-cache, no-store, must-revalidate")
+                  ,("Pragma","no-cache")
+                  ,("Expires","0")]
     reply $ case res of
-        OutputFile file -> responseFile status200 [] file Nothing
-        OutputString msg -> responseLBS status200 [] $ LBS.pack msg
-        OutputHTML msg -> responseLBS status200 [("content-type","text/html")] $ LBS.pack msg
-        OutputError msg -> responseLBS status500 [] $ LBS.pack msg
-        OutputMissing -> responseLBS status404 [] $ LBS.pack "Resource not found"
+        OutputFile file -> responseFile status200 nocache file Nothing
+        OutputString msg -> responseLBS status200 nocache $ LBS.pack msg
+        OutputHTML msg -> responseLBS status200 (("content-type","text/html"):nocache) $ LBS.pack msg
+        OutputError msg -> responseLBS status500 nocache $ LBS.pack msg
+        OutputMissing -> responseLBS status404 nocache $ LBS.pack "Resource not found"
 
 exception :: Maybe Request -> SomeException -> IO ()
 exception r e
