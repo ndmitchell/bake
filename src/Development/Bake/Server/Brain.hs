@@ -76,7 +76,7 @@ react oven mem@Memory{..}
     , xs@(_:_) <- filter (isNothing . paPlausible . storePatch store) $ snd active
     = Just $ do
         let authors = map (snd . paQueued . storePatch store) xs
-        bad <- notify authors $ "Your patch is now plausible\n" ++ unlines (map fromPatch $ snd active)
+        bad <- notify authors $ "Your patch is now plausible\n" ++ unlines (map fromPatch xs)
         store <- storeUpdate store $ map IUPlausible xs
         return mem{store = store, fatal = bad ++ fatal}
 
