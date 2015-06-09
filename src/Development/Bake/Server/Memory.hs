@@ -13,6 +13,7 @@ import Development.Bake.Core.Message
 import Control.DeepSeq
 import qualified Data.Set as Set
 import Data.List.Extra
+import Data.Maybe
 
 stateFailure = toState ""
 
@@ -50,6 +51,8 @@ newMemory :: Store -> (State, Answer) -> IO Memory
 newMemory store (state, answer) = do
     store <- storeUpdate store [IUState state answer Nothing]
     let ps = sortOn (paQueued . storePatch store) $ Set.toList $ storeAlive store
+    let starting = filter (isNothing . paStart . storePatch store) ps
+    store <- storeUpdate store $ map IUStart starting
     return $ Memory False [] store [] Map.empty [] False (state, ps)
 
 instance NFData Memory where
