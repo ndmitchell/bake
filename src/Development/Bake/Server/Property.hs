@@ -42,7 +42,7 @@ plausible Memory{..}
     , PointInfo{..} <- storePoint store active
     , Just tests <- poTodo
     , Set.null poFail
-    , tests == Set.union (storeSupersetPass store active) (catMaybesSet poPass)
+    , tests `Set.isSubsetOf` Set.union (storeSupersetPass store active) (catMaybesSet poPass)
     = True
 plausible _ = False
 
