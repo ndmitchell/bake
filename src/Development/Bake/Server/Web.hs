@@ -286,7 +286,8 @@ progress Shower{..} Memory{..}
         PointInfo{..} = storePoint store active
         done = Set.union poPass poFail
         superset = let x = storeSupersetPass store active `Set.difference` catMaybesSet done
-                   in if Set.null x then "" else ", and done " ++ show (Set.size x) ++ " in a superset"
+                       x2 = maybe x (Set.intersection x) poTodo
+                   in if Set.null x2 then "" else ", and done " ++ show (Set.size x2) ++ " in a superset"
         isRunning = any ((==) active . qCandidate . snd) running
 
 
