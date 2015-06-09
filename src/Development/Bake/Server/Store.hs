@@ -161,6 +161,9 @@ data Store = Store
     ,extra :: Var (Map.Map (Either State Patch) (Maybe T.Text))
     }
 
+instance Show Store where
+    show Store{..} = show path
+
 newStore :: Bool -> FilePath -> IO Store
 newStore mem path = do
     createDirectoryIfMissing True path

@@ -88,7 +88,7 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
             return "stats"
 
          else if argsRaw then do
-            -- str_ $ show mem
+            str_ $ show mem
             return "raw"
 
          else if isJust argsServer then do

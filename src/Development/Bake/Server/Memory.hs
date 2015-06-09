@@ -44,7 +44,7 @@ data Memory = Memory
         -- ^ Pretend the queued is empty
     ,active :: Point
         -- ^ the target we are working at (some may already be rejected)
-    }
+    } deriving Show
 
 newMemory :: Store -> (State, Answer) -> IO Memory
 newMemory store (state, answer) = do
