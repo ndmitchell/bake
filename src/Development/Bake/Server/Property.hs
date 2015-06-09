@@ -53,7 +53,7 @@ mergeable mem@Memory{..}
     | plausible mem
     , PointInfo{..} <- storePoint store active
     , Just tests <- poTodo
-    , Set.size tests + 1 == Set.size poPass
+    , tests == catMaybesSet poPass
     = True
 mergeable _ = False
 
