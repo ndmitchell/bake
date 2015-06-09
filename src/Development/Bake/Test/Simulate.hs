@@ -58,6 +58,7 @@ restate = toState . unwords . map fromPatch
 data Step = Submit Patch Bool (Maybe Test -> Bool) -- are you OK for it to pass, are you OK for it to fail
           | Reply Question Bool [Test]
           | Request Client
+          | Paused Bool
 
 simulation
     :: (Test -> TestInfo Test)                  -- ^ Static test information
@@ -97,6 +98,8 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
             Request c ->
                 let Just mx = lookup c workers
                 in (Pinged $ Ping c (fromClient c) [] mx $ mx - count s c, s)
+            Paused b ->
+                (if b then Pause "" else Unpause "", s)
         (mem, q) <- prod oven (memory s) msg
         -- print q
         when (fatal mem /= []) $ error $ "Fatal error, " ++ unlines (fatal mem)
