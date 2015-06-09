@@ -113,7 +113,9 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
 
 --    putStrLn $ unlines $ map show $ Map.toList $ storePoints store
 
-    unless (null running) $ error "Active should have been empty"
+    unless (null running) $ error "Running should have been empty"
+    unless (null $ snd active) $ error "Active should have been empty"
+    unless (Set.null $ storeAlive store) $ error "Alive should have been empty"
     forM_ workers $ \(c,_) -> do
         (_, q) <- prod oven Memory{..} $ Pinged $ Ping c (fromClient c) [] maxBound maxBound
         when (isJust q) $ error "Brains should have returned sleep"
