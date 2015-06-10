@@ -62,8 +62,6 @@ reacts oven = f 10
 
 react :: Oven State Patch Test -> Memory -> Maybe (IO Memory)
 react oven mem@Memory{..}
-    | fatal /= [] = Nothing
-
     | xs <- rejectable mem
     , xs@(_:_) <- filter (\(p,t) -> t `Map.notMember` maybe Map.empty snd (paReject $ storePatch store p)) xs
     = Just $ do
