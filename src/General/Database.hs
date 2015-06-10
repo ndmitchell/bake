@@ -110,11 +110,11 @@ sqlUpdate conn upd pred = do
 sqlDelete :: Connection -> Table rowid cs -> [Pred] -> IO ()
 sqlDelete conn tbl pred = do
     let (prdStr, _, prdCs, prdVs) = unpred pred
-    case nubOrd $ tblName tbl : map colName prdCs of
+    case nubOrd $ tblName tbl : map colTable prdCs of
         [t] -> do
             let str = "DELETE FROM " ++ t ++ " WHERE " ++ prdStr
             execute conn (fromString str) prdVs
-        _ -> fail "Must delete from only one column"
+        ts -> fail $ "sqlDelete, can only delete from one table but you are touching: " ++ unwords ts
 
 
 sqlSelect :: (FromRow (Uncolumns cs), Columns cs) => Connection -> cs -> [Pred] -> IO [Uncolumns cs]
