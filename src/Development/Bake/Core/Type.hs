@@ -169,9 +169,9 @@ require :: [String] -> TestInfo test -> TestInfo test
 require xs t = t{testRequire = xs ++ testRequire t}
 
 
-newtype State = State {fromState :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField,TypeField)
-newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField,TypeField)
-newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField,TypeField)
+newtype State = State {fromState :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField,TypeField,Stringy)
+newtype Patch = Patch {fromPatch :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField,TypeField,Stringy)
+newtype Test = Test {fromTest :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField,TypeField,Stringy)
 newtype Client = Client {fromClient :: String} deriving (Show,Eq,Ord,ToJSON,FromJSON,Hashable,NFData,Typeable,FromField,ToField,TypeField)
 
 toState :: String -> State; toState = State
