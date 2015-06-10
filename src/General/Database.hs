@@ -88,6 +88,7 @@ norowid = Column "" "" ""
 sqlInsert :: (ToRow cs, FromField rowid) => Connection -> Table rowid cs -> cs -> IO rowid
 sqlInsert conn tbl val = do
     let vs = toRow val
+    -- FIXME: Should combine the last_insert_rowid with the INSERT INTO
     let str = "INSERT INTO " ++ tblName tbl ++ " VALUES (" ++ intercalate "," (replicate (length vs) "?") ++ ")"
     execute conn (fromString str) vs
     [Only row] <- query_ conn (fromString "SELECT last_insert_rowid()")
