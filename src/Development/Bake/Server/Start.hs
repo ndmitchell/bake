@@ -86,7 +86,6 @@ initialise oven admins extra = do
     mem <- newMemory store (state0, answer)
     return $ mem
         {admins=admins
---        ,updates=[Update now answer state0 []]
         ,fatal=["Failed to initialise" | isNothing res]
         }
 
