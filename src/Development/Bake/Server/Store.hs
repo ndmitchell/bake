@@ -62,7 +62,8 @@ poTest PointInfo{..} t
 
 
 data PatchInfo = PatchInfo
-    {paQueued :: (UTCTime, Author)
+    {paAuthor :: Author
+    ,paQueued :: UTCTime
     ,paStart :: Maybe UTCTime
     ,paDelete :: Maybe UTCTime
     ,paSupersede :: Maybe UTCTime
@@ -111,7 +112,7 @@ newCache conn = do
             ts <- sqlSelect conn (rjTest, rnPoint) [distinct rjTest, rjPatch %== row, rjRun %==% rnId]
             ts <- mapM (\(a,b) -> (a,) <$> cachePointId b) ts
             return (Just (fromJust paReject, Map.fromList ts))
-        return (row, PatchInfo (paQueue, paAuthor) paStart paDelete paSupersede reject paPlausible paMerge)
+        return (row, PatchInfo paAuthor paQueue paStart paDelete paSupersede reject paPlausible paMerge)
 
     cacheState <- memoIO1 $ \s -> do
         [(row, sCreate, sPoint)] <- sqlSelect conn (stId, stCreate, stPoint) [stState %== s]
@@ -210,7 +211,7 @@ storeItemsDate store (start, end) = reverse $ merge
             | otherwise = map (Right . fst) (reject ++ [p]) ++ merge (s:ss) ps
         merge ss ps = map (Left . fst) ss ++ map (Right . fst) ps
 
-        paMaxTime PatchInfo{..} = maximum $ fst paQueued : catMaybes [paStart,paDelete,paSupersede,fmap fst paReject,paPlausible,paMerge]
+        paMaxTime PatchInfo{..} = maximum $ paQueued : catMaybes [paStart,paDelete,paSupersede,fmap fst paReject,paPlausible,paMerge]
 
 storeSkip :: Store -> Map.Map Test String
 storeSkip Store{..} = unsafePerformIO $ cacheSkip cache

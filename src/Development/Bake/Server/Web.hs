@@ -367,11 +367,11 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state
 
         state = do
             either ((str_ "State " <>) . showState . fst) ((str_ "Patch " <>) . showPatch . fst) info
-            whenRight info $ \(pa, PatchInfo{..}) -> str_ $ " by " ++ snd paQueued
+            whenRight info $ \(pa, PatchInfo{..}) -> str_ $ " by " ++ paAuthor
             br_
             span__ [class_ "info"] $ showExtra $ either (Left . fst) (Right . fst) info
 
-        time = either (stCreated . snd) (fst . paQueued . snd) info
+        time = either (stCreated . snd) (paQueued . snd) info
 
 
 rowClient :: Shower -> Memory -> Maybe (Client, ClientInfo) -> (String, [HTML])

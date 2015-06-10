@@ -70,7 +70,7 @@ react oven mem@Memory{..}
     | xs <- rejectable mem
     , xs@(_:_) <- filter (\(p,t) -> t `Map.notMember` maybe Map.empty snd (paReject $ storePatch store p)) xs
     = Just $ do
-        let authors = map (snd . paQueued . storePatch store . fst) xs
+        let authors = map (paAuthor . storePatch store . fst) xs
         bad <- notify authors $ "Your patch has been rejected\n" ++ unlines
             [fromPatch p ++ " due to " ++ maybe "Preparing" fromTest t | (p,t) <- xs]
         store <- storeUpdate store
@@ -80,7 +80,7 @@ react oven mem@Memory{..}
     | plausible mem
     , xs@(_:_) <- filter (isNothing . paPlausible . storePatch store) $ snd active
     = Just $ do
-        let authors = map (snd . paQueued . storePatch store) xs
+        let authors = map (paAuthor . storePatch store) xs
         bad <- notify authors $ "Your patch is now plausible\n" ++ unlines (map fromPatch xs)
         store <- storeUpdate store $ map IUPlausible xs
         return mem{store = store, fatal = bad ++ fatal}
@@ -92,7 +92,7 @@ react oven mem@Memory{..}
             if not simulated then uncurry runUpdate active
             else do s <- ovenUpdate oven (fst active) (snd active); return (Just s, Answer mempty 0 mempty True)
 
-        let pauthors = map (snd . paQueued . storePatch store) $ snd active
+        let pauthors = map (paAuthor . storePatch store) $ snd active
         case s of
             Nothing -> do
                 return mem{fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
@@ -112,7 +112,7 @@ react oven mem@Memory{..}
     = Just $ do
         store <- storeUpdate store $ map IUStart add
         return mem
-            {active = (fst active, snd active ++ sortOn (fst . paQueued . storePatch store) add)
+            {active = (fst active, snd active ++ sortOn (paQueued . storePatch store) add)
             ,store = store}
 
     | otherwise = Nothing
@@ -157,7 +157,7 @@ update oven mem@Memory{..} (Requeue author) = do
     let add = Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
     store <- storeUpdate store $ map IUStart add
     return mem
-        {active = (fst active, snd active ++ sortOn (fst . paQueued . storePatch store) add)
+        {active = (fst active, snd active ++ sortOn (paAuthor . storePatch store) add)
         ,store = store}
 
 update oven mem@Memory{..} (Pause _)
