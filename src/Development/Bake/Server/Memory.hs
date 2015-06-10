@@ -12,6 +12,7 @@ import Data.Time
 import Development.Bake.Core.Message
 import Control.DeepSeq
 import qualified Data.Set as Set
+import Data.Tuple.Extra
 import Data.List.Extra
 import Data.Maybe
 
@@ -50,9 +51,9 @@ data Memory = Memory
 newMemory :: Store -> (State, Answer) -> IO Memory
 newMemory store (state, answer) = do
     store <- storeUpdate store [IUState state answer Nothing]
-    let ps = sortOn (paQueued . storePatch store) $ Set.toList $ storeAlive store
-    let starting = filter (isNothing . paStart . storePatch store) ps
-    store <- storeUpdate store $ map IUStart starting
+    let ps = map fst $ sortOn (paQueued . snd) $
+             filter (isJust . paStart . snd) $
+             map (id &&& storePatch store) $ Set.toList $ storeAlive store
     return $ Memory False [] store [] Map.empty [] False (state, ps)
 
 instance NFData Memory where
