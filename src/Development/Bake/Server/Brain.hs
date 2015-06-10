@@ -70,9 +70,12 @@ react oven mem@Memory{..}
     | xs <- rejectable mem
     , xs@(_:_) <- filter (\(p,t) -> t `Map.notMember` maybe Map.empty snd (paReject $ storePatch store p)) xs
     = Just $ do
-        let authors = map (paAuthor . storePatch store . fst) xs
-        bad <- notify authors $ "Your patch has been rejected\n" ++ unlines
-            [fromPatch p ++ " due to " ++ maybe "Preparing" fromTest t | (p,t) <- xs]
+        let fresh = filter (isNothing . paReject . storePatch store . fst) xs
+        bad <- if fresh == [] then return [] else do
+            -- only notify on the first rejectable test for each patch
+            let authors = map (paAuthor . storePatch store . fst) fresh
+            notify authors $ "Your patch has been rejected\n" ++ unlines
+                [fromPatch p ++ " due to " ++ maybe "Preparing" fromTest t | (p,t) <- fresh]
         store <- storeUpdate store
             [IUReject p t (fst active, takeWhile (/= p) (snd active) ++ [p]) | (p,t) <- xs]
         return mem{store = store, fatal = bad ++ fatal}
