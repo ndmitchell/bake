@@ -17,6 +17,7 @@ import Development.Bake.Server.Stats
 import Development.Bake.Server.Memory
 import Development.Bake.Server.Store
 import Control.Applicative
+import System.Time.Extra
 import Control.DeepSeq
 import Control.Exception.Extra
 import Data.List.Extra
@@ -36,6 +37,20 @@ startServer :: (Stringy state, Stringy patch, Stringy test)
 startServer port datadir authors name timeout admin (concrete -> (prettys, oven)) = do
     extra <- newWorker
     var <- newCVar =<< initialise oven authors extra
+
+    forkSlave $ forever $ do
+        sleep timeout
+        now <- getCurrentTime
+        let prune = expire (addSeconds (negate timeout) now)
+        modifyCVar_ var $ \s -> do
+            let s2 = prune s
+            s2 <- if Map.keysSet (clients s) == Map.keysSet (clients s2) then return s2 else do
+                res <- try_ $ ovenNotify oven (admins s2) $ unlines
+                    ["Set of clients has changed"
+                    ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s)
+                    ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
+                return s2{fatal = ["Error when notifying, " ++ show e | Left e <- [res]] ++ fatal s2}
+            return s2
 
     server port $ \i@Input{..} -> do
         whenLoud $ print i
