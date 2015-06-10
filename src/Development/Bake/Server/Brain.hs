@@ -37,26 +37,27 @@ expire cutoff s
     where died = [pClient ciPing | ClientInfo{..} <- Map.elems $ clients s, ciPingTime < cutoff, ciAlive]
 
 
-prod :: Oven State Patch Test -> Memory -> Message -> IO (Memory, Maybe Question)
-prod oven mem msg = do
-    mem <- either fail return =<< update oven mem msg
-    mem <- reacts oven mem
-    case msg of
-        Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p ->
-            if maybe False (`Map.member` storeSkip (store mem)) $ qTest q then
-                prod oven mem $ Finished q $ Answer (TL.pack "Skipped due to being on the skip list") 0 [] True
-            else do
-                now <- getCurrentTime
-                return (mem{running = (now,q) : running mem}, Just q)
-        _ -> return (mem, Nothing)
-{-
+prod :: Oven State Patch Test -> Memory -> Message -> IO (Memory, Maybe (Either String Question))
+prod oven mem msg = safely $ do
+    res <- update oven mem msg
+    case res of
+        Left err -> return (mem, Just $ Left err)
+        Right mem -> do
+            mem <- reacts oven mem
+            case msg of
+                Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p ->
+                    if maybe False (`Map.member` storeSkip (store mem)) $ qTest q then
+                        prod oven mem $ Finished q $ Answer (TL.pack "Skipped due to being on the skip list") 0 [] True
+                    else do
+                        now <- getCurrentTime
+                        return (mem{running = (now,q) : running mem}, Just $ Right q)
+                _ -> return (mem, Nothing)
     where
         safely x = do
             res <- try_ x
             case res of
                 Left e -> return (mem{fatal = show e : fatal mem}, Nothing)
                 Right v -> return v
--}
 
 
 reacts :: Oven State Patch Test -> Memory -> IO Memory

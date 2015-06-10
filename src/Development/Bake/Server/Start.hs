@@ -68,11 +68,11 @@ startServer port datadir authors name timeout admin (concrete -> (prettys, oven)
                     storeSave "temp.sqlite" $ store mem
                     return $ OutputFile "temp.sqlite"
                 else if ["api"] `isPrefixOf` inputURL then
-                    (case messageFromInput i{inputURL = drop 1 inputURL} of
+                    case messageFromInput i{inputURL = drop 1 inputURL} of
                         Left e -> return $ OutputError e
                         Right v -> do
                             evaluate $ rnf v
-                            fmap questionToOutput $ modifyCVar var $ \s -> do
+                            res <- modifyCVar var $ \s -> do
                                 case v of
                                     AddPatch _ p -> extra $ do
                                         res <- patchExtra (fst $ active s) $ Just p
@@ -91,7 +91,10 @@ startServer port datadir authors name timeout admin (concrete -> (prettys, oven)
                                 when (fatal s == [] && fatal s2 /= []) $
                                     void $ try_ $ ovenNotify oven (admins s2) $ "Fatal error\n" ++ head (fatal s2)
                                 return (s2,q)
-                    )
+                            return $ case res of
+                                Just (Left e) -> OutputError e
+                                Just (Right q) -> questionToOutput $ Just q
+                                Nothing -> questionToOutput Nothing
                 else
                     return OutputMissing
             evaluate $ force res

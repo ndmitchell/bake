@@ -101,6 +101,7 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
             Paused b ->
                 (if b then Pause "" else Unpause "", s)
         (mem, q) <- prod oven (memory s) msg
+        q <- return $ either error id <$> q
         -- print q
         when (fatal mem /= []) $ error $ "Fatal error, " ++ unlines (fatal mem)
         s <- return s{memory = mem}
