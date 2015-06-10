@@ -237,7 +237,7 @@ storeRunList Store{..} client test state patches run = unsafePerformIO $ do
                [ptId %==% rnPoint %&& likeP ptPatches (patchIdsSuperset x) | Just x <- [patches]] ++
                [rnPoint %== x | Just x <- [point]] ++
                [rnId %== x | Just x <- [run]]
-    xs <- sqlSelect conn (rnId, rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration) (orderDatetimeDesc rnStart : filt)
+    xs <- sqlSelect conn (rnId, rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration) (orderDesc rnStart : filt)
     forM xs $ \(rnId, rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration) -> do
         pt <- cachePointId cache rnPoint
         return (rnId, rnStart, Question pt rnTest 0 rnClient, Answer mempty rnDuration [] rnSuccess)

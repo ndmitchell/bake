@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 
 module General.Database(
-    Pred, (%==), (%==%), (%&&), nullP, likeP, orderDatetimeDesc, distinct,
+    Pred, (%==), (%==%), (%&&), nullP, likeP, orderDesc, distinct,
     Upd(..),
     TypeField(..),
     Table, table, Column, column, rowid, norowid,
@@ -153,8 +153,8 @@ data Pred
 distinct :: Column c -> Pred
 distinct c = PDistinct (column_ c)
 
-orderDatetimeDesc :: Column UTCTime -> Pred
-orderDatetimeDesc c = POrder (column_ c) $ "datetime(" ++ colTable c ++ "." ++ colName c ++ ") DESC"
+orderDesc :: Column UTCTime -> Pred
+orderDesc c = POrder (column_ c) $ colTable c ++ "." ++ colName c ++ " DESC"
 
 nullP :: Column (Maybe c) -> Pred
 nullP c = PNull (column_ c)
