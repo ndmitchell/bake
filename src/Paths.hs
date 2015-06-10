@@ -7,12 +7,13 @@ import Data.Version
 import System.IO.Unsafe
 import System.Directory
 import Control.Exception
+import System.Environment.Extra
 
 
 getDataDir :: IO FilePath
 getDataDir = unsafePerformIO $ do
     -- so that it gets cached the first time
-    x <- getCurrentDirectory
+    x <- maybe getCurrentDirectory return =<< lookupEnv "bake_datadir"
     return $ do
         evaluate $ length x
         return x
