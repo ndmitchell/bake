@@ -34,7 +34,7 @@ type instance Uncolumns (Column a, Column b, Column c, Column d, Column e, Colum
 
 data Table rowid cs = Table {tblName :: String, tblKeys :: [Column_], tblCols :: [Column_]}
 
-data Column c = Column {colTable :: String, colName :: String, colSqlType :: String} deriving Eq
+data Column c = Column {colTable :: String, colName :: String, colSqlType :: String} deriving (Eq,Show)
 
 type Column_ = Column ()
 
@@ -171,7 +171,7 @@ likeP (column_ -> c) (toField -> v) = PLike c v
 
 (%==%) :: ToField c => Column c -> Column c -> Pred
 (%==%) c1 c2
-    | isNull c1 || isNull c2 = error "Column must be NOT NULL to do %==%"
+    | isNull c1 || isNull c2 = error $ show ("Column must be NOT NULL to do %==%", show c1, show c2)
     | otherwise = PEqP (column_ c1) (column_ c2)
     where isNull c = not $ " NOT NULL" `isSuffixOf` colSqlType c
 
