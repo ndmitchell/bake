@@ -78,6 +78,7 @@ bake_ :: forall state patch test . (Stringy state, Stringy patch, Stringy test) 
 bake_ oven@Oven{..} = do
     registerMaster
     timeInit
+    getDataDir -- ensure it gets forced in case you change directory
     x <- cmdArgsRun bakeMode
     let author1 = head $ author x ++ ["unknown"]
     case x of
