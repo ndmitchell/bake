@@ -74,7 +74,7 @@ bake :: (Stringy state, Stringy patch, Stringy test) => Oven state patch test ->
 bake = bake_ -- so the forall's don't show up in Haddock
 
 bake_ :: forall state patch test . (Stringy state, Stringy patch, Stringy test) => Oven state patch test -> IO ()
-bake_ oven@Oven{..} = do
+bake_ oven = do
     registerMaster
     timeInit
     getDataDir -- ensure it gets forced in case you change directory
@@ -97,20 +97,20 @@ bake_ oven@Oven{..} = do
             when (null password) $ putStrLn "Pass passwords on the command line to be suitable for 'server --admin=XXX'"
             forM_ password $ \x -> putStrLn $ "Password " ++ x ++ " requires --admin=" ++ encryptish x
         RunInit -> do
-            s <- ovenInit
+            s <- ovenInit oven
             writeFile ".bake.result" $ stringyTo s
         RunUpdate{..} -> do
-            s <- ovenUpdate (stringyFrom state) $ map stringyFrom patch
+            s <- ovenUpdate oven (stringyFrom state) $ map stringyFrom patch
             writeFile ".bake.result" $ stringyTo s
         RunTest{..} -> do
             case test of
                 Nothing -> do
-                    res <- nubOn stringyTo <$> ovenPrepare
+                    res <- nubOn stringyTo <$> ovenPrepare oven
                         (stringyFrom state)
                         (map stringyFrom patch)
 
                     -- check the patches all make sense
-                    let follow t = map stringyTo $ testDepend $ ovenTestInfo $ stringyFrom t
+                    let follow t = map stringyTo $ testDepend $ ovenTestInfo oven $ stringyFrom t
                     whenJust (findCycle follow $ map stringyTo res) $ \xs ->
                         error $ unlines $ "Tests form a cycle:" : xs
                     let missing = transitiveClosure follow (map stringyTo res) \\ map stringyTo res
@@ -119,15 +119,15 @@ bake_ oven@Oven{..} = do
 
                     writeFile ".bake.result" $ show $ map stringyTo res
                 Just test -> do
-                    testAction $ ovenTestInfo $ stringyFrom test
+                    testAction $ ovenTestInfo oven $ stringyFrom test
         RunExtra{..} -> do
-            res <- ovenPatchExtra
+            res <- ovenPatchExtra oven
                 (stringyFrom state)
                 (fmap stringyFrom $ listToMaybe patch)
             writeFile ".bake.result" $ show res
     where
-        getPort p = if p == 0 then snd ovenServer else p
-        getHostPort h p = (if h == "" then fst ovenServer else h, getPort p)
+        getPort p = if p == 0 then snd $ ovenServer oven else p
+        getHostPort h p = (if h == "" then fst $ ovenServer oven else h, getPort p)
 
 
 check :: Stringy s => String -> s -> String -> IO String
