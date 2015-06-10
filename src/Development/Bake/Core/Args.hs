@@ -28,15 +28,15 @@ import Prelude
 
 
 data Bake
-    = Server {port :: Port, authors :: [Author], name :: String, timeout :: Double, datadir :: FilePath, admin :: String}
-    | Client {host :: Host, port :: Port, author :: Author, name :: String, threads :: Int, provide :: [String], ping :: Double}
-    | AddPatch {host :: Host, port :: Port, author :: Author, name :: String}
-    | DelPatch {host :: Host, port :: Port, author :: Author, name :: String}
-    | DelPatches {host :: Host, port :: Port, author :: Author}
-    | Requeue {host :: Host, port :: Port, author :: Author}
-    | SetState {host :: Host, port :: Port, author :: Author, state :: String}
-    | Pause {host :: Host, port :: Port, author :: Author}
-    | Unpause {host :: Host, port :: Port, author :: Author}
+    = Server {port :: Port, author :: [Author], name :: String, timeout :: Double, datadir :: FilePath, admin :: String}
+    | Client {host :: Host, port :: Port, author :: [Author], name :: String, threads :: Int, provide :: [String], ping :: Double}
+    | AddPatch {host :: Host, port :: Port, author :: [Author], name :: String}
+    | DelPatch {host :: Host, port :: Port, author :: [Author], name :: String}
+    | DelPatches {host :: Host, port :: Port, author :: [Author]}
+    | Requeue {host :: Host, port :: Port, author :: [Author]}
+    | SetState {host :: Host, port :: Port, author :: [Author], state :: String}
+    | Pause {host :: Host, port :: Port, author :: [Author]}
+    | Unpause {host :: Host, port :: Port, author :: [Author]}
     | GC {bytes :: Integer, ratio :: Double, days :: Double, dirs :: [FilePath]}
       -- actions sent through from Bake itself
     | RunInit
@@ -47,8 +47,8 @@ data Bake
 
 
 bakeMode = cmdArgsMode $ modes
-    [Server{port = 0, authors = [], name = "", timeout = 5*60, datadir = "", admin = ""}
-    ,Client{host = "", threads = 1, ping = 60, provide = [], author = "unknown"}
+    [Server{port = 0, author = [], name = "", timeout = 5*60, datadir = "", admin = ""}
+    ,Client{host = "", threads = 1, ping = 60, provide = []}
     ,AddPatch{}
     ,DelPatch{}
     ,DelPatches{}
@@ -77,20 +77,21 @@ bake_ oven@Oven{..} = do
     registerMaster
     timeInit
     x <- cmdArgsRun bakeMode
+    let author1 = head $ author x ++ ["unknown"]
     case x of
         Server{..} -> do
             datadir <- canonicalizePath =<< if datadir == "" then getDataDir else return datadir
-            startServer (getPort port) datadir authors name timeout admin oven
+            startServer (getPort port) datadir author name timeout admin oven
         Client{..} -> do
             name <- if name /= "" then return name else pick defaultNames
-            startClient (getHostPort host port) author name threads provide ping oven
-        AddPatch{..} -> sendAddPatch (getHostPort host port) author =<< check "patch" (undefined :: patch) name
-        DelPatch{..} -> sendDelPatch (getHostPort host port) author =<< check "patch" (undefined :: patch) name
-        DelPatches{..} -> sendDelAllPatches (getHostPort host port) author
-        Requeue{..} -> sendRequeue (getHostPort host port) author
-        SetState{..} -> sendSetState (getHostPort host port) author state
-        Pause{..} -> sendPause (getHostPort host port) author
-        Unpause{..} -> sendUnpause (getHostPort host port) author
+            startClient (getHostPort host port) author1 name threads provide ping oven
+        AddPatch{..} -> sendAddPatch (getHostPort host port) author1 =<< check "patch" (undefined :: patch) name
+        DelPatch{..} -> sendDelPatch (getHostPort host port) author1 =<< check "patch" (undefined :: patch) name
+        DelPatches{..} -> sendDelAllPatches (getHostPort host port) author1
+        Requeue{..} -> sendRequeue (getHostPort host port) author1
+        SetState{..} -> sendSetState (getHostPort host port) author1 state
+        Pause{..} -> sendPause (getHostPort host port) author1
+        Unpause{..} -> sendUnpause (getHostPort host port) author1
         GC{..} -> garbageCollect bytes ratio (days * 24*60*60) (if null dirs then ["."] else dirs)
         RunInit -> do
             s <- ovenInit
