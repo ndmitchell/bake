@@ -29,12 +29,13 @@ import System.FilePath
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import Paths_bake
 import Prelude
 
 
 startServer :: (Stringy state, Stringy patch, Stringy test)
-            => Port -> FilePath -> [Author] -> Seconds -> String -> Oven state patch test -> IO ()
-startServer port datadir authors timeout admin (concrete -> (prettys, oven)) = do
+            => Port -> [Author] -> Seconds -> String -> Oven state patch test -> IO ()
+startServer port authors timeout admin (concrete -> (prettys, oven)) = do
     extra <- newWorker
     var <- newCVar =<< initialise oven authors extra
 
@@ -61,7 +62,8 @@ startServer port datadir authors timeout admin (concrete -> (prettys, oven)) = d
                 if null inputURL then do
                     -- prune but don't save, will reprune on the next ping
                     fmap OutputHTML $ web prettys admin inputArgs . prune =<< readCVar var
-                else if ["html"] `isPrefixOf` inputURL then
+                else if ["html"] `isPrefixOf` inputURL then do
+                    datadir <- getDataDir
                     return $ OutputFile $ datadir </> "html" </> last inputURL
                 else if inputURL == ["dump"] then do
                     mem <- readCVar var
