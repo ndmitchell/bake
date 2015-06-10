@@ -1,4 +1,6 @@
 {-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, TupleSections, CPP #-}
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-}
+-- time changed incompatibly, use the functions that work everywhere
 
 module General.Extra(
     UTCTime, getCurrentTime, addSeconds, showRelativeTime, relativeTime, showUTCTime, readDate,
@@ -72,8 +74,7 @@ showUTCTime :: String -> UTCTime -> String
 showUTCTime = formatTime defaultTimeLocale
 
 readDate :: String -> UTCTime
-readDate s = fromMaybe (error $ "Invalid date, expected something like 2012-10-28, got " ++ s) $
-    parseTimeM False defaultTimeLocale (iso8601DateFormat Nothing) "2012-12-13" :: UTCTime
+readDate s = readTime defaultTimeLocale (iso8601DateFormat Nothing) s :: UTCTime
 
 
 {-# NOINLINE logTime #-}
