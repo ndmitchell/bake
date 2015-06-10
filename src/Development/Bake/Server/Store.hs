@@ -168,7 +168,7 @@ instance Show Store where
 newStore :: Bool -> FilePath -> IO Store
 newStore mem path = do
     createDirectoryIfMissing True path
-    conn <- create $ if mem then ":memory:" else path </> "bake.sqlite"
+    conn <- create $ if mem then Nothing else Just $ path </> "bake.sqlite"
     cache <- newCache conn
     extra <- newVar Map.empty
     return $ Store conn path cache extra

@@ -22,6 +22,7 @@ import Database.SQLite.Simple.ToField
 import System.Time.Extra
 import Data.Hashable
 import Data.List.Extra
+import Data.Maybe
 import General.Database
 import Prelude
 
@@ -97,9 +98,9 @@ skTable = table "skip" norowid skTest (skTest, skComment)
 skTest = column skTable "test" :: Column Test
 skComment = column skTable "comment" :: Column String
 
-create :: String -> IO Connection
+create :: Maybe FilePath -> IO Connection
 create file = do
-    conn <- open file
+    conn <- open $ fromMaybe ":memory:" file
     execute_ conn $ fromString "PRAGMA journal_mode = WAL;"
     execute_ conn $ fromString "PRAGMA synchronous = OFF;"
     sqlCreateNotExists conn stTable
