@@ -261,10 +261,12 @@ storeUpdate store xs = do
     -- important so that if the updates depend on the current store they are forced first
     -- the perils of impurity!
     evaluate $ rnf $ show xs
+
     now <- getCurrentTime
-    mapM_ (f now store) xs
-    cache <- newCache $ conn store
-    return store{cache=cache}
+    (\f -> foldM f store xs) $ \store x -> do
+        f now store x
+        cache <- newCache $ conn store
+        return store{cache=cache}
     where
         f now Store{..} x = case x of
             IUState s Answer{..} p -> do
