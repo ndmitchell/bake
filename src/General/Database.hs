@@ -170,7 +170,10 @@ likeP (column_ -> c) (toField -> v) = PLike c v
     | otherwise = PEq c v
 
 (%==%) :: ToField c => Column c -> Column c -> Pred
-(%==%) c1 c2 = PEqP (column_ c1) (column_ c2)
+(%==%) c1 c2
+    | isNull c1 || isNull c2 = error "Column must be NOT NULL to do %==%"
+    | otherwise = PEqP (column_ c1) (column_ c2)
+    where isNull c = not $ " NOT NULL" `isSuffixOf` colSqlType c
 
 unpred :: [Pred] -> (String, [Column_], [Column_], [SQLData])
 unpred ps =
