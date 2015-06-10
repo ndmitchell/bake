@@ -62,6 +62,8 @@ reacts oven = f 10
 
 react :: Oven State Patch Test -> Memory -> Maybe (IO Memory)
 react oven mem@Memory{..}
+    | fatal /= [] = Nothing
+
     | xs <- rejectable mem
     , xs@(_:_) <- filter (\(p,t) -> t `Map.notMember` maybe Map.empty snd (paReject $ storePatch store p)) xs
     = Just $ do
@@ -121,6 +123,8 @@ react oven mem@Memory{..}
 
 
 update :: Oven State Patch Test -> Memory -> Message -> IO Memory
+update oven mem _ | fatal mem /= [] = return mem
+
 update oven mem@Memory{..} (AddPatch author p) =
     if storeIsPatch store p then
         error "patch has already been submitted"
