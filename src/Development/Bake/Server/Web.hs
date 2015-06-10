@@ -129,6 +129,7 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
 
 data Args = Args
     {argsState :: Maybe State
+    ,argsDate :: Maybe UTCTime
     ,argsPatch :: [Patch]
     ,argsClient :: Maybe Client
     ,argsTest :: Maybe (Maybe Test)
@@ -146,6 +147,7 @@ argsEmpty x = x{argsAdmin=False} == args "" []
 args :: String -> [(String, String)] -> Args
 args admn xs = Args
     (listToMaybe $ map toState $ ask "state")
+    (listToMaybe $ map readDate $ ask "date")
     (map toPatch $ ask "patch")
     (listToMaybe $ map toClient $ ask "client")
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ toTest x) $ ask "test")
