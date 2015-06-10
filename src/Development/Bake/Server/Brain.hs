@@ -92,9 +92,7 @@ react oven mem@Memory{..}
         let pauthors = map (snd . paQueued . storePatch store) $ snd active
         case s of
             Nothing -> do
-                notify authors $ "Failed to update, pretty serious\n" ++ TL.unpack (aStdout answer)
-                return mem
-                    {fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
+                return mem{fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
             Just s -> do
                 bad <- notify pauthors $ "Your patch was merged\n" ++ unlines (map fromPatch $ snd active)
                 store <- storeUpdate store $ IUState s answer (Just active) : map IUMerge (snd active)
