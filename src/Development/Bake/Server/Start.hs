@@ -25,6 +25,7 @@ import Data.Tuple.Extra
 import Control.Monad.Extra
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Prelude
@@ -62,6 +63,12 @@ startServer port datadir authors name timeout admin (concrete -> (prettys, oven)
                                 when (fst (active s2) /= fst (active s)) $ extra $ do
                                     res <- patchExtra (fst $ active s2) Nothing
                                     storeExtraAdd (store s2) (Left $ fst $ active s2) res
+                                s2 <- if Map.keysSet (clients s) == Map.keysSet (clients s2) then return s2 else do
+                                    res <- try_ $ ovenNotify oven (admins s2) $ unlines
+                                        ["Set of clients has changed"
+                                        ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s)
+                                        ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
+                                    return s2{fatal = ["Error when notifying, " ++ show e | Left e <- [res]] ++ fatal s2}
                                 when (fatal s == [] && fatal s2 /= []) $
                                     void $ try_ $ ovenNotify oven (admins s2) $ "Fatal error\n" ++ head (fatal s2)
                                 return (s2,q)
