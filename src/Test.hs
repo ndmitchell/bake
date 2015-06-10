@@ -74,8 +74,9 @@ test dir = do
             return pid
     exe <- getExecutablePath
     createDirectoryIfMissing True $ dir </> "server"
-    environment <- fmap (("REPO",repo):) $ getEnvironment
-    p0 <- createProcessAlive (proc exe ["server","--datadir=../.."])
+    curdir <- getCurrentDirectory
+    environment <- (\env -> ("REPO",repo):("bake_datadir",curdir):env) <$> getEnvironment
+    p0 <- createProcessAlive (proc exe ["server"])
         {cwd=Just $ dir </> "server", env=Just environment}
     sleep 5
     ps <- forM (zip [1..] Example.platforms) $ \(i,p) -> do
