@@ -26,6 +26,7 @@ import Data.Hashable
 import Data.List.Extra
 import Control.Monad
 import Data.Maybe
+import Safe
 import General.Database
 import Prelude
 
@@ -52,7 +53,7 @@ patchIdsSuperset = PatchIds . ('%':) . concatMap (\(PatchId x) -> "[" ++ show x 
 
 fromPatchIds :: PatchIds -> [PatchId]
 fromPatchIds (PatchIds "") = []
-fromPatchIds (PatchIds xs) = map (PatchId . read) $ splitOn "][" $ init $ tail xs
+fromPatchIds (PatchIds xs) = map (PatchId . readNote "fromPatchIds") $ splitOn "][" $ init $ tail xs
 
 
 stTable = table "state" stId stState (stState,stCreate,stPoint,stDuration)

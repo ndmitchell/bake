@@ -17,6 +17,7 @@ import System.Environment.Extra
 import System.FilePath
 import Data.Maybe
 import System.Exit
+import Safe
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 
@@ -33,11 +34,11 @@ runUpdate s ps = runAll "update" (state s : map patch ps) [] toState
 
 runTest :: State -> [Patch] -> Maybe Test -> IO Answer
 runTest s ps t = do
-    (ex, ans) <- runAll "test" (state s : map patch ps) (map test $ maybeToList t) (map toTest . read)
+    (ex, ans) <- runAll "test" (state s : map patch ps) (map test $ maybeToList t) (map toTest . readNote "runTest")
     return $ maybe ans (\ex -> ans{aTests=ex}) (if t == Nothing then ex else Nothing)
 
 runExtra :: State -> Maybe Patch -> IO (Maybe (T.Text, TL.Text), Answer)
-runExtra s ps = runAll "extra" (state s : map patch (maybeToList ps)) [] ((T.pack *** TL.pack) . read)
+runExtra s ps = runAll "extra" (state s : map patch (maybeToList ps)) [] ((T.pack *** TL.pack) . readNote "runExtra")
 
 
 runAll :: NFData a => String -> [String] -> [String] -> (String -> a) -> IO (Maybe a, Answer)

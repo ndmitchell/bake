@@ -12,6 +12,7 @@ import Control.Monad
 import Control.DeepSeq
 import Data.Aeson hiding (Success)
 import System.Time.Extra
+import Safe
 import qualified Data.Text.Lazy as TL
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Prelude
@@ -159,7 +160,7 @@ messageFromInput (Input [msg] args body)
     where strs x = Right $ map snd $ filter ((==) x . fst) args
           str x | Just v <- lookup x args = Right v
                 | otherwise = Left $ "Missing field " ++ show x ++ " from " ++ show msg
-          int x = read <$> str x
+          int x = readNote "messageFromInput, expecting Int" <$> str x
 messageFromInput (Input msg args body) = Left $ "Invalid API call, got " ++ show msg
 
 

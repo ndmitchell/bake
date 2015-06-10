@@ -28,6 +28,7 @@ import Paths_bake
 import qualified Data.Text as T
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Safe
 import Prelude
 
 
@@ -151,7 +152,7 @@ args admn xs = Args
     (map toPatch $ ask "patch")
     (listToMaybe $ map toClient $ ask "client")
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ toTest x) $ ask "test")
-    (listToMaybe $ map read $ ask "run")
+    (listToMaybe $ map (readNote "run index") $ ask "run")
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ toState x) $ ask "server")
     (any (if null admn then const True else (==) admn . encryptish) $ ask "admin")
     (not $ null $ ask "stats")
