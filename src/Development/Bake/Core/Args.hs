@@ -16,6 +16,8 @@ import Control.Exception.Extra
 import General.Extra
 import Control.DeepSeq
 import System.FilePath
+import System.IO.Extra
+import System.Directory.Extra
 import Control.Monad.Extra
 import Control.Applicative
 import Data.Either.Extra
@@ -38,6 +40,7 @@ data Bake
     | Unpause {host :: Host, port :: Port, author :: [Author]}
     | GC {bytes :: Integer, ratio :: Double, days :: Double, dirs :: [FilePath]}
     | Admin {password :: [String]}
+    | View {port :: Port, file :: FilePath}
       -- actions sent through from Bake itself
     | RunInit
     | RunUpdate {state :: String, patch :: [String]}
@@ -58,6 +61,7 @@ bakeMode = cmdArgsMode $ modes
     ,Unpause{}
     ,GC 0 0 7 ([] &= args)
     ,Admin ([] &= args)
+    ,View{file = "" &= args}
     ,RunTest def def def
     ,RunInit{}
     ,RunExtra{}
@@ -82,6 +86,16 @@ bake_ oven = do
     let author1 = head $ author x ++ ["unknown"]
     case x of
         Server{..} -> startServer (getPort port) author timeout admin oven
+        View{..} -> do
+            when (file == "") $ error "You must pass a file"
+            file <- canonicalizePath file
+            withTempDir $ \dir -> withCurrentDirectory dir $ do
+                createDirectoryIfMissing True $ dir </> "bake-store"
+                copyFile file $ dir </> "bake-store" </> "bake.sqlite"
+                -- things like ovenInit are outside our control since they get run out of process
+                -- FIXME: should be able to disable running init and default to error
+                -- the concrete ensures nothing ever results in a parse error
+                startServer (getPort port) [] 100 "" $ snd $ concrete oven
         Client{..} -> do
             name <- if name /= "" then return name else pick defaultNames
             startClient (getHostPort host port) author1 name threads provide ping oven
