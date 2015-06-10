@@ -201,7 +201,7 @@ storeStateList Store{..} = unsafePerformIO $ do
     ss <- sqlSelect conn stState []
     return $ map fromOnly ss
 
-storeItemsDate :: Store -> (UTCTime, UTCTime) -> [Either State Patch]
+storeItemsDate :: Store -> (UTCTime, Maybe UTCTime) -> [Either State Patch]
 storeItemsDate store (start, end) = reverse $ merge
     (sortOn (stCreated . snd) $ map (id &&& storeState store) $ storeStateList store)
     (sortOn (paQueued . snd) $ map (id &&& storePatch store) $ storePatchList store)

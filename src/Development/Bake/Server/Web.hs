@@ -58,7 +58,7 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
             table "No patches submitted" ["Submitted","Job","Status"] $
                 map (\p -> rowPatch shower mem argsAdmin p) $
                 map (either (Left . (id &&& storeState store)) (Right . (id &&& storePatch store))) $
-                storeItemsDate store (addSeconds (-24*60*60) now, now)
+                storeItemsDate store (addSeconds (-24*60*60) now, Nothing)
 
             unless (Map.null $ storeSkip store) $ do
                 h2_ $ str_ "Skipped tests"
