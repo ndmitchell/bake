@@ -292,9 +292,9 @@ storeUpdate store xs = do
                 sqlUpdate conn [pcSupersede := Just now] [pcPatch %== p]
             IUReject p t pt -> do
                 pt2 <- fst <$> cachePoint cache pt
+                pa <- fst <$> cachePatch cache p
                 Only run:_ <- sqlSelect conn rnId [rnSuccess %== False, rnPoint %== pt2, rnTest %== t]
                 sqlUpdate conn [pcReject := Just now] [pcPatch %== p]
-                pa <- fst <$> cachePatch cache p
                 void $ sqlInsert conn rjTable (pa, t, run)
             SUAdd t msg -> do
                 void $ sqlInsert conn skTable (t, msg)
