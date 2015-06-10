@@ -38,6 +38,7 @@ data Bake
     | Pause {host :: Host, port :: Port, author :: [Author]}
     | Unpause {host :: Host, port :: Port, author :: [Author]}
     | GC {bytes :: Integer, ratio :: Double, days :: Double, dirs :: [FilePath]}
+    | Admin {password :: [String]}
       -- actions sent through from Bake itself
     | RunInit
     | RunUpdate {state :: String, patch :: [String]}
@@ -57,6 +58,7 @@ bakeMode = cmdArgsMode $ modes
     ,Pause{}
     ,Unpause{}
     ,GC 0 0 7 ([] &= args)
+    ,Admin ([] &= args)
     ,RunTest def def def
     ,RunInit{}
     ,RunExtra{}
@@ -93,6 +95,9 @@ bake_ oven@Oven{..} = do
         Pause{..} -> sendPause (getHostPort host port) author1
         Unpause{..} -> sendUnpause (getHostPort host port) author1
         GC{..} -> garbageCollect bytes ratio (days * 24*60*60) (if null dirs then ["."] else dirs)
+        Admin{..} -> do
+            when (null password) $ putStrLn "Pass passwords on the command line to be suitable for 'server --admin=XXX'"
+            forM_ password $ \x -> putStrLn $ "Password " ++ x ++ " requires --admin=" ++ encryptish x
         RunInit -> do
             s <- ovenInit
             writeFile ".bake.result" $ stringyTo s
