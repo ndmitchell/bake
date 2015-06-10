@@ -119,4 +119,4 @@ save :: Connection -> FilePath -> IO ()
 save conn file = void $ bracket (open file) close $ \dest -> bracket
     (SQ.backupInit (connectionHandle dest) (fromString "main") (connectionHandle conn) (fromString "main"))
     SQ.backupFinish $
-    \b -> SQ.backupStep b 1
+    \b -> SQ.backupStep b (-1)
