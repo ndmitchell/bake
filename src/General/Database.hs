@@ -6,7 +6,7 @@ module General.Database(
     Upd(..),
     TypeField(..),
     Table, table, Column, column, rowid, norowid,
-    sqlInsert, sqlUpdate, sqlSelect, sqlDelete, sqlCreateNotExists,
+    sqlInsert, sqlUpdate, sqlSelect, sqlDelete, sqlCreateNotExists, sqlUnsafe
     ) where
 
 import Data.List.Extra
@@ -134,6 +134,9 @@ sqlCreateNotExists conn Table{..} = do
             ["PRIMARY KEY (" ++ intercalate ", " (map colName tblKeys) ++ ")" | not $ null tblKeys]
     let str = "CREATE TABLE IF NOT EXISTS " ++ tblName ++ "(" ++ fields ++ ")"
     execute_ conn $ fromString str
+
+sqlUnsafe :: (ToRow q, FromRow r) => Connection -> String -> q -> IO [r]
+sqlUnsafe conn str q = query conn (fromString str) q
 
 
 data Upd = forall a . ToField a => Column a := a
