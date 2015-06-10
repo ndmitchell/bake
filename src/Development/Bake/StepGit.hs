@@ -78,6 +78,9 @@ ovenStepGit act repo branch path o = o
                 gitSetState git s
                 forM_ ps $ gitApplyPatch git
                 Stdout x <- time $ cmd (Cwd git) "git rev-parse" [branch]
+                -- the branch may not already exist, or the update may not be a fast-forward
+                -- since we support SetState
+                Exit _ <- time $ cmd (Cwd git) "git push" [repo] [":" ++ branch]
                 time_ $ cmd (Cwd git) "git push" [repo] [branch ++ ":" ++ branch]
                 return $ sha1 $ trim x
 
