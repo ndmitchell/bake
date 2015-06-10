@@ -84,9 +84,14 @@ initialise oven admins extra = do
     when (isJust res) $ do
         extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing
     mem <- newMemory store (state0, answer)
+
+    email <- if isNothing res then return $ Right () else
+        try_ $ ovenNotify oven admins "Server starting up"
+
     return $ mem
-        {admins=admins
-        ,fatal=["Failed to initialise" | isNothing res]
+        {admins = admins
+        ,fatal = ["Failed to initialise, " ++ TL.unpack (aStdout answer) | isNothing res] ++
+                 ["Failed to notify, " ++ show e | Left e <- [email]]
         }
 
 
