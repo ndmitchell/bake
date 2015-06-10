@@ -47,7 +47,7 @@ data Bake
 
 
 bakeMode = cmdArgsMode $ modes
-    [Server{port = 0, author = [], timeout = 5*60, datadir = "", admin = ""}
+    [Server{port = 0, author = [], timeout = 10*60, datadir = "", admin = ""}
     ,Client{host = "", threads = 1, name = "", ping = 60, provide = []}
     ,AddPatch{}
     ,DelPatch{}
