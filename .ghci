@@ -6,9 +6,9 @@
 :def docs const $ return $ unlines [":docs_",":!start dist\\doc\\html\\bake\\Development-Bake.html"]
 
 :{
-:def test \_ -> return $ unlines
+:def test \s -> return $ unlines
         [":!ghc --make -o .test/bake-test -outputdir .test -isrc Test src/Paths -main-is Test.main -threaded -with-rtsopts=-T"
-        ,":!.test\\bake-test"
+        ,":!.test\\bake-test " ++ s
         ]
 :}
 
