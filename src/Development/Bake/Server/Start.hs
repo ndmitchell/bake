@@ -77,7 +77,7 @@ initialise oven author extra = do
     putStrLn "Initialising server, computing initial state..."
     (res, answer) <- runInit
     when (isNothing res) $
-        ovenNotify oven [author] "Failed to initialise, pretty serious"
+        void $ try_ $ ovenNotify oven [author] "Failed to initialise, pretty serious"
     let state0 = fromMaybe stateFailure res
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
     store <- newStore False "bake-store"
