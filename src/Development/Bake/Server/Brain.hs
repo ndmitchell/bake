@@ -190,7 +190,7 @@ update oven mem@Memory{..} (ClearSkip author) = do
 
 update oven mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
     when (snd qCandidate == [] && not aSuccess && Set.null (poFail $ storePoint store qCandidate)) $ do
-        void $ try_ $ ovenNotify oven authors $
+        void $ try_ $ ovenNotify oven admins $
             "Failure in state " ++ fromState (fst qCandidate) ++ " on test " ++ maybe "Preparing" fromTest qTest
 
     now <- getCurrentTime

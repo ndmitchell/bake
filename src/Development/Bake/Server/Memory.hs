@@ -32,8 +32,8 @@ data ClientInfo = ClientInfo
 data Memory = Memory
     {simulated :: Bool
         -- ^ Are we running in a simulation (don't spawn separate process)
-    ,authors :: [Author]
-        -- ^ Author
+    ,admins :: [Author]
+        -- ^ People responsible for overall administration
     ,store :: Store
         -- ^ All the information on disk
     ,fatal :: [String]
