@@ -33,8 +33,8 @@ import Prelude
 
 
 startServer :: (Stringy state, Stringy patch, Stringy test)
-            => Port -> FilePath -> [Author] -> String -> Double -> String -> Oven state patch test -> IO ()
-startServer port datadir authors name timeout admin (concrete -> (prettys, oven)) = do
+            => Port -> FilePath -> [Author] -> Seconds -> String -> Oven state patch test -> IO ()
+startServer port datadir authors timeout admin (concrete -> (prettys, oven)) = do
     extra <- newWorker
     var <- newCVar =<< initialise oven authors extra
 
