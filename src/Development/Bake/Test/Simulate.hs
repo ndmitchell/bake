@@ -122,8 +122,6 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
     forM_ workers $ \(c,_) -> do
         (_, q) <- prod oven Memory{..} $ Pinged $ Ping c (fromClient c) [] maxBound maxBound
         when (isJust q) $ error "Brains should have returned sleep"
-    let rejected = filter (isJust . paReject . storePatch store) $ storePatchList store
-    when (snd active /= []) $ error $ "Target is not blank: active = " ++ show active ++ ", rejected = " ++ show rejected
 
     forM_ patch $ \(p, pass, fail) ->
         case () of
