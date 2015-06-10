@@ -31,10 +31,10 @@ import Prelude
 
 
 startServer :: (Stringy state, Stringy patch, Stringy test)
-            => Port -> FilePath -> Author -> String -> Double -> String -> Oven state patch test -> IO ()
-startServer port datadir author name timeout admin (concrete -> (prettys, oven)) = do
+            => Port -> FilePath -> [Author] -> String -> Double -> String -> Oven state patch test -> IO ()
+startServer port datadir oAuthors name timeout admin (concrete -> (prettys, oven)) = do
     extra <- newWorker
-    var <- newCVar =<< initialise oven author extra
+    var <- newCVar =<< initialise oven oAuthors extra
 
     server port $ \i@Input{..} -> do
         whenLoud $ print i
@@ -71,13 +71,13 @@ startServer port datadir author name timeout admin (concrete -> (prettys, oven))
             evaluate $ force res
 
 
-initialise :: Oven State Patch Test -> String -> Worker -> IO Memory
-initialise oven author extra = do
+initialise :: Oven State Patch Test -> [Author] -> Worker -> IO Memory
+initialise oven authors extra = do
     now <- getCurrentTime
     putStrLn "Initialising server, computing initial state..."
     (res, answer) <- runInit
     when (isNothing res) $
-        void $ try_ $ ovenNotify oven [author] "Failed to initialise, pretty serious"
+        void $ try_ $ ovenNotify oven authors "Failed to initialise, pretty serious"
     let state0 = fromMaybe stateFailure res
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
     store <- newStore False "bake-store"
@@ -85,7 +85,7 @@ initialise oven author extra = do
         extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing
     mem <- newMemory store (state0, answer)
     return $ mem
-        {authors=[author]
+        {authors=authors
 --        ,updates=[Update now answer state0 []]
         ,fatal=["Failed to initialise" | isNothing res]
         }

@@ -28,7 +28,7 @@ import Prelude
 
 
 data Bake
-    = Server {port :: Port, author :: Author, name :: String, timeout :: Double, datadir :: FilePath, admin :: String}
+    = Server {port :: Port, authors :: [Author], name :: String, timeout :: Double, datadir :: FilePath, admin :: String}
     | Client {host :: Host, port :: Port, author :: Author, name :: String, threads :: Int, provide :: [String], ping :: Double}
     | AddPatch {host :: Host, port :: Port, author :: Author, name :: String}
     | DelPatch {host :: Host, port :: Port, author :: Author, name :: String}
@@ -47,8 +47,8 @@ data Bake
 
 
 bakeMode = cmdArgsMode $ modes
-    [Server{port = 0, author = "unknown", name = "", timeout = 5*60, datadir = "", admin = ""}
-    ,Client{host = "", threads = 1, ping = 60, provide = []}
+    [Server{port = 0, authors = [], name = "", timeout = 5*60, datadir = "", admin = ""}
+    ,Client{host = "", threads = 1, ping = 60, provide = [], author = "unknown"}
     ,AddPatch{}
     ,DelPatch{}
     ,DelPatches{}
@@ -80,7 +80,7 @@ bake_ oven@Oven{..} = do
     case x of
         Server{..} -> do
             datadir <- canonicalizePath =<< if datadir == "" then getDataDir else return datadir
-            startServer (getPort port) datadir author name timeout admin oven
+            startServer (getPort port) datadir authors name timeout admin oven
         Client{..} -> do
             name <- if name /= "" then return name else pick defaultNames
             startClient (getHostPort host port) author name threads provide ping oven
