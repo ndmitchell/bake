@@ -8,6 +8,7 @@ module General.Extra(
     withFileLock,
     pick,
     memoIO0, memoIO1,
+    encryptish,
     catMaybesSet,
     whenLeft, whenRight,
     timeInit, timed, time, time_,
@@ -31,6 +32,7 @@ import Data.IORef
 import Data.List.Extra
 import System.Directory.Extra
 import Data.Hashable
+import Numeric
 import System.FilePath
 import Control.Exception.Extra
 import Control.Applicative
@@ -75,6 +77,10 @@ showUTCTime = formatTime defaultTimeLocale
 
 readDate :: String -> UTCTime
 readDate s = readTime defaultTimeLocale (iso8601DateFormat Nothing) s :: UTCTime
+
+-- | One way function used for encrypting
+encryptish :: String -> String
+encryptish x = upper $ showHex (abs $ hash x) ""
 
 
 {-# NOINLINE logTime #-}

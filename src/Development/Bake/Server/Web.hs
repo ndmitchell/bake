@@ -153,7 +153,7 @@ args admn xs = Args
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ toTest x) $ ask "test")
     (listToMaybe $ map read $ ask "run")
     (listToMaybe $ map (\x -> if null x then Nothing else Just $ toState x) $ ask "server")
-    (any (if null admn then const True else (==) admn . show . hash) $ ask "admin")
+    (any (if null admn then const True else (==) admn . encryptish) $ ask "admin")
     (not $ null $ ask "stats")
     (not $ null $ ask "raw")
     where ask x = map snd $ filter ((==) x . fst) xs
