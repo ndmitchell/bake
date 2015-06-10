@@ -45,7 +45,8 @@ data Memory = Memory
     ,paused :: Bool
         -- ^ Pretend the queued is empty
     ,active :: Point
-        -- ^ the target we are working at (some may already be rejected)
+        -- ^ The target we are working at (some may already be rejected).
+        --   Note that when restarting, we throw away the rejected ones.
     } deriving Show
 
 newMemory :: Store -> (State, Answer) -> IO Memory
