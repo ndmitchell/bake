@@ -38,7 +38,7 @@ expire cutoff s
 
 
 prod :: Oven State Patch Test -> Memory -> Message -> IO (Memory, Maybe Question)
-prod oven mem msg = do
+prod oven mem msg = safely $ do
     mem <- update oven mem msg
     mem <- reacts oven mem
     case msg of
@@ -49,7 +49,12 @@ prod oven mem msg = do
                 now <- getCurrentTime
                 return (mem{running = (now,q) : running mem}, Just q)
         _ -> return (mem, Nothing)
-
+    where
+        safely x = do
+            res <- try_ x
+            case res of
+                Left e -> return (mem{fatal = show e : fatal mem}, Nothing)
+                Right v -> return v
 
 
 reacts :: Oven State Patch Test -> Memory -> IO Memory
