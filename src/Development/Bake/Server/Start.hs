@@ -63,6 +63,10 @@ startServer port datadir authors name timeout admin (concrete -> (prettys, oven)
                     fmap OutputHTML $ web prettys admin inputArgs . prune =<< readCVar var
                 else if ["html"] `isPrefixOf` inputURL then
                     return $ OutputFile $ datadir </> "html" </> last inputURL
+                else if inputURL == ["dump"] then do
+                    mem <- readCVar var
+                    storeSave "temp.sqlite" $ store mem
+                    return $ OutputFile "temp.sqlite"
                 else if ["api"] `isPrefixOf` inputURL then
                     (case messageFromInput i{inputURL = drop 1 inputURL} of
                         Left e -> return $ OutputError e

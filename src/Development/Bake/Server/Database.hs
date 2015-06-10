@@ -10,18 +10,21 @@ module Development.Bake.Server.Database(
     skTable, skTest, skComment,
     tsTable, tsPoint, tsTest,
     rnTable, rnId, rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration,
-    create
+    create, save
     ) where
 
 import Development.Bake.Core.Type
 import Data.String
+import Control.Exception
 import General.Extra
+import qualified Database.SQLite3 as SQ
 import Database.SQLite.Simple
 import Database.SQLite.Simple.FromField
 import Database.SQLite.Simple.ToField
 import System.Time.Extra
 import Data.Hashable
 import Data.List.Extra
+import Control.Monad
 import Data.Maybe
 import General.Database
 import Prelude
@@ -111,3 +114,9 @@ create file = do
     sqlCreateNotExists conn tsTable
     sqlCreateNotExists conn skTable
     return conn
+
+save :: Connection -> FilePath -> IO ()
+save conn file = void $ bracket (open file) close $ \dest -> bracket
+    (SQ.backupInit (connectionHandle dest) (fromString "main") (connectionHandle conn) (fromString "main"))
+    SQ.backupFinish $
+    \b -> SQ.backupStep b 1

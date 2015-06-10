@@ -2,7 +2,7 @@
 
 -- Stuff on disk on the server
 module Development.Bake.Server.Store(
-    Store, newStore,
+    Store, newStore, storeSave,
     PatchInfo(..), paAlive, storePatchList, storeIsPatch, storePatch, storeAlive,
     PointInfo(..), poTest, storePoint, storeSupersetPass,
     StateInfo(..), storeStateList, storeState,
@@ -172,6 +172,11 @@ newStore mem path = do
     cache <- newCache conn
     extra <- newVar Map.empty
     return $ Store conn path cache extra
+
+storeSave :: FilePath -> Store -> IO ()
+storeSave file Store{..} = do
+    whenM (doesFileExist file) $ removeFile file
+    save conn file
 
 
 ---------------------------------------------------------------------
