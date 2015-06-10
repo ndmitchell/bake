@@ -53,6 +53,7 @@ startServer port authors timeout admin (concrete -> (prettys, oven)) = do
                 return s2{fatal = ["Error when notifying, " ++ show e | Left e <- [res]] ++ fatal s2}
             return s2
 
+    putStrLn $ "Started server on port " ++ show port
     server port $ \i@Input{..} -> do
         whenLoud $ print i
         handle_ (fmap OutputError . showException) $ do
