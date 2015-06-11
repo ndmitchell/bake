@@ -55,6 +55,12 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
             failures shower mem
             progress shower mem
 
+            p_ $ do
+                str_ $ " Viewing " ++ maybe "yesterday and today" showDate argsDate ++ ": Goto "
+                let shw d = showLink ("date=" ++ showDate d) $ str_ $ showDate d
+                shw $ pred $ fromMaybe (timeToDate now) argsDate
+                whenJust argsDate $ \d -> str_ ", " <> if timeToDate now == succ d then showLink "" $ str_ "today" else shw $ succ d
+
             table "No patches submitted" ["Submitted","Job","Status"] $
                 map (\p -> rowPatch shower mem argsAdmin p) $
                 map (either (Left . (id &&& storeState store)) (Right . (id &&& storePatch store))) $
