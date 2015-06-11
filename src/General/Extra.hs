@@ -67,8 +67,7 @@ showRelativeTime = do
         let secs = subtractTime now old
             mins = secs / 60
             hours = mins / 60
-            days = toModifiedJulianDay (utctDay now) - toModifiedJulianDay (utctDay old) in
-        if days > 3 then show days ++ " days ago"
+        in if timeToDate now /= timeToDate old then showDate (timeToDate old)
         else if hours > 5 then show (round hours) ++ " hours ago"
         else if mins > 2 then show (round mins) ++ " mins ago"
         else show (max 2 $ round secs) ++ " secs ago"
