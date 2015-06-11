@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 
 module General.Database(
-    Pred, (%==), (%==%), (%&&), nullP, likeP, orderDesc, distinct,
+    Pred, (%==), (%==%), (%&&), nullP, likeP, orderDesc, distinct, limit,
     Upd(..),
     TypeField(..),
     Table, table, Column, column, rowid, norowid,
@@ -152,9 +152,13 @@ data Pred
     | PAnd [Pred]
     | PDistinct Column_
     | POrder Column_ String
+    | PLimit Int
 
 distinct :: Column c -> Pred
 distinct c = PDistinct (column_ c)
+
+limit :: Int -> Pred
+limit = PLimit
 
 orderDesc :: Column UTCTime -> Pred
 orderDesc c = POrder (column_ c) $ colTable c ++ "." ++ colName c ++ " DESC"
@@ -182,12 +186,15 @@ likeP (column_ -> c) (toField -> v) = PLike c v
 unpred :: [Pred] -> (String, [Column_], [Column_], [SQLData])
 unpred ps =
     let (a,b,c) = f $ PAnd pred
-    in (a ++ (if null order then "" else " ORDER BY " ++ unwords [x | POrder _ x <- order]),
+    in (a ++ (if null order then "" else " ORDER BY " ++ unwords [x | POrder _ x <- order]) ++
+             (if null limit then "" else " LIMIT " ++ head [show x | PLimit x <- limit])
+                ,
        [x | PDistinct x <- dist], b ++ [x | POrder x _ <- order], c)
     where
         isDistinct PDistinct{} = True; isDistinct _ = False
         isOrder POrder{} = True; isOrder _ = False
-        (dist, (order, pred)) = second (partition isOrder) $ partition isDistinct ps
+        isLimit PLimit{} = True; isLimit _ = False
+        (dist, (order, (limit, pred))) = second (second (partition isLimit) . partition isOrder) $ partition isDistinct ps
 
         g Column{..} = colTable ++ "." ++ colName
 
