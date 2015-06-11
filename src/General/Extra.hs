@@ -3,7 +3,8 @@
 -- time changed incompatibly, use the functions that work everywhere
 
 module General.Extra(
-    UTCTime, getCurrentTime, addSeconds, showRelativeTime, relativeTime, showUTCTime, readDate,
+    UTCTime, getCurrentTime, addSeconds, showRelativeTime, relativeTime, showUTCTime,
+    readDate, showDate, timeToDate, dateToTime,
     createDir,
     withFileLock,
     pick,
@@ -75,8 +76,17 @@ showRelativeTime = do
 showUTCTime :: String -> UTCTime -> String
 showUTCTime = formatTime defaultTimeLocale
 
-readDate :: String -> UTCTime
-readDate s = readTime defaultTimeLocale (iso8601DateFormat Nothing) s :: UTCTime
+timeToDate :: UTCTime -> Day
+timeToDate = utctDay
+
+dateToTime :: Day -> UTCTime
+dateToTime = flip UTCTime 0
+
+readDate :: String -> Day
+readDate = readTime defaultTimeLocale (iso8601DateFormat Nothing)
+
+showDate :: Day -> String
+showDate = formatTime defaultTimeLocale (iso8601DateFormat Nothing)
 
 -- | One way function used for encrypting
 encryptish :: String -> String
