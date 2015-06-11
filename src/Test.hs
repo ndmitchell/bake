@@ -14,7 +14,9 @@ import System.Process
 import Data.List.Extra
 import Data.IORef
 import Data.Char
+import Control.Applicative
 import qualified Example
+import Prelude
 
 import Development.Bake.Test.Simulate
 
