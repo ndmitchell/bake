@@ -182,7 +182,7 @@ likeP (column_ -> c) (toField -> v) = PLike c v
 unpred :: [Pred] -> (String, [Column_], [Column_], [SQLData])
 unpred ps =
     let (a,b,c) = f $ PAnd pred
-    in (a ++ (if null order then "" else "ORDER BY " ++ unwords [x | POrder _ x <- order]),
+    in (a ++ (if null order then "" else " ORDER BY " ++ unwords [x | POrder _ x <- order]),
        [x | PDistinct x <- dist], b ++ [x | POrder x _ <- order], c)
     where
         isDistinct PDistinct{} = True; isDistinct _ = False
