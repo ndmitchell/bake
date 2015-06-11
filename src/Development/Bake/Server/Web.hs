@@ -21,6 +21,7 @@ import Data.Either.Extra
 import System.Time.Extra
 import Data.Version
 import Data.Maybe
+import Data.Time.Calendar
 import Control.Applicative
 import Control.Monad.Extra
 import Data.Monoid
@@ -38,8 +39,6 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
     stats <- if argsStats then stats prettys mem else return mempty
     now <- getCurrentTime
     return $ (valueHTML &&& renderHTML . void) $ template $ do
-        let noargs = argsEmpty a
-
         when (fatal /= []) $ do
             h2__ [class_ "bad"] $ str_ "Fatal error"
             p_ $ str_ "The continuous integration server has been suspeneded due to fatal errors:"
@@ -47,10 +46,10 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
             hr_
 
         h1_ $
-            (if noargs then id else a__ [href_ $ if argsAdmin then "?admin=" else "."]) $
+            (if argsEmpty a then id else a__ [href_ $ if argsAdmin then "?admin=" else "."]) $
             str_ "Bake Continuous Integration"
 
-        if noargs then do
+        if argsEmpty a{argsDate=Nothing} then do
             when paused $
                 p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
             failures shower mem
@@ -59,7 +58,8 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
             table "No patches submitted" ["Submitted","Job","Status"] $
                 map (\p -> rowPatch shower mem argsAdmin p) $
                 map (either (Left . (id &&& storeState store)) (Right . (id &&& storePatch store))) $
-                storeItemsDate store (addSeconds (-24*60*60) now, Nothing)
+                storeItemsDate store $ (dateToTime *** fmap dateToTime) $
+                maybe (pred $ timeToDate now, Nothing) (\x -> (x, Just $ succ x)) argsDate
 
             unless (Map.null $ storeSkip store) $ do
                 h2_ $ str_ "Skipped tests"
@@ -130,7 +130,7 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
 
 data Args = Args
     {argsState :: Maybe State
-    ,argsDate :: Maybe UTCTime
+    ,argsDate :: Maybe Day
     ,argsPatch :: [Patch]
     ,argsClient :: Maybe Client
     ,argsTest :: Maybe (Maybe Test)
