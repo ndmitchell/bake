@@ -85,17 +85,15 @@ bake_ oven = do
     x <- cmdArgsRun bakeMode
     let author1 = head $ author x ++ ["unknown"]
     case x of
-        Server{..} -> startServer (getPort port) author timeout admin oven
+        Server{..} -> startServer (getPort port) author timeout admin False oven
         View{..} -> do
             when (file == "") $ error "You must pass a file"
             file <- canonicalizePath file
             withTempDir $ \dir -> withCurrentDirectory dir $ do
                 createDirectoryIfMissing True $ dir </> "bake-store"
                 copyFile file $ dir </> "bake-store" </> "bake.sqlite"
-                -- things like ovenInit are outside our control since they get run out of process
-                -- FIXME: should be able to disable running init and default to error
                 -- the concrete ensures nothing ever results in a parse error
-                startServer (getPort port) [] 100 "" $ snd $ concrete oven
+                startServer (getPort port) [] 100 "" True $ snd $ concrete oven
         Client{..} -> do
             name <- if name /= "" then return name else pick defaultNames
             startClient (getHostPort host port) author1 name threads provide ping oven

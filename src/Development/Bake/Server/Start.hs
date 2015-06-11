@@ -34,10 +34,10 @@ import Prelude
 
 
 startServer :: (Stringy state, Stringy patch, Stringy test)
-            => Port -> [Author] -> Seconds -> String -> Oven state patch test -> IO ()
-startServer port authors timeout admin (concrete -> (prettys, oven)) = do
+            => Port -> [Author] -> Seconds -> String -> Bool -> Oven state patch test -> IO ()
+startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
     extra <- newWorker
-    var <- newCVar =<< initialise oven authors extra
+    var <- newCVar =<< if fake then initialiseFake else initialise oven authors extra
 
     forkSlave $ forever $ do
         sleep timeout
@@ -102,6 +102,12 @@ startServer port authors timeout admin (concrete -> (prettys, oven)) = do
                     return OutputMissing
             evaluate $ force res
 
+
+initialiseFake :: IO Memory
+initialiseFake = do
+    store <- newStore False "bake-store"
+    mem <- newMemory store (toState "", Answer mempty 0 [] False)
+    return mem{fatal = ["View mode, database is read-only"]}
 
 initialise :: Oven State Patch Test -> [Author] -> Worker -> IO Memory
 initialise oven admins extra = do
