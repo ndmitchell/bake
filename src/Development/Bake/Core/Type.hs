@@ -27,6 +27,7 @@ import Data.Typeable
 import Database.SQLite.Simple.FromField
 import Database.SQLite.Simple.ToField
 import General.Database
+import Data.List.Extra
 import Prelude
 
 
@@ -105,6 +106,12 @@ instance Stringy () where
 instance Stringy String where
     stringyTo = id
     stringyFrom = id
+    stringyPretty x
+        | (pre,sha) <- spanEnd (`elem` "0123456789abcdef") x
+        , length sha >= 32 -- git is 40
+        = pre ++ take 7 sha
+    stringyPretty x = x
+
 
 -- | The default oven, which doesn't do anything interesting. Usually the starting point.
 defaultOven :: Oven () () ()
