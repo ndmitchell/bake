@@ -111,12 +111,14 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
             return "server"
 
          else do
-            let xs = map (\(t,q) -> (Nothing,t,q,Nothing)) (filter (argsFilter a . snd) running) ++
-                     map (\(a,b,c,d) -> (Just a,b,c,Just d)) (storeRunList store argsClient argsTest argsState argsPatch argsRun)
+            let (keep,ignore) = splitAt 1000 $
+                    map (\(t,q) -> (Nothing,t,q,Nothing)) (filter (argsFilter a . snd) running) ++
+                    map (\(a,b,c,d) -> (Just a,b,c,Just d)) (storeRunList store argsClient argsTest argsState argsPatch argsRun)
+            p_ $ let n = length keep in str_ $ "Found " ++ show n ++ " run" ++ ['s' | n /= 1] ++ (if null ignore then "" else ", truncated to 1000")
             table "No runs" ["Time","Job","Status"] $
-                map (rowHistory shower mem) xs
+                map (rowHistory shower mem) keep
 
-            case xs of
+            case keep of
                 _ | Just s <- argsState, argsEmpty a{argsState=Nothing} ->
                     maybe' (storeExtra store $ Left s) (return "list") $ \(_, e) -> do
                         h2_ $ str_ "State information"; raw_ e
