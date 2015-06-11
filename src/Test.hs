@@ -21,10 +21,6 @@ import Prelude
 import Development.Bake.Test.Simulate
 
 
--- branchFrom = "master"
-branchTo = "master"
-
-
 main :: IO ()
 main = do
     args <- getArgs
@@ -110,7 +106,7 @@ test dir = do
             sleep 10
             withTempDir $ \d -> withCurrentDirectory d $ do
                 unit $ cmd "git clone" repo "."
-                unit $ cmd "git checkout" branchTo
+                unit $ cmd "git checkout master"
                 src <- readFile "Main.hs"
                 let expect = "module Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
                 when (src /= expect) $ do
@@ -120,7 +116,7 @@ test dir = do
         putStrLn "% MAKING A GOOD EDIT AS BOB"
         edit "bob" $ do
             unit $ cmd "git fetch origin"
-            unit $ cmd "git merge" ("origin/" ++ branchTo)
+            unit $ cmd "git merge origin/master"
             writeFile "Main.hs" "module Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n\n"
         putStrLn "% MAKING A BAD EDIT AS BOB"
         edit "bob" $
@@ -128,7 +124,7 @@ test dir = do
         putStrLn "% MAKING A GOOD EDIT AS TONY"
         edit "tony" $ do
             unit $ cmd "git fetch origin"
-            unit $ cmd "git merge" ("origin/" ++ branchTo)
+            unit $ cmd "git merge origin/master"
             writeFile "Main.hs" "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
         () <- cmd exe "unpause" "--author=bake"
 
@@ -136,7 +132,7 @@ test dir = do
             sleep 10
             withTempDir $ \d -> withCurrentDirectory d $ do
                 unit $ cmd "git clone" repo "."
-                unit $ cmd "git checkout" branchTo
+                unit $ cmd "git checkout master"
                 src <- readFile "Main.hs"
                 let expect = "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n\n"
                 when (src /= expect) $ do
