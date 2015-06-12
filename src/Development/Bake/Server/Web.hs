@@ -1,5 +1,4 @@
 {-# LANGUAGE RecordWildCards, ViewPatterns, TupleSections #-}
-{-# OPTIONS_GHC -w #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Web(
@@ -14,7 +13,6 @@ import Development.Bake.Core.Message
 import General.Web
 import General.Extra
 import General.HTML
-import Data.Hashable
 import Data.List.Extra
 import Data.Tuple.Extra
 import Data.Either.Extra
@@ -22,11 +20,9 @@ import System.Time.Extra
 import Data.Version
 import Data.Maybe
 import Data.Time.Calendar
-import Control.Applicative
 import Control.Monad.Extra
 import Data.Monoid
 import Paths_bake
-import qualified Data.Text as T
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Safe
