@@ -196,9 +196,16 @@ update oven mem@Memory{..} (ClearSkip author) = do
     return $ Right mem{store = store}
 
 update oven mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
-    when (snd qCandidate == [] && not aSuccess && Set.null (poFail $ storePoint store qCandidate)) $ do
-        void $ try_ $ ovenNotify oven admins $
-            "Failure in state " ++ fromState (fst qCandidate) ++ " on test " ++ maybe "Preparing" fromTest qTest
+    case () of
+        _ | snd qCandidate == [] -- on a state
+          , not aSuccess
+          , let skip = Set.mapMonotonic Just $ Map.keysSet $ storeSkip store
+          , qTest `Set.notMember` skip -- not on the skip list
+          , let failed = poFail $ storePoint store qCandidate
+          , failed `Set.isSubsetOf` skip -- no notifications already
+          -> void $ try_ $ ovenNotify oven admins $
+                "A state has failed\n" ++ fromState (fst qCandidate) ++ " due to " ++ maybe "Preparing" fromTest qTest
+        _ -> return ()
 
     now <- getCurrentTime
     let (eq,neq) = partition ((==) q . snd) running
