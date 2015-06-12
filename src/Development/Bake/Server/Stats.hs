@@ -100,7 +100,13 @@ stats Prettys{..} Memory{..} = do
         h2_ $ str_ "GHC statistics"
         case stats of
             Nothing -> p_ $ str_ "No GHC stats, rerun with +RTS -T"
-            Just x -> pre_ $ str_ $ replace ", " "\n" $ takeWhile (/= '}') $ drop 1 $ dropWhile (/= '{') $ show x
+            Just x@GCStats{..} -> do
+                ul_ $ do
+                    li_ $ str_ $ "Uptime of: " ++ showDuration wallSeconds
+                    li_ $ str_ $ "Haskell memory usage: " ++ show peakMegabytesAllocated ++ "Mb"
+                    li_ $ str_ $ "CPU time: " ++ showDuration cpuSeconds ++
+                          " (mutator: " ++ showDuration mutatorCpuSeconds ++ ", GC: " ++ showDuration gcCpuSeconds ++ ")"
+                pre_ $ str_ $ replace ", " "\n" $ takeWhile (/= '}') $ drop 1 $ dropWhile (/= '{') $ show x
 
 
 table :: [String] -> [[HTML]] -> HTML
