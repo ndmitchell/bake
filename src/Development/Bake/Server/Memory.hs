@@ -51,7 +51,7 @@ data Memory = Memory
 
 newMemory :: Store -> (State, Answer) -> IO Memory
 newMemory store (state, answer) = do
-    store <- storeUpdate store [IUState state answer Nothing]
+    store <- storeUpdate store [IUState state answer Nothing | aSuccess answer]
     let ps = map fst $ sortOn (paQueued . snd) $
              filter (isJust . paStart . snd) $
              map (id &&& storePatch store) $ Set.toList $ storeAlive store
