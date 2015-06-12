@@ -20,6 +20,7 @@ import Development.Bake.Core.Message
 import qualified Data.Set as Set
 import qualified Data.Map as Map
 import General.Extra
+import System.Time.Extra
 import Data.Char
 import Data.List.Extra
 import System.IO.Unsafe
@@ -79,6 +80,7 @@ paAlive PatchInfo{..} = isNothing paDelete && isNothing paSupersede && isNothing
 data StateInfo = StateInfo
     {stCreated :: UTCTime
     ,stSource :: Maybe Point
+    ,stDuration :: Maybe Seconds
     }
 
 
@@ -117,9 +119,9 @@ newCache conn = do
     cacheState <- memoIO1 $ \s -> do
         let checkOne msg [x] = [x]
             checkOne msg xs = error $ "checkOne, expected 1 but got " ++ show (length xs) ++ ", " ++ msg
-        [(row, sCreate, sPoint)] <- checkOne ("Loading up state " ++ show s) <$> sqlSelect conn (saId, saCreate, saPoint) [saState %== s]
+        [(row, sCreate, sPoint, sDuration)] <- checkOne ("Loading up state " ++ show s) <$> sqlSelect conn (saId, saCreate, saPoint, saDuration) [saState %== s]
         pt <- maybe (return Nothing) (fmap Just . cachePointId) sPoint
-        return (row, StateInfo sCreate pt)
+        return (row, StateInfo sCreate pt sDuration)
 
     cachePoint <- memoIO1 $ \(s,ps) -> do
         s <- fst <$> cacheState s
