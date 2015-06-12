@@ -97,7 +97,7 @@ logTime :: IO Seconds
 logTime = unsafePerformIO offsetTime
 
 timeInit :: IO ()
-timeInit = void logTime
+timeInit = void $ evaluate =<< logTime
 
 
 {-# NOINLINE createDirLock #-}
