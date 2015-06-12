@@ -48,7 +48,7 @@ prod oven mem msg = safely $ do
                 Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p ->
                     case () of
                         _ | Just t <- qTest q, Just reason <- Map.lookup t (storeSkip $ store mem) ->
-                            prod oven mem $ Finished q $ Answer (TL.pack $ "Skipped due to being on the skip list\n" ++ reason) 0 [] True
+                            prod oven mem $ Finished q $ Answer (TL.pack $ "Skipped due to being on the skip list\n" ++ reason) Nothing [] True
                         _ -> do
                             now <- getCurrentTime
                             return (mem{running = (now,q) : running mem}, Just $ Right q)
@@ -97,7 +97,7 @@ react oven mem@Memory{..}
     = Just $ do
         (s, answer) <-
             if not simulated then uncurry runUpdate active
-            else do s <- ovenUpdate oven (fst active) (snd active); return (Just s, Answer mempty 0 mempty True)
+            else do s <- ovenUpdate oven (fst active) (snd active); return (Just s, Answer mempty (Just 0) mempty True)
 
         let pauthors = map (paAuthor . storePatch store) $ snd active
         case s of
@@ -157,7 +157,7 @@ update oven mem@Memory{..} (SetState author s) =
     if fst active == s then
         return $ Left "state is already at that value"
     else do
-        store <- storeUpdate store [IUState s (Answer (TL.pack $ "From SetState by " ++ author) 0 [] True) Nothing]
+        store <- storeUpdate store [IUState s (Answer (TL.pack $ "From SetState by " ++ author) Nothing [] True) Nothing]
         return $ Right mem{store = store, active = (s, snd active)}
 
 update oven mem@Memory{..} (Requeue author) = do

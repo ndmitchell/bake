@@ -53,9 +53,9 @@ runAll name args1 args2 parse = do
             ans <- fmap parse $ readFile' $ dir </> ".bake.result"
             evaluate $ rnf ans
             return $ Just ans
-        return (ex, Answer (TL.pack $ sout++serr) 0 [] (exit == ExitSuccess))
+        return (ex, Answer (TL.pack $ sout++serr) (Just 0) [] (exit == ExitSuccess))
     case res of
         Left e -> do
             e <- showException e
-            return (Nothing, Answer (TL.pack e) time [] False)
-        Right (ex,ans) -> return (ex, ans{aDuration=time})
+            return (Nothing, Answer (TL.pack e) (Just time) [] False)
+        Right (ex,ans) -> return (ex, ans{aDuration=Just time})

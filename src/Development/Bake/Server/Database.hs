@@ -60,8 +60,8 @@ stTable = table "state" stId stState (stState,stCreate,stPoint,stDuration)
 stId = rowid stTable :: Column StateId
 stState = column stTable "state" :: Column State
 stCreate = column stTable "time" :: Column UTCTime
-stPoint = column stTable "point" :: Column (Maybe PointId)
-stDuration = column stTable "duration" :: Column Seconds
+stPoint = column stTable "point" :: Column (Maybe PointId) -- both are Nothing for a setstate
+stDuration = column stTable "duration" :: Column (Maybe Seconds)
 
 pcTable = table "patch" pcId pcPatch (pcPatch, pcAuthor, pcQueue, pcStart, pcDelete, pcSupersede, pcReject, pcPlausible, pcMerge)
 pcId = rowid pcTable :: Column PatchId
@@ -92,7 +92,7 @@ rnTest = column rnTable "test" :: Column (Maybe Test)
 rnSuccess = column rnTable "success" :: Column Bool
 rnClient = column rnTable "client" :: Column Client
 rnStart = column rnTable "start" :: Column UTCTime
-rnDuration = column rnTable "duration" :: Column Seconds
+rnDuration = column rnTable "duration" :: Column (Maybe Seconds) -- nothing for a skip
 
 tsTable = table "test" norowid () (tsPoint, tsTest)
 tsPoint = column tsTable "point" :: Column PointId

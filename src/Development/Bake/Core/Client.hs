@@ -49,7 +49,7 @@ startClient hp author (toClient -> client) maxThreads provide ping (concrete -> 
                     ["Client: " ++ fromClient client
                     ,"Id: " ++ show i
                     ,"Result: " ++ (if aSuccess then "Success" else "Failure")
-                    ,"Duration: " ++ showDuration aDuration
+                    ,"Duration: " ++ maybe "none" showDuration aDuration
                     ,"Output: " ++ TL.unpack aStdout
                     ]
                 atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())

@@ -62,7 +62,7 @@ instance NFData Question where
 
 data Answer = Answer
     {aStdout :: TL.Text
-    ,aDuration :: Seconds
+    ,aDuration :: Maybe Seconds -- Nothing for a skip
     ,aTests :: [Test]
     ,aSuccess :: Bool
     }

@@ -306,8 +306,8 @@ progress Shower{..} Memory{..}
 showAnswer :: Maybe Answer -> HTML
 showAnswer Nothing = i_ $ str_ $ "Running..."
 showAnswer (Just Answer{..}) =
-    if aSuccess then span__ [class_ "good"] $ str_ $ "Succeeded in " ++ showDuration aDuration
-                else span__ [class_ "bad" ] $ str_ $ "Failed in "    ++ showDuration aDuration
+    if aSuccess then span__ [class_ "good"] $ str_ $ "Succeeded in " ++ maybe "no time" showDuration aDuration
+                else span__ [class_ "bad" ] $ str_ $ "Failed in "    ++ maybe "no time" showDuration aDuration
 
 
 rowHistory :: Shower -> Memory -> (Maybe RunId, UTCTime, Question, Maybe Answer) -> (String, [HTML])
