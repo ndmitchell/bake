@@ -50,10 +50,11 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
             str_ "Bake Continuous Integration"
 
         if argsEmpty a{argsDate=Nothing} then do
-            when paused $
-                p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
-            failures shower mem
-            progress shower mem
+            when (isNothing argsDate) $ do
+                when paused $
+                    p_ $ b_ (str_ "Paused") <> str_ ", new patches are paused until the queue is clear."
+                failures shower mem
+                progress shower mem
 
             p_ $ do
                 str_ $ " Viewing " ++ maybe "yesterday and today" showDate argsDate ++ ": Goto "
