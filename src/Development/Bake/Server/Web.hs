@@ -323,9 +323,10 @@ rowUpdate Shower{..} Memory{..} (s,StateInfo{..}) = [showTime stCreated, body, s
     where
         body = do
             showLink ("server=" ++ fromState s) $ str_ $ if isNothing stSource then "Initialised" else "Updated"
+            whenJust stSource $ \src -> str_ " with " <> commas_ (map showPatch $ snd src)
             br_
-            whenJust stSource $ \src -> str_ "With " <> commas_ (map showPatch $ snd src)
-            str_ "To " <> showState s
+            whenJust stSource $ \src -> str_ "From " <> showState (fst src)
+            str_ (if isJust stSource then " to " else "To ") <> showState s
 
 
 rowPatch :: Shower -> Memory -> Bool -> Either (State, StateInfo) (Patch,PatchInfo) -> (String, [HTML])
