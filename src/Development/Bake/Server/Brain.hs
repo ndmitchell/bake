@@ -46,11 +46,12 @@ prod oven mem msg = safely $ do
             mem <- reacts oven mem
             case msg of
                 Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p ->
-                    if maybe False (`Map.member` storeSkip (store mem)) $ qTest q then
-                        prod oven mem $ Finished q $ Answer (TL.pack "Skipped due to being on the skip list") 0 [] True
-                    else do
-                        now <- getCurrentTime
-                        return (mem{running = (now,q) : running mem}, Just $ Right q)
+                    case () of
+                        _ | Just t <- qTest q, Just reason <- Map.lookup t (storeSkip $ store mem) ->
+                            prod oven mem $ Finished q $ Answer (TL.pack $ "Skipped due to being on the skip list\n" ++ reason) 0 [] True
+                        _ -> do
+                            now <- getCurrentTime
+                            return (mem{running = (now,q) : running mem}, Just $ Right q)
                 _ -> return (mem, Nothing)
     where
         safely x = do
