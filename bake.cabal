@@ -87,10 +87,8 @@ library
         Development.Bake.Server.Store
         Development.Bake.Server.Web
         General.Database
-        General.Equal
         General.Extra
         General.HTML
-        General.MRU
         General.Web
         Paths_bake
 
