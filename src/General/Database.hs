@@ -6,7 +6,7 @@ module General.Database(
     Upd(..),
     TypeField(..),
     Table, table, Column, column, rowid, norowid,
-    sqlInsert, sqlUpdate, sqlSelect, sqlDelete, sqlCreateNotExists, sqlUnsafe
+    sqlInsert, sqlUpdate, sqlSelect, sqlDelete, sqlEnsureTable, sqlUnsafe
     ) where
 
 import Data.List.Extra
@@ -127,13 +127,19 @@ sqlSelect conn cols pred = do
     query conn (fromString str) prdVs
 
 
-sqlCreateNotExists :: Connection -> Table rowid cs -> IO ()
-sqlCreateNotExists conn Table{..} = do
+sqlEnsureTable :: Connection -> Table rowid cs -> IO ()
+sqlEnsureTable conn Table{..} = do
     let fields = intercalate ", " $
             [colName ++ " " ++ colSqlType | Column{..} <- tblCols] ++
             ["PRIMARY KEY (" ++ intercalate ", " (map colName tblKeys) ++ ")" | not $ null tblKeys]
     let str = "CREATE TABLE IF NOT EXISTS " ++ tblName ++ "(" ++ fields ++ ")"
-    execute_ conn $ fromString str
+    existing <- query conn (fromString "SELECT sql FROM sqlite_master WHERE type = ? AND name = ?") ("table", tblName)
+    case existing of
+        [Only s] | str == s -> return ()
+        [] -> execute_ conn $ fromString str
+        _ -> error $ "Trying to ensure table " ++ tblName ++ " but mismatch" ++
+                     "\nCreating:\n" ++ str ++ "\nGot:\n" ++ unlines (map fromOnly existing)
+
 
 sqlUnsafe :: (ToRow q, FromRow r) => Connection -> String -> q -> IO [r]
 sqlUnsafe conn str q = query conn (fromString str) q

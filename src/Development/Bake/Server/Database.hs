@@ -107,13 +107,13 @@ create file = do
     conn <- open $ fromMaybe ":memory:" file
     execute_ conn $ fromString "PRAGMA journal_mode = WAL;"
     execute_ conn $ fromString "PRAGMA synchronous = OFF;"
-    sqlCreateNotExists conn stTable
-    sqlCreateNotExists conn pcTable
-    sqlCreateNotExists conn rjTable
-    sqlCreateNotExists conn ptTable
-    sqlCreateNotExists conn rnTable
-    sqlCreateNotExists conn tsTable
-    sqlCreateNotExists conn skTable
+    sqlEnsureTable conn stTable
+    sqlEnsureTable conn pcTable
+    sqlEnsureTable conn rjTable
+    sqlEnsureTable conn ptTable
+    sqlEnsureTable conn rnTable
+    sqlEnsureTable conn tsTable
+    sqlEnsureTable conn skTable
     return conn
 
 save :: Connection -> FilePath -> IO ()
