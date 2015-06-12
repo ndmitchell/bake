@@ -133,7 +133,7 @@ sqlEnsureTable conn Table{..} = do
     let fields = intercalate ", " $
             [colName ++ " " ++ colSqlType | Column{..} <- tblCols] ++
             ["PRIMARY KEY (" ++ intercalate ", " (map colName tblKeys) ++ ")" | not $ null tblKeys]
-    let str = "CREATE TABLE IF NOT EXISTS " ++ tblName ++ "(" ++ fields ++ ")"
+    let str = "CREATE TABLE " ++ tblName ++ " (" ++ fields ++ ")"
     existing <- query conn (fromString "SELECT sql FROM sqlite_master WHERE type = ? AND name = ?") ("table", tblName)
     case existing of
         [Only s] | str == s -> return ()
