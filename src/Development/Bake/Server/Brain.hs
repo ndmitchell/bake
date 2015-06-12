@@ -47,7 +47,8 @@ prod oven mem msg = safely $ do
             case msg of
                 Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p ->
                     case () of
-                        _ | Just t <- qTest q, Just reason <- Map.lookup t (storeSkip $ store mem) ->
+                        -- we still test things on the skip list when testing on a state (to get some feedback)
+                        _ | Just t <- qTest q, snd (qCandidate q) /= [], Just reason <- Map.lookup t (storeSkip $ store mem) ->
                             prod oven mem $ Finished q $ Answer (TL.pack $ "Skipped due to being on the skip list\n" ++ reason) Nothing [] True
                         _ -> do
                             now <- getCurrentTime
