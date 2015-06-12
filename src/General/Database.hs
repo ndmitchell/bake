@@ -2,7 +2,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 
 module General.Database(
-    Pred, (%==), (%==%), (%&&), nullP, likeP, orderDesc, distinct, limit,
+    Pred, (%==), (%==%), (%&&), nullP, likeP,
+    orderDesc, distinct, limit,
     Upd(..),
     TypeField(..),
     Table, table, Column, column, rowid, norowid,
