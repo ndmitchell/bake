@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 
 module General.Database(
-    Pred, (%==), (%==%), (%&&), nullP, likeP,
+    Pred, (%==), (%==%), (%>), (%<), (%&&), nullP, likeP,
     orderDesc, distinct, limit,
     Upd(..),
     TypeField(..),
@@ -154,6 +154,8 @@ unupdate (c := v) = (column_ c, toField v)
 data Pred
     = PNull Column_
     | PEq Column_ SQLData
+    | PGt Column_ SQLData
+    | PLt Column_ SQLData
     | PEqP Column_ Column_
     | PLike Column_ SQLData
     | PAnd [Pred]
@@ -184,6 +186,16 @@ likeP (column_ -> c) (toField -> v) = PLike c v
     | v == SQLNull = PNull c
     | otherwise = PEq c v
 
+(%>) :: ToField c => Column c -> c -> Pred
+(%>) (column_ -> c) (toField -> v)
+    | v == SQLNull = error $ "Can't %> on a NULL"
+    | otherwise = PGt c v
+
+(%<) :: ToField c => Column c -> c -> Pred
+(%<) (column_ -> c) (toField -> v)
+    | v == SQLNull = error $ "Can't %> on a NULL"
+    | otherwise = PLt c v
+
 (%==%) :: ToField c => Column c -> Column c -> Pred
 (%==%) c1 c2
     | isNull c1 || isNull c2 = error $ show ("Column must be NOT NULL to do %==%", show c1, show c2)
@@ -207,6 +219,8 @@ unpred ps =
 
         f (PNull c) = (g c ++ " IS NULL", [c], [])
         f (PEq c v) = (g c ++ " = ?", [c], [v]) -- IS always works, but is a LOT slower
+        f (PGt c v) = (g c ++ " > ?", [c], [v]) -- IS always works, but is a LOT slower
+        f (PLt c v) = (g c ++ " < ?", [c], [v]) -- IS always works, but is a LOT slower
         f (PEqP c1 c2) = (g c1 ++ " = " ++ g c2, [c1,c2], [])
         f (PLike c v) = (g c ++ " LIKE ?", [c], [v])
         f (PAnd []) = ("NULL IS NULL", [], [])
