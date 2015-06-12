@@ -99,7 +99,7 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
             let s = fromJust argsServer
             table "No server operations" ["Time","Job","Duration"] $
                 map (("",) . rowUpdate shower mem) $
-                    map (id &&& storeState store) $ storeStateList store
+                maybe (storeStateList store) (\s -> [(s, storeState store s)]) s
             whenJust s $ \s -> do
                 h2_ $ str_ "Output"
                 case storeStateFile store s of

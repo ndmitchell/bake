@@ -203,11 +203,6 @@ storePatch Store{..} = snd . unsafePerformIO . cachePatch cache
 storeState :: Store -> State -> StateInfo
 storeState Store{..} = snd . unsafePerformIO . cacheState cache
 
-storeStateList :: Store -> [State]
-storeStateList Store{..} = unsafePerformIO $ do
-    ss <- sqlSelect conn stState []
-    return $ map fromOnly ss
-
 data PP = PP {ppPatch :: Patch, ppReject :: Bool, ppMx :: UTCTime}
 instance FromRow PP where fromRow = PP <$> field <*> field <*> field
 
@@ -250,6 +245,13 @@ storeRunList Store{..} client test state patches run = unsafePerformIO $ do
     forM xs $ \(rnId, rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration) -> do
         pt <- cachePointId cache rnPoint
         return (rnId, rnStart, Question pt rnTest 0 rnClient, Answer mempty rnDuration [] rnSuccess)
+
+storeStateList :: Store -> [(State, StateInfo)]
+storeStateList Store{..} = unsafePerformIO $ do
+    xs <- sqlSelect conn (saState, saCreate, saPoint, saDuration) [orderDesc saCreate, limit 1000]
+    forM xs $ \(sState, sCreate, sPoint, sDuration) -> do
+        pt <- maybe (return Nothing) (fmap Just . cachePointId cache) sPoint
+        return (sState, StateInfo sCreate pt sDuration)
 
 
 ---------------------------------------------------------------------
