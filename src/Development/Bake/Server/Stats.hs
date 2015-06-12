@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns, CPP, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns, ScopedTypeVariables, TypeOperators #-}
 
 module Development.Bake.Server.Stats(
     stats,
@@ -51,11 +51,7 @@ recordIO x = do
 stats :: Prettys -> Memory -> IO HTML
 stats Prettys{..} Memory{..} = do
     recorded <- readIORef recorded
-#if __GLASGOW_HASKELL__ < 706
-    getGCStatsEnabled <- return True
-#else
     getGCStatsEnabled <- getGCStatsEnabled
-#endif
     stats <- if getGCStatsEnabled then Just <$> getGCStats else return Nothing
     rel <- relativeTime
 
