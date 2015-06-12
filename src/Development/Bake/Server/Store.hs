@@ -3,7 +3,7 @@
 -- Stuff on disk on the server
 module Development.Bake.Server.Store(
     Store, newStore, storeSave, storeSQL,
-    PatchInfo(..), paAlive, storePatchList, storeIsPatch, storePatch, storeAlive,
+    PatchInfo(..), paAlive, storeIsPatch, storePatch, storeAlive,
     PointInfo(..), poTest, storePoint, storeSupersetPass,
     StateInfo(..), storeStateList, storeState,
     RunId, storeRunList, storeStateFile, storeRunFile,
@@ -189,11 +189,6 @@ storeSQL Store{..} = sqlUnsafe conn
 
 storePoint :: Store -> Point -> PointInfo
 storePoint Store{..} = snd . unsafePerformIO . cachePoint cache
-
-storePatchList :: Store -> [Patch]
-storePatchList Store{..} = unsafePerformIO $ do
-    ps <- sqlSelect conn pcPatch []
-    return $ map fromOnly ps
 
 storeIsPatch :: Store -> Patch -> Bool
 storeIsPatch Store{..} p = unsafePerformIO $ do
