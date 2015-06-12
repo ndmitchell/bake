@@ -73,7 +73,7 @@ stats Prettys{..} Memory{..} = do
         return (p, week, all)
 
     return $ do
-        p_ $ str_ $ "Patches = " ++ show patchCount ++ ", states = " ++ show stateCount ++ ", patches = " ++ show patchCount
+        p_ $ str_ $ "Patches = " ++ show patchCount ++ ", states = " ++ show stateCount ++ ", runs = " ++ show runCount
 
         h2_ $ str_ "Sampled statistics"
         let ms x = show $ (ceiling $ x * 1000 :: Integer)
