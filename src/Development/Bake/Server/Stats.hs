@@ -1,5 +1,4 @@
-{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns, CPP #-}
-{-# OPTIONS_GHC -w #-} -- since half commented out
+{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns, CPP, ScopedTypeVariables, TypeOperators #-}
 
 module Development.Bake.Server.Stats(
     stats,
@@ -11,16 +10,17 @@ import Control.Applicative
 import Control.Monad
 import Development.Bake.Core.Type
 import Development.Bake.Server.Brain
+import Database.SQLite.Simple
 import Data.IORef
 import Data.Monoid
 import Data.List.Extra
 import General.HTML
 import General.Extra
+import Development.Bake.Server.Store
 import GHC.Stats
 import System.IO.Unsafe
 import System.Time.Extra
 import Control.Exception
-import Data.Tuple.Extra
 import Numeric.Extra
 import qualified Data.Map as Map
 import Prelude
@@ -47,9 +47,6 @@ recordIO x = do
         atomicModifyIORef recorded $ (,()) .  Map.insertWith mappend (unwords msg) (Stat [d] 1 d d)
     return x
 
-mean :: [Double] -> Double
-mean xs = sum xs / intToDouble (length xs)
-
 
 stats :: Prettys -> Memory -> IO HTML
 stats Prettys{..} Memory{..} = do
@@ -61,9 +58,26 @@ stats Prettys{..} Memory{..} = do
 #endif
     stats <- if getGCStatsEnabled then Just <$> getGCStats else return Nothing
     rel <- relativeTime
+
+    [Only (patchCount :: Int)] <- storeSQL store "SELECT count(*) FROM patch" ()
+    [Only (stateCount :: Int)] <- storeSQL store "SELECT count(*) FROM state" ()
+    [Only (runCount :: Int)] <- storeSQL store "SELECT count(*) FROM run" ()
+
+    slowest :: [Only (Maybe Test) :. (Int, Seconds, Seconds, Seconds)] <- storeSQL store "SELECT test, count(*), avg(duration) as avg, sum(duration), max(duration) FROM run GROUP BY test ORDER BY avg DESC LIMIT 25" ()
+    [slowestAll :: (Int, Seconds, Seconds, Seconds)] <- storeSQL store "SELECT count(*), avg(duration) as avg, sum(duration), max(duration) FROM run" ()
+    rejections :: [(Maybe Test, Int)] <- storeSQL store "SELECT test, count(*) AS n FROM reject WHERE test IS NULL OR test NOT IN (SELECT test FROM skip) GROUP BY test ORDER BY n DESC LIMIT 10" ()
+
+    [Only (plausibleCount :: Int)] <- storeSQL store "SELECT count(*) FROM patch WHERE plausible IS NOT NULL" ()
+    [Only (plausibleAvgAll :: Double)] <- storeSQL store "SELECT ifnull(avg(julianday(plausible)-julianday(queue)),0) FROM patch WHERE plausible IS NOT NULL" ()
+    [Only (plausibleAvgWeek :: Double)] <- storeSQL store "SELECT ifnull(avg(julianday(plausible)-julianday(queue)),0) FROM patch WHERE plausible IS NOT NULL AND queue > datetime(julianday('now')-7)" ()
+    percentiles <- if plausibleCount == 0 then return [] else forM [100,95,90,80,75,50,25,10,0] $ \p -> do
+        let q = Only $ min (plausibleCount - 1) $ ((plausibleCount * p) `div` 100)
+        [Only (all :: Double)] <- storeSQL store "SELECT julianday(plausible)-julianday(queue) AS x FROM patch WHERE plausible IS NOT NULL ORDER BY x ASC LIMIT ?, 1" q
+        [Only (week :: Double)] <- storeSQL store "SELECT julianday(plausible)-julianday(queue) AS x FROM patch WHERE plausible IS NOT NULL AND queue > datetime(julianday('now')-7) ORDER BY x ASC LIMIT ?, 1" q
+        return (p, week, all)
+
     return $ do
-        {-
-        p_ $ str_ $ "Requests = " ++ show (length history) ++ ", updates = " ++ show (length updates)
+        p_ $ str_ $ "Patches = " ++ show patchCount ++ ", states = " ++ show stateCount ++ ", patches = " ++ show patchCount
 
         h2_ $ str_ "Sampled statistics"
         let ms x = show $ (ceiling $ x * 1000 :: Integer)
@@ -73,32 +87,19 @@ stats Prettys{..} Memory{..} = do
                        ,ms statMax, unwords $ map ms statHistory] 
             | (name,Stat{..}) <- Map.toAscList recorded]
 
-        h2_ $ str_ "Slowest 25 tests"
-        table ["Test","Count","Mean","Sum","Max","Last 10"] $
-            -- deliberately group by Pretty string, not by raw string, so we group similar looking tests
-            let xs = [(maybe "Preparing " prettyTest qTest, aDuration) | (_,Question{..}, Answer{..}) <- history]
-                f name xs = name : map str_ [show (length xs), showDuration (mean xs), showDuration (sum xs)
-                                            ,showDuration (maximum xs), unwords $ map showDuration $ take 10 xs]
-            in [f (i_ $ str_ "All") (map snd xs) | not $ null xs] ++
-               [f (str_ test) dur | (test,dur) <- take 25 $ sortOn (negate . mean . snd) $ groupSort xs]
+        h2_ $ str_ "Slowest tests (max 25)"
+        table ["Test","Count","Mean","Sum","Max"] $
+            let f name (count, avg, sum, max) = name : map str_ [show count, showDuration avg, showDuration sum, showDuration max]
+            in f (i_ $ str_ "All") slowestAll : [f (str_ $ maybe "Preparing" fromTest test) x | (Only test :. x) <- slowest]
 
-        h2_ $ str_ "Requests per client"
-        let historyRunning = map (\(t,q,a) -> (t,q,Just a)) history ++ map (\(t,q) -> (t,q,Nothing)) running
-        table ["Client","Requests","Utilisation (last hour)","Utilisation"]
-            [ map str_ [fromClient c, show $ length xs, f $ 60*60, f $ maximum $ map fst3 xs]
-            | c <- Map.keys pings
-              -- how long ago you started, duration
-            , let xs = [(rel t, maybe (rel t) aDuration a, qThreads q) | (t,q,a) <- historyRunning, qClient q == c]
-            , not $ null xs
-            , let f z = show (floor $ sum [ max 0 $ intToDouble threads * (dur - max 0 (start - z))
-                                          | (start,dur,threads) <- xs] * 100 / z) ++ "%"]
+        h2_ $ str_ "Most common rejection tests (max 10)"
+        table ["Test","Rejections"] [[str_ $ maybe "Preparing" fromTest t, str_ $ show x] | (t, x) <- rejections]
 
-            -- how many seconds ago you started, duration
-            -- start dur z   max 0 (start-z)
-            -- 75 10 60 = 0   15
-            -- 65 10 60 = 5   5
-            -- 55 10 60 = 10  0
-        -}
+        h2_ $ str_ "Speed to plausible"
+        table ["Plausible","This week","Forever"] $
+            let f x = str_ $ showDuration $ x*24*60*60 in
+            [str_ "Average", f plausibleAvgWeek, f plausibleAvgAll] :
+            [[str_ $ "Percentile " ++ show p, f a, f b] | (p,a,b) <- percentiles]
 
         h2_ $ str_ "GHC statistics"
         case stats of
