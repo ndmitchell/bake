@@ -48,8 +48,8 @@ recordIO x = do
     return x
 
 
-stats :: Prettys -> Memory -> IO HTML
-stats Prettys{..} Memory{..} = do
+stats :: Prettys -> Memory -> (Maybe Test -> HTML) -> IO HTML
+stats Prettys{..} Memory{..} showTest = do
     recorded <- readIORef recorded
     getGCStatsEnabled <- getGCStatsEnabled
     stats <- if getGCStatsEnabled then Just <$> getGCStats else return Nothing
@@ -88,10 +88,10 @@ stats Prettys{..} Memory{..} = do
         h2_ $ str_ "Slowest tests (max 25)"
         table ["Test","Count","Mean","Sum","Max"] $
             let f name (count, avg, sum, max) = name : map str_ [show count, showDuration avg, showDuration sum, showDuration max]
-            in f (i_ $ str_ "All") slowestAll : [f (str_ $ maybe "Preparing" fromTest test) x | (Only test :. x) <- slowest]
+            in f (i_ $ str_ "All") slowestAll : [f (showTest test) x | (Only test :. x) <- slowest]
 
         h2_ $ str_ "Most common rejection tests (max 10)"
-        table ["Test","Rejections"] [[str_ $ maybe "Preparing" fromTest t, str_ $ show x] | (t, x) <- rejections]
+        table ["Test","Rejections"] [[showTest t, str_ $ show x] | (t, x) <- rejections]
 
         h2_ $ str_ "Speed to plausible"
         table ["Plausible","Last day","Last week","Last month","Last year"] $

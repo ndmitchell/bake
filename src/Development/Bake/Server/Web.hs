@@ -32,7 +32,7 @@ import Prelude
 web :: Prettys -> String -> [(String, String)] -> Memory -> IO String
 web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -> ["web",x])) $ do
     shower@Shower{..} <- shower store prettys argsAdmin
-    stats <- if argsStats then stats prettys mem else return mempty
+    stats <- if argsStats then stats prettys mem showTest else return mempty
     now <- getCurrentTime
     return $ (valueHTML &&& renderHTML . void) $ template $ do
         when (fatal /= []) $ do
