@@ -63,14 +63,16 @@ stats Prettys{..} Memory{..} = do
     [slowestAll :: (Int, Seconds, Seconds, Seconds)] <- storeSQL store "SELECT count(*), avg(duration) as avg, sum(duration), max(duration) FROM run" ()
     rejections :: [(Maybe Test, Int)] <- storeSQL store "SELECT test, count(*) AS n FROM reject WHERE test IS NULL OR test NOT IN (SELECT test FROM skip) GROUP BY test ORDER BY n DESC LIMIT 10" ()
 
-    [Only (plausibleCount :: Int)] <- storeSQL store "SELECT count(*) FROM patch WHERE plausible IS NOT NULL" ()
-    [Only (plausibleAvgAll :: Double)] <- storeSQL store "SELECT ifnull(avg(julianday(plausible)-julianday(queue)),0) FROM patch WHERE plausible IS NOT NULL" ()
-    [Only (plausibleAvgWeek :: Double)] <- storeSQL store "SELECT ifnull(avg(julianday(plausible)-julianday(queue)),0) FROM patch WHERE plausible IS NOT NULL AND queue > datetime(julianday('now')-7)" ()
-    percentiles <- if plausibleCount == 0 then return [] else forM [100,95,90,80,75,50,25,10,0] $ \p -> do
-        let q = Only $ min (plausibleCount - 1) $ ((plausibleCount * p) `div` 100)
-        [Only (all :: Double)] <- storeSQL store "SELECT julianday(plausible)-julianday(queue) AS x FROM patch WHERE plausible IS NOT NULL ORDER BY x ASC LIMIT ?, 1" q
-        [Only (week :: Double)] <- storeSQL store "SELECT julianday(plausible)-julianday(queue) AS x FROM patch WHERE plausible IS NOT NULL AND queue > datetime(julianday('now')-7) ORDER BY x ASC LIMIT ?, 1" q
-        return (p, week, all)
+    now <- getCurrentTime
+    let periods = [addSeconds (negate x*24*60*60) now | x <- [1,7,30,365]]
+    let one [Only x] = x
+        one _ = error "Didn't get one"
+    plausibleCount :: [Int] <- forM periods $ \p -> one <$> storeSQL store "SELECT count(*) FROM patch WHERE plausible IS NOT NULL AND queue > ?" (Only p)
+    plausibleAvg :: [Double] <- forM periods $ \p -> one <$> storeSQL store "SELECT ifnull(avg(julianday(plausible)-julianday(queue)),0) FROM patch WHERE plausible IS NOT NULL AND queue > ?" (Only p)
+    percentiles <- forM [100,95,90,80,75,50,25,10,0] $ \perc -> (perc,) <$> do
+        forM (zip periods plausibleCount) $ \(p,count) -> do
+            let n = min (count - 1) $ ((count * perc) `div` 100)
+            one <$> storeSQL store "SELECT julianday(plausible)-julianday(queue) AS x FROM patch WHERE plausible IS NOT NULL AND queue > ? ORDER BY x ASC LIMIT ?, 1" (p,n)
 
     return $ do
         p_ $ str_ $ "Patches = " ++ show patchCount ++ ", states = " ++ show stateCount ++ ", runs = " ++ show runCount
@@ -92,10 +94,14 @@ stats Prettys{..} Memory{..} = do
         table ["Test","Rejections"] [[str_ $ maybe "Preparing" fromTest t, str_ $ show x] | (t, x) <- rejections]
 
         h2_ $ str_ "Speed to plausible"
-        table ["Plausible","This week","Forever"] $
-            let f x = str_ $ showDuration $ x*24*60*60 in
-            [str_ "Average", f plausibleAvgWeek, f plausibleAvgAll] :
-            [[str_ $ "Percentile " ++ show p, f a, f b] | (p,a,b) <- percentiles]
+        table ["Plausible","Last day","Last week","Last month","Last year"] $
+            let f x = str_ $ showDuration $ x*24*60*60
+                perc 100 = "Maximum"
+                perc 0 = "Minimum"
+                perc x = show x ++ "% within" in
+            (str_ "Count" : map (str_ . show) plausibleCount) :
+            (str_ "Average" : map f plausibleAvg) :
+            [str_ (perc p) : map f xs | (p,xs) <- percentiles]
 
         h2_ $ str_ "GHC statistics"
         case stats of
