@@ -3,7 +3,7 @@
 -- Stuff on disk on the server
 module Development.Bake.Server.Database(
     PointId, RunId, StateId, PatchId, patchIds, fromPatchIds, patchIdsSuperset,
-    stTable, stId, stState, stCreate, stPoint, stDuration,
+    saTable, saId, saState, saCreate, saPoint, saDuration,
     pcTable, pcId, pcPatch, pcAuthor, pcQueue, pcStart, pcDelete, pcSupersede, pcReject, pcPlausible, pcMerge,
     rjTable, rjPatch, rjTest, rjRun,
     ptTable, ptId, ptState, ptPatches,
@@ -56,12 +56,12 @@ fromPatchIds (PatchIds "") = []
 fromPatchIds (PatchIds xs) = map (PatchId . readNote "fromPatchIds") $ splitOn "][" $ init $ tail xs
 
 
-stTable = table "state" stId stState (stState,stCreate,stPoint,stDuration)
-stId = rowid stTable :: Column StateId
-stState = column stTable "state" :: Column State
-stCreate = column stTable "time" :: Column UTCTime
-stPoint = column stTable "point" :: Column (Maybe PointId) -- both are Nothing for a setstate
-stDuration = column stTable "duration" :: Column (Maybe Seconds)
+saTable = table "state" saId saState (saState,saCreate,saPoint,saDuration)
+saId = rowid saTable :: Column StateId
+saState = column saTable "state" :: Column State
+saCreate = column saTable "time" :: Column UTCTime
+saPoint = column saTable "point" :: Column (Maybe PointId) -- both are Nothing for a setstate
+saDuration = column saTable "duration" :: Column (Maybe Seconds)
 
 pcTable = table "patch" pcId pcPatch (pcPatch, pcAuthor, pcQueue, pcStart, pcDelete, pcSupersede, pcReject, pcPlausible, pcMerge)
 pcId = rowid pcTable :: Column PatchId
@@ -107,7 +107,7 @@ create file = do
     conn <- open $ fromMaybe ":memory:" file
     execute_ conn $ fromString "PRAGMA journal_mode = WAL;"
     execute_ conn $ fromString "PRAGMA synchronous = OFF;"
-    sqlEnsureTable conn stTable
+    sqlEnsureTable conn saTable
     sqlEnsureTable conn pcTable
     sqlEnsureTable conn rjTable
     sqlEnsureTable conn ptTable

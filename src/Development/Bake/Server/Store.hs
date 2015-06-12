@@ -99,7 +99,7 @@ newCache :: Connection -> IO Cache
 newCache conn = do
     cachePointId <- memoIO1 $ \pt -> do
         [(s,ps)] <- sqlSelect conn (ptState, ptPatches) [ptId %== pt]
-        [Only s] <- sqlSelect conn (Only stState) [stId %== s]
+        [Only s] <- sqlSelect conn (Only saState) [saId %== s]
         ps <- forM (fromPatchIds ps) $ \p -> do
             [Only p] <- sqlSelect conn pcPatch [pcId %== p]; return p
         return (s, ps)
@@ -117,7 +117,7 @@ newCache conn = do
     cacheState <- memoIO1 $ \s -> do
         let checkOne msg [x] = [x]
             checkOne msg xs = error $ "checkOne, expected 1 but got " ++ show (length xs) ++ ", " ++ msg
-        [(row, sCreate, sPoint)] <- checkOne ("Loading up state " ++ show s) <$> sqlSelect conn (stId, stCreate, stPoint) [stState %== s]
+        [(row, sCreate, sPoint)] <- checkOne ("Loading up state " ++ show s) <$> sqlSelect conn (saId, saCreate, saPoint) [saState %== s]
         pt <- maybe (return Nothing) (fmap Just . cachePointId) sPoint
         return (row, StateInfo sCreate pt)
 
@@ -221,7 +221,7 @@ storeItemsDate Store{..} (start, end) = unsafePerformIO $ do
               "FROM patch WHERE mx > ?" ++ (if isJust end then " AND queue < ?" else "") ++ " ORDER BY queue ASC"
     patches :: [PP] <- sqlUnsafe conn str $ start : maybeToList end
 
-    states <- sqlSelect conn (stState, stCreate) $ [orderAsc stCreate, stState %/= toState "", stCreate %> start] ++ [stCreate %< end | Just end <- [end]]
+    states <- sqlSelect conn (saState, saCreate) $ [orderAsc saCreate, saState %/= toState "", saCreate %> start] ++ [saCreate %< end | Just end <- [end]]
     return $ reverse $ merge states patches
     where
         merge (s:ss) o@(span ppReject -> (reject, p:ps))
@@ -289,12 +289,12 @@ storeUpdate store xs = do
         f now Store{..} x = case x of
             IUState s Answer{..} p -> do
                 pt <- maybe (return Nothing) (fmap (Just . fst) . cachePoint cache) p
-                prev <- sqlSelect conn stId [stState %== s]
+                prev <- sqlSelect conn saId [saState %== s]
                 x <- case prev of
                     [] ->
-                        sqlInsert conn stTable (s,now,pt,aDuration)
+                        sqlInsert conn saTable (s,now,pt,aDuration)
                     Only x:_ -> do
-                        sqlUpdate conn [stCreate := now, stPoint := pt, stDuration := aDuration] [stId %== x]
+                        sqlUpdate conn [saCreate := now, saPoint := pt, saDuration := aDuration] [saId %== x]
                         return x
                 createDirectoryIfMissing True (path </> show x)
                 TL.writeFile (path </> show x </> "update.txt") aStdout
