@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, FlexibleContexts, ScopedTypeVariables #-}
 
 module General.Database(
-    Pred, (%==), (%==%), (%>), (%<), (%&&), nullP, likeP,
+    Pred, (%==), (%==%), (%>), (%<), (%/=), (%&&), nullP, likeP,
     orderDesc, orderAsc, distinct, limit,
     Upd(..),
     TypeField(..),
@@ -153,7 +153,9 @@ unupdate (c := v) = (column_ c, toField v)
 
 data Pred
     = PNull Column_
+    | PNotNull Column_
     | PEq Column_ SQLData
+    | PNEq Column_ SQLData
     | PGt Column_ SQLData
     | PLt Column_ SQLData
     | PEqP Column_ Column_
@@ -199,6 +201,11 @@ likeP (column_ -> c) (toField -> v) = PLike c v
     | v == SQLNull = error $ "Can't %> on a NULL"
     | otherwise = PLt c v
 
+(%/=) :: ToField c => Column c -> c -> Pred
+(%/=) (column_ -> c) (toField -> v)
+    | v == SQLNull = PNotNull c
+    | otherwise = PNEq c v
+
 (%==%) :: ToField c => Column c -> Column c -> Pred
 (%==%) c1 c2
     | isNull c1 || isNull c2 = error $ show ("Column must be NOT NULL to do %==%", show c1, show c2)
@@ -221,7 +228,9 @@ unpred ps =
         g Column{..} = colTable ++ "." ++ colName
 
         f (PNull c) = (g c ++ " IS NULL", [c], [])
-        f (PEq c v) = (g c ++ " = ?", [c], [v]) -- IS always works, but is a LOT slower
+        f (PNotNull c) = (g c ++ " IS NOT NULL", [c], [])
+        f (PEq c v) = (g c ++ " == ?", [c], [v]) -- IS always works, but is a LOT slower
+        f (PNEq c v) = (g c ++ " != ?", [c], [v]) -- IS always works, but is a LOT slower
         f (PGt c v) = (g c ++ " > ?", [c], [v]) -- IS always works, but is a LOT slower
         f (PLt c v) = (g c ++ " < ?", [c], [v]) -- IS always works, but is a LOT slower
         f (PEqP c1 c2) = (g c1 ++ " = " ++ g c2, [c1,c2], [])
