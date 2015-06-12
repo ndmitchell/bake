@@ -216,8 +216,7 @@ storeItemsDate Store{..} (start, end) = unsafePerformIO $ do
               "FROM patch WHERE mx > ?" ++ (if isJust end then " AND queue < ?" else "") ++ " ORDER BY queue ASC"
     patches :: [PP] <- sqlUnsafe conn str $ start : maybeToList end
 
-    let str = "SELECT state, time FROM state WHERE time > ?" ++ (if isJust end then " AND time < ?" else "") ++ " ORDER BY time ASC"
-    states :: [(State, UTCTime)] <- sqlUnsafe conn str $ start : maybeToList end
+    states <- sqlSelect conn (stState, stCreate) $ [orderAsc stCreate, stCreate %> start] ++ [stCreate %< end | Just end <- [end]]
     return $ reverse $ merge states patches
     where
         merge (s:ss) o@(span ppReject -> (reject, p:ps))
