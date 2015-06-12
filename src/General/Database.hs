@@ -3,7 +3,7 @@
 
 module General.Database(
     Pred, (%==), (%==%), (%>), (%<), (%&&), nullP, likeP,
-    orderDesc, distinct, limit,
+    orderDesc, orderAsc, distinct, limit,
     Upd(..),
     TypeField(..),
     Table, table, Column, column, rowid, norowid,
@@ -171,6 +171,9 @@ limit = PLimit
 
 orderDesc :: Column UTCTime -> Pred
 orderDesc c = POrder (column_ c) $ colTable c ++ "." ++ colName c ++ " DESC"
+
+orderAsc :: Column UTCTime -> Pred
+orderAsc c = POrder (column_ c) $ colTable c ++ "." ++ colName c ++ " ASC"
 
 nullP :: Column (Maybe c) -> Pred
 nullP c = PNull (column_ c)
