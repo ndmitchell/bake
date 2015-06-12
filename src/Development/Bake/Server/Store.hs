@@ -115,7 +115,9 @@ newCache conn = do
         return (row, PatchInfo paAuthor paQueue paStart paDelete paSupersede reject paPlausible paMerge)
 
     cacheState <- memoIO1 $ \s -> do
-        [(row, sCreate, sPoint)] <- sqlSelect conn (stId, stCreate, stPoint) [stState %== s]
+        let checkOne msg [x] = [x]
+            checkOne msg xs = error $ "checkOne, expected 1 but got " ++ show (length xs) ++ ", " ++ msg
+        [(row, sCreate, sPoint)] <- checkOne ("Loading up state " ++ show s) <$> sqlSelect conn (stId, stCreate, stPoint) [stState %== s]
         pt <- maybe (return Nothing) (fmap Just . cachePointId) sPoint
         return (row, StateInfo sCreate pt)
 
