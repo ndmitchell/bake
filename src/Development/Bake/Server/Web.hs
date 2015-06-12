@@ -97,7 +97,7 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
 
          else if isJust argsServer then do
             let s = fromJust argsServer
-            table "No server operations" ["Time","Job"] $
+            table "No server operations" ["Time","Job","Duration"] $
                 map (("",) . rowUpdate shower mem) $
                     map (id &&& storeState store) $ storeStateList store
             whenJust s $ \s -> do
@@ -317,7 +317,7 @@ rowHistory Shower{..} Memory{..} (run, t, q@Question{..}, a) = ("", [showTime t,
 
 
 rowUpdate :: Shower -> Memory -> (State,StateInfo) -> [HTML]
-rowUpdate Shower{..} Memory{..} (s,StateInfo{..}) = [showTime stCreated, body]
+rowUpdate Shower{..} Memory{..} (s,StateInfo{..}) = [showTime stCreated, body, str_ $ maybe "" showDuration stDuration]
     where
         body = do
             showLink ("server=" ++ fromState s) $ str_ $ if isNothing stSource then "Initialised" else "Updated"
