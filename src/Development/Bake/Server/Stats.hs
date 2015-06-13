@@ -74,6 +74,9 @@ stats Prettys{..} Memory{..} showTest = do
             let n = min (count - 1) $ ((count * perc) `div` 100)
             one <$> storeSQL store "SELECT julianday(plausible)-julianday(queue) AS x FROM patch WHERE plausible IS NOT NULL AND queue > ? ORDER BY x ASC LIMIT ?, 1" (p,n)
 
+    deadSkip :: [(Test,String)] <- storeSQL store "SELECT skip.test, skip.comment FROM skip WHERE skip.test NOT IN (SELECT DISTINCT run.test FROM run WHERE run.test IS NOT NULL AND run.start > ?) ORDER BY test ASC" $ Only $ addSeconds (-7*24*60*60) now
+    aliveSkip :: [(Test,String,Int, Int, Seconds)] <- storeSQL store "SELECT run.test, skip.comment, sum(run.success) AS good, count(*)-sum(run.success) AS bad, avg(run.duration) FROM run, skip WHERE run.test = skip.test AND run.duration IS NOT NULL AND run.start > ? GROUP BY skip.test ORDER BY bad ASC, good DESC" $ Only $ addSeconds (-7*24*60*60) now
+
     return $ do
         p_ $ str_ $ "Patches = " ++ show patchCount ++ ", states = " ++ show stateCount ++ ", runs = " ++ show runCount
 
@@ -102,6 +105,14 @@ stats Prettys{..} Memory{..} showTest = do
             (str_ "Count" : map (str_ . show) plausibleCount) :
             (str_ "Average" : map f plausibleAvg) :
             [str_ (perc p) : map f xs | (p,xs) <- percentiles]
+
+        h2_ $ str_ "Stale skips (not run in a week)"
+        table ["Test","Comment"]
+            [[showTest $ Just t, str_ c] | (t,c) <- deadSkip]
+
+        h2_ $ str_ "Alive skips (last week)"
+        table ["Test","Comment","Successes","Failures","Avg duration"] $
+            [[showTest $ Just t, str_ c, str_ $ show s, str_ $ show f, str_ $ showDuration d] | (t,c,s,f,d) <- aliveSkip]
 
         h2_ $ str_ "GHC statistics"
         case stats of
