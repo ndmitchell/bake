@@ -59,7 +59,7 @@ stats Prettys{..} Memory{..} showTest = do
     [Only (stateCount :: Int)] <- storeSQL store "SELECT count(*) FROM state" ()
     [Only (runCount :: Int)] <- storeSQL store "SELECT count(*) FROM run" ()
 
-    slowest :: [Only (Maybe Test) :. (Int, Seconds, Seconds, Seconds)] <- storeSQL store "SELECT test, count(*), avg(duration) as avg, sum(duration), max(duration) FROM run GROUP BY test ORDER BY avg DESC LIMIT 25" ()
+    slowest :: [Only (Maybe Test) :. (Int, Seconds, Seconds, Seconds)] <- storeSQL store "SELECT test, count(*), avg(duration) as avg, sum(duration), max(duration) FROM run WHERE test NOT IN (SELECT test FROM skip) GROUP BY test ORDER BY avg DESC LIMIT 25" ()
     [slowestAll :: (Int, Seconds, Seconds, Seconds)] <- storeSQL store "SELECT count(*), avg(duration) as avg, sum(duration), max(duration) FROM run" ()
     rejections :: [(Maybe Test, Int)] <- storeSQL store "SELECT test, count(*) AS n FROM reject WHERE test IS NULL OR test NOT IN (SELECT test FROM skip) GROUP BY test ORDER BY n DESC LIMIT 10" ()
 
