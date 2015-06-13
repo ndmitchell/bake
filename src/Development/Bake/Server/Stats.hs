@@ -78,7 +78,7 @@ stats Prettys{..} Memory{..} showTest = do
         p_ $ str_ $ "Patches = " ++ show patchCount ++ ", states = " ++ show stateCount ++ ", runs = " ++ show runCount
 
         h2_ $ str_ "Sampled statistics"
-        let ms x = show $ (ceiling $ x * 1000 :: Integer)
+        let ms x = show (ceiling $ x * 1000 :: Integer)
         table ["Counter","Count","Mean (ms)","Sum (ms)","Max (ms)","Last 10 (ms)"]
             [ (if null name then i_ $ str_ "All" else str_ name) :
               map str_ [show statCount, ms $ statSum / intToDouble statCount, ms statSum
