@@ -335,7 +335,7 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state
         failed = case info of
             Right (p, PatchInfo{..}) -> fmap (second Map.toList) paReject
             Left (s, StateInfo{..}) -> if Set.null x then Nothing else Just (stCreated, map (,(s, [])) $ Set.toList x)
-                where x = poFail $ storePoint store (s, [])
+                where x = poFail (storePoint store (s, [])) `Set.difference` Set.mapMonotonic Just (Map.keysSet $ storeSkip store)
 
         code | Right (p,_) <- info, any (isSuffixOf [p] . snd . qCandidate . snd) running = "active"
              | Left (s,_) <- info, (s,[]) `elem` map (qCandidate . snd) running = "active"
