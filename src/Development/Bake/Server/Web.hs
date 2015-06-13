@@ -273,7 +273,7 @@ template inner = do
 
 
 failures :: Shower -> Memory -> HTML
-failures Shower{..} Memory{..} = when (ts /= []) $ do
+failures Shower{..} Memory{..} = when (snd active /= [] && ts /= []) $ do
     p_ $ str_ "Tracking down failures in:"
     ul_ $ mconcat $ map (li_ . showTest) ts
     where
