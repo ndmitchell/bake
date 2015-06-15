@@ -68,7 +68,7 @@ stats Prettys{..} Memory{..} showTest = do
     let one [Only x] = x
         one _ = error "Didn't get one"
     plausibleCount :: [Int] <- forM periods $ \p -> one <$> storeSQL store "SELECT count(*) FROM patch WHERE plausible IS NOT NULL AND queue > ?" (Only p)
-    plausibleAvg :: [Double] <- forM periods $ \p -> one <$> storeSQL store "SELECT ifnull(avg(julianday(plausible)-julianday(queue)),0) FROM patch WHERE plausible IS NOT NULL AND queue > ?" (Only p)
+    plausibleAvg :: [Double] <- forM periods $ \p -> one <$> storeSQL store "SELECT ifnull(avg(julianday(plausible)-julianday(queue)),0.0) FROM patch WHERE plausible IS NOT NULL AND queue > ?" (Only p)
     percentiles <- forM [100,95,90,80,75,50,25,10,0] $ \perc -> (perc,) <$> do
         forM (zip periods plausibleCount) $ \(p,count) -> do
             let n = min (count - 1) $ ((count * perc) `div` 100)
