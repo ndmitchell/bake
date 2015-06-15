@@ -13,7 +13,7 @@ module General.HTML(
     a__, span__, p__, h2__, tr__,
     href_, class_, name_, rel_, type_, style_, id_,
     -- * Functions
-    unlines_, commas_, commasLimit_
+    unlines_, commas_, commasLimit_, header_
     ) where
 
 import Control.Applicative
@@ -173,3 +173,8 @@ commasLimit_ = limit_ commas_
 limit_ :: ([HTML] -> HTML) -> Int -> [HTML] -> HTML
 limit_ rejoin i xs = rejoin a <> str_ (if null b then "" else "...")
     where (a,b) = splitAt i xs
+
+
+-- FIXME: hack, very much app-specific
+header_ :: String -> String -> HTML
+header_ tag x = a__ [id_ tag,href_ $ "#" ++ tag,class_ "self"] $ h2_ $ str_ x

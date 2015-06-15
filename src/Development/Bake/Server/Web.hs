@@ -251,6 +251,7 @@ template inner = do
                 ,".patch, .state {font-family: Consolas, monospace; white-space:nowrap;}"
                 ,".info {font-size: 75%; color: #888;}"
                 ,"a.info {color: #4183c4;}" -- tie breaker
+                ,"a.self, a.self:hover {color: black; text-decoration: none;}"
                 ,".good {font-weight: bold; color: darkgreen;}"
                 ,".bad {font-weight: bold; color: darkred;}"
                 ,".active {background-color: #ffc;}"
