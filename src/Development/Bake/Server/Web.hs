@@ -65,11 +65,11 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
                 maybe (pred $ timeToDate now, Nothing) (\x -> (x, Just $ succ x)) argsDate
 
             unless (Map.null $ storeSkip store) $ do
-                h2_ $ str_ "Skipped tests"
+                header_ "skipped" "Skipped tests"
                 ul_ $ fmap mconcat $ forM (Map.toList $ storeSkip store) $ \(test,author) -> li_ $ do
                     showTest (Just test) <> str_ (", by " ++ author ++ ".")
                     when argsAdmin $ str_ " " <> admin (DelSkip "admin" test) (str_ "Remove")
-            h2_ $ str_ "Clients"
+            header_ "clients" "Clients"
             table "No clients available" ["Name","Running"]
                 (map (rowClient shower mem) $ Nothing : map Just (Map.toList clients))
 

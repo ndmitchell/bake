@@ -80,7 +80,7 @@ stats Prettys{..} Memory{..} showTest = do
     return $ do
         p_ $ str_ $ "Patches = " ++ show patchCount ++ ", states = " ++ show stateCount ++ ", runs = " ++ show runCount
 
-        h2_ $ str_ "Sampled statistics"
+        header_ "sampled" "Sampled statistics"
         let ms x = show (ceiling $ x * 1000 :: Integer)
         table ["Counter","Count","Mean (ms)","Sum (ms)","Max (ms)","Last 10 (ms)"]
             [ (if null name then i_ $ str_ "All" else str_ name) :
@@ -88,15 +88,15 @@ stats Prettys{..} Memory{..} showTest = do
                        ,ms statMax, unwords $ map ms statHistory] 
             | (name,Stat{..}) <- Map.toAscList recorded]
 
-        h2_ $ str_ "Slowest tests (max 25)"
+        header_ "slowest" "Slowest tests (max 25)"
         table ["Test","Count","Mean","Sum","Max"] $
             let f name (count, avg, sum, max) = name : map str_ [show count, showDuration avg, showDuration sum, showDuration max]
             in f (i_ $ str_ "All") slowestAll : [f (showTest test) x | (Only test :. x) <- slowest]
 
-        h2_ $ str_ "Most common rejection tests (max 10)"
+        header_ "rejects" "Most common rejection tests (max 10)"
         table ["Test","Rejections"] [[showTest t, str_ $ show x] | (t, x) <- rejections]
 
-        h2_ $ str_ "Speed to plausible"
+        header_ "plausible" "Speed to plausible"
         table ["Plausible","Last day","Last week","Last month","Last year"] $
             let f x = str_ $ showDuration $ x*24*60*60
                 perc 100 = "Maximum"
@@ -106,15 +106,15 @@ stats Prettys{..} Memory{..} showTest = do
             (str_ "Average" : map f plausibleAvg) :
             [str_ (perc p) : map f xs | (p,xs) <- percentiles]
 
-        h2_ $ str_ "Stale skips (not run in a week)"
+        header_ "skip-stale" "Stale skips (not run in a week)"
         table ["Test","Comment"]
             [[showTest $ Just t, str_ c] | (t,c) <- deadSkip]
 
-        h2_ $ str_ "Alive skips (last week)"
+        header_ "skip-alive" "Alive skips (last week)"
         table ["Test","Comment","Successes","Failures","Avg duration"] $
             [[showTest $ Just t, str_ c, str_ $ show s, str_ $ show f, str_ $ showDuration d] | (t,c,s,f,d) <- aliveSkip]
 
-        h2_ $ str_ "GHC statistics"
+        header_ "ghc-stats" "GHC statistics"
         case stats of
             Nothing -> p_ $ str_ "No GHC stats, rerun with +RTS -T"
             Just x@GCStats{..} -> do
