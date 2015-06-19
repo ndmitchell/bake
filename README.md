@@ -1,6 +1,6 @@
 # Bake [![Hackage version](https://img.shields.io/hackage/v/bake.svg?style=flat)](https://hackage.haskell.org/package/bake) [![Build Status](https://img.shields.io/travis/ndmitchell/bake.svg?style=flat)](https://travis-ci.org/ndmitchell/bake)
 
-**Warning: This project is under heavy development and has never been used for real. You probably don't want to be the first. The git repo is significantly more developed than the Hackage package, so use the git repo to test it.**
+**Warning: This project is still under heavy development and you are recommended to use the Git repo rather than a packaged release.**
 
 Bake is a continuous integration server, designed for large, productive, semi-trusted teams. In particular it primarily targets:
 
