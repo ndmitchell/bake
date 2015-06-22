@@ -210,7 +210,10 @@ storeItemsDate :: Store -> (UTCTime, Maybe UTCTime) -> [Either State Patch]
 storeItemsDate Store{..} (start, end) = unsafePerformIO $ do
     let ends = words "start delete_ supersede reject plausible merge"
     let str = "SELECT patch, reject IS NOT NULL, max(" ++ intercalate "," ["ifnull(" ++ x ++ ",queue)" | x <- ends] ++ ") AS mx " ++
-              "FROM patch WHERE mx > ?" ++ (if isJust end then " AND queue < ?" else "") ++ " ORDER BY queue ASC"
+              "FROM patch WHERE mx > ?" ++
+                    (if isJust end then " AND queue < ?"
+                     else " OR (delete_ IS NULL AND supersede IS NULL AND reject IS NULL AND merge IS NULL)") ++
+              " ORDER BY queue ASC"
     patches :: [PP] <- sqlUnsafe conn str $ start : maybeToList end
 
     states <- sqlSelect conn (saState, saCreate) $ [orderAsc saCreate, saState %/= toState "", saCreate %> start] ++ [saCreate %< end | Just end <- [end]]
