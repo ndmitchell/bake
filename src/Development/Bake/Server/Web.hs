@@ -341,6 +341,7 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state
         code | Right (p,_) <- info, any (isSuffixOf [p] . snd . qCandidate . snd) running = "active"
              | Left (s,_) <- info, (s,[]) `elem` map (qCandidate . snd) running = "active"
              | isJust failed = "fail"
+             | Right (_, PatchInfo{..}) <- info, isJust paDelete= "fail"
              | Right (_, PatchInfo{..}) <- info, isJust paSupersede || isNothing paStart = "dull"
              | Right (_, PatchInfo{..}) <- info, isJust paMerge || isJust paPlausible  = "pass"
              | Left (s,_) <- info, fst active /= s = "pass"
@@ -355,6 +356,7 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state
                 when (xs /= []) br_
                 span__ [class_ "info"] $ commasLimit_ 3 [showTestAt sps t | (t,sps) <- xs]
             | Right (_, p) <- info, paAlive p && isNothing (paStart p) = str_ "Queued"
+            | Right (_, PatchInfo{paDelete=Just t}) <- info = span__ [class_ "bad"] (str_ "Deleted") <> str_ " at " <> showTime t
             | Right (_, PatchInfo{paSupersede=Just t}) <- info = str_ "Superseded at " <> showTime t
             | Right (_, PatchInfo{paMerge=Just t}) <- info = do
                 span__ [class_ "good"] $ str_ "Merged"
