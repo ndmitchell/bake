@@ -88,12 +88,12 @@ stats Prettys{..} Memory{..} showTest = do
                        ,ms statMax, unwords $ map ms statHistory] 
             | (name,Stat{..}) <- Map.toAscList recorded]
 
-        header_ "slowest" "Slowest tests (max 25)"
+        header_ "slowest" "Slowest tests (top 25)"
         table ["Test","Count","Mean","Sum","Max"] $
             let f name (count, avg, sum, max) = name : map str_ [show count, showDuration avg, showDuration sum, showDuration max]
             in f (i_ $ str_ "All") slowestAll : [f (showTest test) x | (Only test :. x) <- slowest]
 
-        header_ "rejects" "Most common rejection tests (max 10)"
+        header_ "rejects" "Most common rejection tests (top 10)"
         table ["Test","Rejections"] [[showTest t, str_ $ show x] | (t, x) <- rejections]
 
         header_ "plausible" "Speed to plausible"
