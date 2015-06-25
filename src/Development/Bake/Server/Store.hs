@@ -331,7 +331,7 @@ storeUpdate store xs = do
                         forM_ aTests $ \t -> sqlInsert conn tsTable (pt, Just t)
                     else
                         when (Set.fromList (mapMaybe fromOnly res) /= Set.fromList aTests) $
-                            error "Test disagreement"
+                            putStrLn $ "Warning: Test disagreement at " ++ show pt ++ ", maybe a changed generator?"
                 x <- sqlInsert conn rnTable (pt,qTest,aSuccess,qClient,t,aDuration)
                 createDirectoryIfMissing True $ path </> show pt
                 TL.writeFile (path </> show pt </> show x ++ "-" ++ maybe "Prepare" (safely . fromTest) qTest <.> "txt") aStdout
