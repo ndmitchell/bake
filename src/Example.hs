@@ -32,8 +32,8 @@ main = do
     bake $
         ovenPretty $
         (if useStep
-            then ovenIncremental . ovenGit repo "master" Nothing
-            else ovenStepGit compile repo "master" Nothing) $
+            then ovenStepGit compile repo "master" Nothing
+            else ovenIncremental . ovenGit repo "master" Nothing) $
         ovenNotifyStdout $
         ovenTest (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
