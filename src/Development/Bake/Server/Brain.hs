@@ -78,9 +78,7 @@ react oven mem@Memory{..}
         let fresh = filter (isNothing . paReject . storePatch store . fst) xs
         bad <- if fresh == [] then return [] else do
             -- only notify on the first rejectable test for each patch
-            let authors = map (paAuthor . storePatch store . fst) fresh
-            notify authors $ "Your patch has been rejected\n" ++ unlines
-                [fromPatch p ++ " due to " ++ maybe "Preparing" fromTest t | (p,t) <- fresh]
+            notify "Rejected" [(paAuthor $ storePatch store p, fromPatch p ++ " was rejected due to " ++ maybe "Preparing" fromTest t) | (p,t) <- fresh]
         store <- storeUpdate store
             [IUReject p t (fst active, takeWhile (/= p) (snd active) ++ [p]) | (p,t) <- xs]
         return mem{store = store, fatal = bad ++ fatal}
@@ -88,8 +86,7 @@ react oven mem@Memory{..}
     | plausible mem
     , xs@(_:_) <- filter (isNothing . paPlausible . storePatch store) $ snd active
     = Just $ do
-        let authors = map (paAuthor . storePatch store) xs
-        bad <- notify authors $ "Your patch is now plausible\n" ++ unlines (map fromPatch xs)
+        bad <- notify "Plausible" [(paAuthor $ storePatch store p, fromPatch p ++ " is now plausbile") | p <- xs]
         store <- storeUpdate store $ map IUPlausible xs
         return mem{store = store, fatal = bad ++ fatal}
 
@@ -100,12 +97,11 @@ react oven mem@Memory{..}
             if not simulated then uncurry runUpdate active
             else do s <- ovenUpdate oven (fst active) (snd active); return (Just s, Answer mempty (Just 0) mempty True)
 
-        let pauthors = map (paAuthor . storePatch store) $ snd active
         case s of
             Nothing -> do
                 return mem{fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
             Just s -> do
-                bad <- notify pauthors $ "Your patch was merged\n" ++ unlines (map fromPatch $ snd active)
+                bad <- notify "Merged" [(paAuthor $ storePatch store p, fromPatch p ++ " is now merged") | p <- snd active]
                 store <- storeUpdate store $ IUState s answer (Just active) : map IUMerge (snd active)
                 return mem{active = (s, []), store = store, fatal = bad ++ fatal}
 
@@ -125,8 +121,8 @@ react oven mem@Memory{..}
 
     | otherwise = Nothing
     where
-        notify people msg = do
-            res <- try_ $ ovenNotify oven people msg
+        notify subject msg = do
+            res <- try_ $ ovenNotify oven subject msg
             return ["Notification failure: " ++ show e | Left e <- [res]]
 
 
@@ -204,8 +200,8 @@ update oven mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
           , qTest `Set.notMember` skip -- not on the skip list
           , let failed = poFail $ storePoint store qCandidate
           , failed `Set.isSubsetOf` skip -- no notifications already
-          -> void $ try_ $ ovenNotify oven admins $
-                "A state has failed\n" ++ fromState (fst qCandidate) ++ " due to " ++ maybe "Preparing" fromTest qTest
+          -> void $ try_ $ ovenNotify oven "State failure"
+                [(a, "State " ++ fromState (fst qCandidate) ++ " failed due to " ++ maybe "Preparing" fromTest qTest) | a <- admins]
         _ -> return ()
 
     now <- getCurrentTime

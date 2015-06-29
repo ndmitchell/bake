@@ -46,10 +46,11 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
         modifyCVar_ var $ \s -> do
             let s2 = prune s
             s2 <- if Map.keysSet (clients s) == Map.keysSet (clients s2) then return s2 else do
-                res <- try_ $ ovenNotify oven (admins s2) $ unlines
-                    ["Set of clients has changed"
-                    ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s)
-                    ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
+                let msg = unlines
+                        ["Set of clients has changed"
+                        ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s)
+                        ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
+                res <- try_ $ ovenNotify oven "Client change" $ map (,msg) $ admins s2
                 return s2{fatal = ["Error when notifying, " ++ show e | Left e <- [res]] ++ fatal s2}
             return s2
 
@@ -86,13 +87,15 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
                                     res <- patchExtra (fst $ active s2) Nothing
                                     storeExtraAdd (store s2) (Left $ fst $ active s2) res
                                 s2 <- if Map.keysSet (clients s) == Map.keysSet (clients s2) then return s2 else do
-                                    res <- try_ $ ovenNotify oven (admins s2) $ unlines
-                                        ["Set of clients has changed"
-                                        ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s)
-                                        ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
+                                    let msg = unlines
+                                            ["Set of clients has changed"
+                                            ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s)
+                                            ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
+                                    res <- try_ $ ovenNotify oven "Client change" $ map (,msg) $ admins s2
                                     return s2{fatal = ["Error when notifying, " ++ show e | Left e <- [res]] ++ fatal s2}
-                                when (fatal s == [] && fatal s2 /= []) $
-                                    void $ try_ $ ovenNotify oven (admins s2) $ "Fatal error\n" ++ head (fatal s2)
+                                when (fatal s == [] && fatal s2 /= []) $ do
+                                    let msg = "Fatal error\n" ++ head (fatal s2)
+                                    void $ try_ $ ovenNotify oven "Fatal error" $ map (,msg) $ admins s2
                                 return (s2,q)
                             return $ case res of
                                 Just (Left e) -> OutputError e
@@ -115,7 +118,7 @@ initialise oven admins extra = do
     putStrLn "Initialising server, computing initial state..."
     (res, answer) <- runInit
     when (isNothing res) $
-        void $ try_ $ ovenNotify oven admins "Failed to initialise, pretty serious"
+        void $ try_ $ ovenNotify oven "Failed to initialise" $ map (,"Failed to initialise, pretty serious") admins
     let state0 = fromMaybe stateFailure res
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
     store <- newStore False "bake-store"
@@ -124,7 +127,7 @@ initialise oven admins extra = do
     mem <- newMemory store (state0, answer)
 
     email <- if isNothing res then return $ Right () else
-        try_ $ ovenNotify oven admins "Server starting up"
+        try_ $ ovenNotify oven "Starting" $ map (,"Server starting") admins
 
     return $ mem
         {admins = admins
