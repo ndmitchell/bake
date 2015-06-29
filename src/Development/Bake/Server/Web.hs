@@ -92,7 +92,16 @@ web prettys admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (fir
             return "stats"
 
          else if argsRaw then do
-            str_ $ show mem
+            let indent = (++) "  "
+            pre_ $ str_ $ unlines $
+                ["simulated = " ++ show simulated
+                ,"store = " ++ show store
+                ,"admins = " ++ show admins
+                ,"fatal = " ++ show fatal
+                ,"paused = " ++ show paused
+                ,"active =", indent $ fromState $ fst active] ++ map (indent . fromPatch) (snd active) ++
+                ["clients = "] ++ [indent $ fromClient a ++ " = " ++ show b{ciTests=mempty} | (a,b) <- Map.toList clients] ++
+                ["running ="] ++ map (indent . show) running
             return "raw"
 
          else if isJust argsServer then do
