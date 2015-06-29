@@ -47,7 +47,7 @@ data Memory = Memory
     ,active :: Point
         -- ^ The target we are working at (some may already be rejected).
         --   Note that when restarting, we throw away the rejected ones.
-    } deriving Show
+    }
 
 newMemory :: Store -> (State, Answer) -> IO Memory
 newMemory store (state, answer) = do
