@@ -13,6 +13,8 @@ import Control.Monad.Extra
 import Data.Maybe
 import System.Time.Extra
 
+useStep = True
+
 data Platform = Linux | Windows deriving (Show,Read)
 data Action = Compile | Run Int deriving (Show,Read)
 
@@ -29,7 +31,9 @@ main = do
     repo <- fromMaybe (error err) `fmap` lookupEnv "REPO"
     bake $
         ovenPretty $
-        ovenStepGit compile repo "master" Nothing $
+        (if useStep
+            then ovenIncremental . ovenGit repo "master" Nothing
+            else ovenStepGit compile repo "master" Nothing) $
         ovenNotifyStdout $
         ovenTest (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
@@ -46,7 +50,7 @@ compile = do
     return ["dist"]
 
 execute :: (Platform,Action) -> TestInfo (Platform,Action)
-execute (p,Compile) = require [show p] $ run $ when False $ do
+execute (p,Compile) = require [show p] $ run $ unless useStep $ do
     incrementalStart
     compile
     incrementalDone
