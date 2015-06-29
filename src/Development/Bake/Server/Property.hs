@@ -66,8 +66,8 @@ extendActive Memory{..} = all (isJust . paPlausible . storePatch store) $ snd ac
 
 
 -- | Throw out the patches that have been rejected
-restrictActive :: Oven State Patch Test -> Memory -> Bool
-restrictActive oven Memory{..}
+restrictActive :: Memory -> Bool
+restrictActive Memory{..}
     -- I can reject someone for failing preparation
     | Nothing `Set.member` rejectedTests = True
 

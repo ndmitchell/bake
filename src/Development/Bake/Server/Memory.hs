@@ -30,8 +30,15 @@ data ClientInfo = ClientInfo
     } deriving (Eq,Show)
 
 data Memory = Memory
+    -- READER
     {simulated :: Bool
         -- ^ Are we running in a simulation (don't spawn separate process)
+    ,oven :: Oven State Patch Test
+        -- ^ The oven under test
+    ,prettys :: Prettys
+        -- ^ The pretty functions
+
+    -- STATE
     ,admins :: [Author]
         -- ^ People responsible for overall administration
     ,store :: Store
@@ -49,13 +56,13 @@ data Memory = Memory
         --   Note that when restarting, we throw away the rejected ones.
     }
 
-newMemory :: Store -> (State, Answer) -> IO Memory
-newMemory store (state, answer) = do
+newMemory :: Oven State Patch Test -> Prettys -> Store -> (State, Answer) -> IO Memory
+newMemory oven prettys store (state, answer) = do
     store <- storeUpdate store [IUState state answer Nothing]
     let ps = map fst $ sortOn (paQueued . snd) $
              filter (isJust . paStart . snd) $
              map (id &&& storePatch store) $ Set.toList $ storeAlive store
-    return $ Memory False [] store [] Map.empty [] False (state, ps)
+    return $ Memory False oven prettys [] store [] Map.empty [] False (state, ps)
 
 instance NFData Memory where
     rnf Memory{..} = ()

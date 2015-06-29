@@ -37,7 +37,7 @@ startServer :: (Stringy state, Stringy patch, Stringy test)
             => Port -> [Author] -> Seconds -> String -> Bool -> Oven state patch test -> IO ()
 startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
     extra <- newWorker
-    var <- newCVar =<< if fake then initialiseFake else initialise oven authors extra
+    var <- newCVar =<< if fake then initialiseFake oven prettys else initialise oven prettys authors extra
 
     forkSlave $ forever $ do
         sleep timeout
@@ -63,7 +63,7 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
             res <-
                 if null inputURL then do
                     -- prune but don't save, will reprune on the next ping
-                    fmap OutputHTML $ web prettys admin inputArgs . prune =<< readCVar var
+                    fmap OutputHTML $ web admin inputArgs . prune =<< readCVar var
                 else if ["html"] `isPrefixOf` inputURL then do
                     datadir <- getDataDir
                     return $ OutputFile $ datadir </> "html" </> last inputURL
@@ -82,7 +82,7 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
                                         res <- patchExtra (fst $ active s) $ Just p
                                         storeExtraAdd (store s) (Right p) res
                                     _ -> return ()
-                                (s2,q) <- recordIO $ (["brain"],) <$> prod oven (prune s) v
+                                (s2,q) <- recordIO $ (["brain"],) <$> prod (prune s) v
                                 when (fst (active s2) /= fst (active s)) $ extra $ do
                                     res <- patchExtra (fst $ active s2) Nothing
                                     storeExtraAdd (store s2) (Left $ fst $ active s2) res
@@ -106,14 +106,14 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
             evaluate $ force res
 
 
-initialiseFake :: IO Memory
-initialiseFake = do
+initialiseFake :: Oven State Patch Test -> Prettys -> IO Memory
+initialiseFake oven prettys = do
     store <- newStore False "bake-store"
-    mem <- newMemory store (toState "", Answer (TL.pack "Initial state created by view mode") Nothing [] False)
+    mem <- newMemory oven prettys store (toState "", Answer (TL.pack "Initial state created by view mode") Nothing [] False)
     return mem{fatal = ["View mode, database is read-only"]}
 
-initialise :: Oven State Patch Test -> [Author] -> Worker -> IO Memory
-initialise oven admins extra = do
+initialise :: Oven State Patch Test -> Prettys -> [Author] -> Worker -> IO Memory
+initialise oven prettys admins extra = do
     now <- getCurrentTime
     putStrLn "Initialising server, computing initial state..."
     (res, answer) <- runInit
@@ -124,7 +124,7 @@ initialise oven admins extra = do
     store <- newStore False "bake-store"
     when (isJust res) $ do
         extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing
-    mem <- newMemory store (state0, answer)
+    mem <- newMemory oven prettys store (state0, answer)
 
     email <- if isNothing res then return $ Right () else
         try_ $ ovenNotify oven "Starting" $ map (,"Server starting") admins

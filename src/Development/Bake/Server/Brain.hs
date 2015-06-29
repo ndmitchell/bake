@@ -37,19 +37,19 @@ expire cutoff s
     where died = [pClient ciPing | ClientInfo{..} <- Map.elems $ clients s, ciPingTime < cutoff, ciAlive]
 
 
-prod :: Oven State Patch Test -> Memory -> Message -> IO (Memory, Maybe (Either String Question))
-prod oven mem msg = safely $ do
-    res <- update oven mem msg
+prod :: Memory -> Message -> IO (Memory, Maybe (Either String Question))
+prod mem msg = safely $ do
+    res <- update mem msg
     case res of
         Left err -> return (mem, Just $ Left err)
         Right mem -> do
-            mem <- reacts oven mem
+            mem <- reacts mem
             case msg of
-                Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo oven) mem p ->
+                Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo $ oven mem) mem p ->
                     case () of
                         -- we still test things on the skip list when testing on a state (to get some feedback)
                         _ | Just t <- qTest q, snd (qCandidate q) /= [], Just reason <- Map.lookup t (storeSkip $ store mem) ->
-                            prod oven mem $ Finished q $ Answer (TL.pack $ "Skipped due to being on the skip list\n" ++ reason) Nothing [] True
+                            prod mem $ Finished q $ Answer (TL.pack $ "Skipped due to being on the skip list\n" ++ reason) Nothing [] True
                         _ -> do
                             now <- getCurrentTime
                             return (mem{running = (now,q) : running mem}, Just $ Right q)
@@ -62,16 +62,16 @@ prod oven mem msg = safely $ do
                 Right v -> return v
 
 
-reacts :: Oven State Patch Test -> Memory -> IO Memory
-reacts oven = f 10
+reacts :: Memory -> IO Memory
+reacts = f 10
     where
         f 0 mem = return mem{fatal = "React got into a loop" : fatal mem}
-        f i mem | null $ fatal mem, Just mem <- react oven mem = f (i-1) =<< mem
+        f i mem | null $ fatal mem, Just mem <- react mem = f (i-1) =<< mem
                 | otherwise = return mem
 
 
-react :: Oven State Patch Test -> Memory -> Maybe (IO Memory)
-react oven mem@Memory{..}
+react :: Memory -> Maybe (IO Memory)
+react mem@Memory{..}
     | xs <- rejectable mem
     , xs@(_:_) <- filter (\(p,t) -> t `Map.notMember` maybe Map.empty snd (paReject $ storePatch store p)) xs
     = Just $ do
@@ -105,7 +105,7 @@ react oven mem@Memory{..}
                 store <- storeUpdate store $ IUState s answer (Just active) : map IUMerge (snd active)
                 return mem{active = (s, []), store = store, fatal = bad ++ fatal}
 
-    | restrictActive oven mem
+    | restrictActive mem
     , (reject@(_:_), keep) <- partition (isJust . paReject . storePatch store) $ snd active
     = Just $ do
         return mem{active = (fst active, keep)}
@@ -127,10 +127,10 @@ react oven mem@Memory{..}
 
 
 
-update :: Oven State Patch Test -> Memory -> Message -> IO (Either String Memory)
-update oven mem _ | fatal mem /= [] = return $ Right mem
+update :: Memory -> Message -> IO (Either String Memory)
+update mem _ | fatal mem /= [] = return $ Right mem
 
-update oven mem@Memory{..} (AddPatch author p) =
+update mem@Memory{..} (AddPatch author p) =
     if storeIsPatch store p then
         return $ Left "patch has already been submitted"
      else do
@@ -139,60 +139,60 @@ update oven mem@Memory{..} (AddPatch author p) =
         store <- storeUpdate store $ IUQueue p author : map IUSupersede supersede
         return $ Right mem{store = store}
 
-update oven mem@Memory{..} (DelPatch _ p) =
+update mem@Memory{..} (DelPatch _ p) =
     if not $ p `Set.member` storeAlive store then
         return $ Left "patch is already dead or not known"
     else do
         store <- storeUpdate store [IUDelete p]
         return $ Right mem{store = store, active = second (delete p) active}
 
-update oven mem@Memory{..} (DelAllPatches author) = do
+update mem@Memory{..} (DelAllPatches author) = do
     store <- storeUpdate store $ map IUDelete $ Set.toList $ storeAlive store
     return $ Right mem{store = store, active = (fst active, [])}
 
-update oven mem@Memory{..} (SetState author s) = 
+update mem@Memory{..} (SetState author s) = 
     if fst active == s then
         return $ Left "state is already at that value"
     else do
         store <- storeUpdate store [IUState s (Answer (TL.pack $ "From SetState by " ++ author) Nothing [] True) Nothing]
         return $ Right mem{store = store, active = (s, snd active)}
 
-update oven mem@Memory{..} (Requeue author) = do
+update mem@Memory{..} (Requeue author) = do
     let add = Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
     store <- storeUpdate store $ map IUStart add
     return $ Right mem
         {active = (fst active, snd active ++ sortOn (paAuthor . storePatch store) add)
         ,store = store}
 
-update oven mem@Memory{..} (Pause _)
+update mem@Memory{..} (Pause _)
     | paused = return $ Left "already paused"
     | otherwise = return $ Right mem{paused = True}
 
-update oven mem@Memory{..} (Unpause _)
+update mem@Memory{..} (Unpause _)
     | not paused = return $ Left "already unpaused"
     | otherwise = return $ Right mem{paused = False}
 
-update oven mem@Memory{..} (Pinged ping) = do
+update mem@Memory{..} (Pinged ping) = do
     now <- getCurrentTime
     return $ Right mem{clients = Map.alter (Just . ClientInfo now ping True . maybe Map.empty ciTests) (pClient ping) clients}
 
-update oven mem@Memory{..} (AddSkip author test)
+update mem@Memory{..} (AddSkip author test)
     | test `Map.member` storeSkip store = return $ Left "already skipped"
     | otherwise = do
         store <- storeUpdate store [SUAdd test author]
         return $ Right mem{store = store}
 
-update oven mem@Memory{..} (DelSkip author test)
+update mem@Memory{..} (DelSkip author test)
     | test `Map.notMember` storeSkip store = return $ Left "already not skipped"
     | otherwise = do
         store <- storeUpdate store [SUDel test]
         return $ Right mem{store = store}
 
-update oven mem@Memory{..} (ClearSkip author) = do
+update mem@Memory{..} (ClearSkip author) = do
     store <- storeUpdate store $ map SUDel $ Map.keys $ storeSkip store
     return $ Right mem{store = store}
 
-update oven mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
+update mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
     case () of
         _ | snd qCandidate == [] -- on a state
           , not aSuccess

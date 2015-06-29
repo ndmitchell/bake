@@ -70,13 +70,6 @@ simulation
 simulation testInfo workers u step = withTempDir $ \dir -> do
     t <- getCurrentTime
     s <- newStore True dir
-    mem <- newMemory s (restate [], Answer mempty (Just 0) [] True)
-    mem <- return mem
-        {active = (restate [], [])
-        ,simulated = True}
-    let s = S u mem 20 Set.empty []
-
-    let count s c = sum [qThreads | (_, Question{..}) <- running $ memory s, qClient == c]
     let oven = defaultOven
             {ovenUpdate = \s ps -> return $ restate $ unstate s ++ ps
             ,ovenTestInfo = testInfo
@@ -85,6 +78,13 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
             ,ovenPrepare = undefined
             ,ovenPatchExtra = undefined
             }
+    mem <- newMemory oven (Prettys fromState fromPatch fromTest) s (restate [], Answer mempty (Just 0) [] True)
+    mem <- return mem
+        {active = (restate [], [])
+        ,simulated = True}
+    let s = S u mem 20 Set.empty []
+
+    let count s c = sum [qThreads | (_, Question{..}) <- running $ memory s, qClient == c]
     s@S{..} <- flip loopM s $ \s -> do
         -- print $ clients $ memory s
         -- print $ storePoint (store $ memory s) (active $ memory s)
@@ -101,7 +101,7 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
                 in (Pinged $ Ping c (fromClient c) [] mx $ mx - count s c, s)
             Paused b ->
                 (if b then Pause "" else Unpause "", s)
-        (mem, q) <- prod oven (memory s) msg
+        (mem, q) <- prod (memory s) msg
         q <- return $ either error id <$> q
         -- print q
         when (fatal mem /= []) $ error $ "Fatal error, " ++ unlines (fatal mem)
@@ -122,7 +122,7 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
     unless (null $ snd active) $ error "Active should have been empty"
     unless (Set.null $ storeAlive store) $ error "Alive should have been empty"
     forM_ workers $ \(c,_) -> do
-        (_, q) <- prod oven Memory{..} $ Pinged $ Ping c (fromClient c) [] maxBound maxBound
+        (_, q) <- prod Memory{..} $ Pinged $ Ping c (fromClient c) [] maxBound maxBound
         when (isJust q) $ error "Brains should have returned sleep"
 
     forM_ patch $ \(p, pass, fail) ->
