@@ -61,12 +61,15 @@ library
         smtp-mail,
         extra >= 1.1,
         wai >= 3.0.1,
-        warp >= 3.0
+        warp >= 3.0,
+        product-profunctors,
+        opaleye
 
     exposed-modules:
         Development.Bake
 
     other-modules:
+        Development.Bake.Build
         Development.Bake.Core.Args
         Development.Bake.Core.Client
         Development.Bake.Core.GC
@@ -128,4 +131,7 @@ executable bake-test
         wai >= 3.0.1,
         warp >= 3.0,
         process,
-        filepath
+        filepath,
+        product-profunctors,
+        opaleye
+
