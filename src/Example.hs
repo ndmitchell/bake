@@ -47,10 +47,8 @@ compile = do
 
 execute :: (Platform,Action) -> TestInfo (Platform,Action)
 execute (p,Compile) = require [show p] $ run $ when False $ do
-    () <- cmd "ghc --make Main.hs"
-    -- ghc --make only has 1 second timestamp resolution
-    -- so sleep for a second to make sure we work with incremental
-    sleep 1
---    incrementalDone
+    incrementalStart
+    compile
+    incrementalDone
 execute (p,Run i) = depend [(p,Compile)] $ require [show p] $ run $
     cmd ("dist" </> "Main") (show i)
