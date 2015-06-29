@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, ScopedTypeVariables, TupleSections, TypeOperators, ViewPatterns #-}
+{-# LANGUAGE RecordWildCards, ScopedTypeVariables, TupleSections, TypeOperators, ViewPatterns, Arrows, CPP #-}
 
 -- Stuff on disk on the server
 module Development.Bake.Server.Store(
@@ -40,6 +40,12 @@ import System.FilePath
 import Control.DeepSeq
 import Control.Exception
 import Prelude
+
+#if OPALEYE
+import qualified Opaleye as O
+import Control.Arrow
+#endif
+
 
 ---------------------------------------------------------------------
 -- DATA TYPES
@@ -208,6 +214,14 @@ instance FromRow PP where fromRow = PP <$> field <*> field <*> field
 
 storeItemsDate :: Store -> (UTCTime, Maybe UTCTime) -> [Either State Patch]
 storeItemsDate Store{..} (start, end) = unsafePerformIO $ do
+
+#if OPALEYE
+    let q :: O.Query (O.Column Patch, O.Column O.PGBool, O.Column O.PGTimestamptz) = proc () -> do
+            PCTable{..} <- O.queryTable pcTable__ -< ()
+            returnA -< (pcPatch_, O.pgBool True, pcQueue_)
+    O.runQuery conn q :: IO [(Patch, Bool, UTCTime)]
+#endif
+
     let ends = words "start delete_ supersede reject plausible merge"
     let str = "SELECT patch, reject IS NOT NULL, max(" ++ intercalate "," ["ifnull(" ++ x ++ ",queue)" | x <- ends] ++ ") AS mx " ++
               "FROM patch WHERE mx > ?" ++
@@ -215,6 +229,16 @@ storeItemsDate Store{..} (start, end) = unsafePerformIO $ do
                      else " OR (delete_ IS NULL AND supersede IS NULL AND reject IS NULL AND merge IS NULL)") ++
               " ORDER BY queue ASC"
     patches :: [PP] <- sqlUnsafe conn str $ start : maybeToList end
+
+#if OPALEYE
+    let q :: O.Query (O.Column State, O.Column O.PGTimestamptz) = O.orderBy (O.asc snd) $ proc () -> do
+            SATable{..} <- O.queryTable saTable__ -< ()
+            O.restrict -< saState_ O../= O.unsafeCoerce (O.pgString "")
+            O.restrict -< saCreate_ O..> O.pgUTCTime start
+            O.restrict -< maybe (O.pgBool True) (\x -> saCreate_ O..< O.pgUTCTime x) end
+            returnA -< (saState_, saCreate_)
+    O.runQuery conn q :: IO [(State, UTCTime)]
+#endif
 
     states <- sqlSelect conn (saState, saCreate) $ [orderAsc saCreate, saState %/= toState "", saCreate %> start] ++ [saCreate %< end | Just end <- [end]]
     return $ reverse $ merge states patches
