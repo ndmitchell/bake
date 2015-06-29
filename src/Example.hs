@@ -40,6 +40,8 @@ compile :: IO [FilePath]
 compile = do
     createDirectoryIfMissing True "dist"
     unit $ cmd "ghc --make Main.hs -o dist/Main"
+    -- ghc --make only has 1 second timestamp resolution
+    -- so sleep for a second to make sure we work with incremental compilation
     sleep 1
     return ["dist"]
 
