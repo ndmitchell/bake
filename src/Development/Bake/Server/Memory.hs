@@ -3,6 +3,7 @@
 module Development.Bake.Server.Memory(
     ClientInfo(..), Memory(..),
     newMemory, stateFailure,
+    notify,
     Shower(..), shower,
     ) where
 
@@ -13,6 +14,7 @@ import Data.Time
 import Development.Bake.Core.Message
 import Control.DeepSeq
 import qualified Data.Set as Set
+import Control.Exception.Extra
 import Data.Tuple.Extra
 import Data.List.Extra
 import Data.Maybe
@@ -71,6 +73,12 @@ newMemory oven prettys store (state, answer) = do
 
 instance NFData Memory where
     rnf Memory{..} = ()
+
+
+notify :: Oven State Patch Test -> String -> [(Author, String)] -> IO (Memory -> Memory)
+notify oven subject messages = do
+    res <- try_ $ ovenNotify oven subject messages
+    return $ \mem -> mem{fatal = ["Notification failure: " ++ show e | Left e <- [res]] ++ fatal mem}
 
 
 data Shower = Shower

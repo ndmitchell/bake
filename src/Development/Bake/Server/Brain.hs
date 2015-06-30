@@ -76,19 +76,19 @@ react mem@Memory{..}
     , xs@(_:_) <- filter (\(p,t) -> t `Map.notMember` maybe Map.empty snd (paReject $ storePatch store p)) xs
     = Just $ do
         let fresh = filter (isNothing . paReject . storePatch store . fst) xs
-        bad <- if fresh == [] then return [] else do
+        bad <- if fresh == [] then return id else
             -- only notify on the first rejectable test for each patch
-            notify "Rejected" [(paAuthor $ storePatch store p, fromPatch p ++ " was rejected due to " ++ maybe "Preparing" fromTest t) | (p,t) <- fresh]
+            notify oven "Rejected" [(paAuthor $ storePatch store p, fromPatch p ++ " was rejected due to " ++ maybe "Preparing" fromTest t) | (p,t) <- fresh]
         store <- storeUpdate store
             [IUReject p t (fst active, takeWhile (/= p) (snd active) ++ [p]) | (p,t) <- xs]
-        return mem{store = store, fatal = bad ++ fatal}
+        return $ bad mem{store = store}
 
     | plausible mem
     , xs@(_:_) <- filter (isNothing . paPlausible . storePatch store) $ snd active
     = Just $ do
-        bad <- notify "Plausible" [(paAuthor $ storePatch store p, fromPatch p ++ " is now plausbile") | p <- xs]
+        bad <- notify oven "Plausible" [(paAuthor $ storePatch store p, fromPatch p ++ " is now plausbile") | p <- xs]
         store <- storeUpdate store $ map IUPlausible xs
-        return mem{store = store, fatal = bad ++ fatal}
+        return $ bad mem{store = store}
 
     | mergeable mem
     , not $ null $ snd active
@@ -101,9 +101,9 @@ react mem@Memory{..}
             Nothing -> do
                 return mem{fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
             Just s -> do
-                bad <- notify "Merged" [(paAuthor $ storePatch store p, fromPatch p ++ " is now merged") | p <- snd active]
+                bad <- notify oven "Merged" [(paAuthor $ storePatch store p, fromPatch p ++ " is now merged") | p <- snd active]
                 store <- storeUpdate store $ IUState s answer (Just active) : map IUMerge (snd active)
-                return mem{active = (s, []), store = store, fatal = bad ++ fatal}
+                return $ bad mem{active = (s, []), store = store}
 
     | restrictActive mem
     , (reject@(_:_), keep) <- partition (isJust . paReject . storePatch store) $ snd active
@@ -120,11 +120,6 @@ react mem@Memory{..}
             ,store = store}
 
     | otherwise = Nothing
-    where
-        notify subject msg = do
-            res <- try_ $ ovenNotify oven subject msg
-            return ["Notification failure: " ++ show e | Left e <- [res]]
-
 
 
 update :: Memory -> Message -> IO (Either String Memory)
@@ -193,23 +188,23 @@ update mem@Memory{..} (ClearSkip author) = do
     return $ Right mem{store = store}
 
 update mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
-    case () of
+    bad <- case () of
         _ | snd qCandidate == [] -- on a state
           , not aSuccess
           , let skip = Set.mapMonotonic Just $ Map.keysSet $ storeSkip store
           , qTest `Set.notMember` skip -- not on the skip list
           , let failed = poFail $ storePoint store qCandidate
           , failed `Set.isSubsetOf` skip -- no notifications already
-          -> void $ try_ $ ovenNotify oven "State failure"
+          -> notify oven "State failure"
                 [(a, "State " ++ fromState (fst qCandidate) ++ " failed due to " ++ maybe "Preparing" fromTest qTest) | a <- admins]
-        _ -> return ()
+        _ -> return id
 
     now <- getCurrentTime
     let (eq,neq) = partition ((==) q . snd) running
     let time = head $ map fst eq ++ [now]
     store <- storeUpdate store [PURun time q a]
     let add ci = ci{ciTests = Map.insertWith (&&) (qCandidate, qTest) aSuccess $ ciTests ci}
-    return $ Right mem
+    return $ Right $ bad mem
         {store = store
         ,clients = Map.adjust add qClient clients
         ,running = neq}
