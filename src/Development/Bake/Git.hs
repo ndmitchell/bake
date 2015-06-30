@@ -79,6 +79,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
                 gitSafe path
                 time_ $ cmd (Cwd path) "git remote add origin" [(if path == "." then "" else "../") ++ mirror]
             time_ $ cmd (Cwd path) "git fetch"
+            time_ $ cmd (Cwd path) "git reset" -- to unwedge a previous merge conflict
             time_ $ cmd (Cwd path) "git checkout" [branch]
             time_ $ cmd (Cwd path) "git reset --hard" ["origin/" ++ branch]
             Stdout x <- time $ cmd (Cwd path) "git rev-parse HEAD"
