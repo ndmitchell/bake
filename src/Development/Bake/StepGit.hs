@@ -62,7 +62,7 @@ ovenStepGit act repo branch path o = o
             time_ $ cmd (Cwd git) "git checkout --force -B" [branch] [fromSHA1 s]
 
         gitApplyPatch git p = do
-            time_ $ cmd (Cwd git) "git merge" [fromSHA1 p]
+            time_ $ cmd (Cwd git) (WithStdout True) "git merge" [fromSHA1 p]
 
         stepExtra s p = do
             root <- root
