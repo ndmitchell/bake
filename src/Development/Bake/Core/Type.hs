@@ -62,7 +62,7 @@ data Oven state patch test = Oven
     ,ovenTestInfo :: test -> TestInfo test
         -- ^ Produce information about a test
     ,ovenNotify :: Author -> String -> String -> IO ()
-        -- ^ Tell an author some information contained in the string (usually an email)
+        -- ^ Tell an author some information. The first 'String' is a subject line, the second an HTML fragment.
     ,ovenPatchExtra :: state -> Maybe patch -> IO (String, String)
         -- ^ Extra information about a patch, a single line (HTML span),
         --   and a longer chunk (HTML block)
