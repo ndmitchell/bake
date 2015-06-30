@@ -90,9 +90,10 @@ ovenStepGit act repo branch path o = o
             unlessM (doesFileExist $ dir </> "result.tar") $ do
                 git <- gitEnsure
                 withFileLock (root </> ".bake-lock") $ do
-                    gitSetState git s
                     forM_ (inits ps) $ \ps -> do
-                        when (ps /= []) $ do
+                        if null ps then
+                            gitSetState git s
+                        else
                             gitApplyPatch git $ last ps
                         dir <- createDir (root </> "../bake-step-point") $ map fromSHA1 $ s : ps
                         unlessM (doesFileExist $ dir </> "result.tar") $ do
