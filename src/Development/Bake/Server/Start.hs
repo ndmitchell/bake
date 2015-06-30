@@ -83,8 +83,7 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
                                     storeExtraAdd (store s2) (Left $ fst $ active s2) res
                                 bad <- clientChange s s2
                                 when (fatal s == [] && fatal s2 /= []) $ do
-                                    let msg = "Fatal error\n" ++ head (fatal s2)
-                                    void $ notify oven "Fatal error" $ map (,str_ msg) $ admins s2
+                                    void $ notifyAll oven "Fatal error" (admins s2) $ pre_ $ summary $ head $ fatal s2
                                 return (bad s2,q)
                             return $ case res of
                                 Just (Left e) -> OutputError e
