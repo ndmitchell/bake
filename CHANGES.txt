@@ -1,5 +1,6 @@
 Changelog for Bake
 
+    Rewrite notifications
 0.3
     Add persistence to an SQLite db
     Add ping expiration
