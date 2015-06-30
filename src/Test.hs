@@ -34,30 +34,28 @@ test dir = do
     let repo = "file:///" ++ dropWhile (== '/') (replace "\\" "/" dir) ++ "/repo"
     b <- doesDirectoryExist dir
     when b $ do
-        () <- cmd "chmod -R 755 .bake-test"
-        () <- cmd "rm -rf .bake-test"
+        unit $ cmd "chmod -R 755 .bake-test"
+        unit $ cmd "rm -rf .bake-test"
         return ()
 
     createDirectoryIfMissing True (dir </> "repo")
     withCurrentDirectory (dir </> "repo") $ do
-        () <- cmd "git init"
-        () <- cmd "git config user.email" ["gwen@example.com"]
-        () <- cmd "git config user.name" ["Ms Gwen"]
+        unit $ cmd "git init"
+        unit $ cmd "git config user.email" ["gwen@example.com"]
+        unit $ cmd "git config user.name" ["Ms Gwen"]
         writeFile "Main.hs" "module Main where\n\n-- Entry point\nmain = print 1\n"
-        () <- cmd "git add Main.hs"
-        () <- cmd "git commit -m" ["Initial version"]
-        () <- cmd "git checkout -b none" -- so I can git push to master
-        return ()
+        unit $ cmd "git add Main.hs"
+        unit $ cmd "git commit -m" ["Initial version"]
+        unit $ cmd "git checkout -b none" -- so I can git push to master
 
     forM_ ["bob","tony"] $ \s -> do
         createDirectoryIfMissing True (dir </> "repo-" ++ s)
         withCurrentDirectory (dir </> "repo-" ++ s) $ do
             print "clone"
-            () <- cmd "git clone" repo "."
-            () <- cmd "git config user.email" [s ++ "@example.com"]
-            () <- cmd "git config user.name" ["Mr " ++ toUpper (head s) : map toLower (tail s)]
-            () <- cmd "git checkout -b" s
-            return ()
+            unit $ cmd "git clone" repo "."
+            unit $ cmd "git config user.email" [s ++ "@example.com"]
+            unit $ cmd "git config user.name" ["Mr " ++ toUpper (head s) : map toLower (tail s)]
+            unit $ cmd "git checkout -b" s
 
     aborting <- newIORef False
     let createProcessAlive p = do
@@ -109,7 +107,7 @@ test dir = do
                 when (src /= expect) $ do
                     error $ "Expected to have updated Main, but got:\n" ++ src
 
-        () <- cmd exe "pause" "--author=bake"
+        unit $ cmd exe "pause" "--author=bake"
         putStrLn "% MAKING A GOOD EDIT AS BOB"
         edit "bob" $ do
             unit $ cmd "git fetch origin"
@@ -123,7 +121,7 @@ test dir = do
             unit $ cmd "git fetch origin"
             unit $ cmd "git merge origin/master"
             writeFile "Main.hs" "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
-        () <- cmd exe "unpause" "--author=bake"
+        unit $ cmd exe "unpause" "--author=bake"
 
         retry 15 $ do
             sleep 10
