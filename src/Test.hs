@@ -121,6 +121,12 @@ test dir = do
             unit $ cmd "git fetch origin"
             unit $ cmd "git merge origin/master"
             writeFile "Main.hs" "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
+        putStrLn "% MAKING A MERGE CONFLICT AS BOB"
+        edit "bob" $
+            writeFile "Main.hs" "-- Bob waz ere\nmodule Main(main) where\nimport System.Environment\n-- Entry point\nmain :: IO ()\nmain = do [[_]] <- getArgs; print 1\n\n"
+        putStrLn "% MAKING ANOTHER GOOD EDIT AS TONY"
+        edit "tony" $ do
+            writeFile "Main.hs" "-- Tony waz ere 1981\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
         unit $ cmd exe "unpause" "--author=bake"
 
         retry 15 $ do
@@ -129,7 +135,7 @@ test dir = do
                 unit $ cmd "git clone" repo "."
                 unit $ cmd "git checkout master"
                 src <- readFile "Main.hs"
-                let expect = "-- Tony waz ere\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n\n"
+                let expect = "-- Tony waz ere 1981\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n\n"
                 when (src /= expect) $ do
                     error $ "Expected to have updated Main, but got:\n" ++ src
 
