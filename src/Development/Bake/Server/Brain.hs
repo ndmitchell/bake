@@ -204,8 +204,12 @@ update mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
           , qTest `Set.notMember` skip -- not on the skip list
           , let failed = poFail $ storePoint store qCandidate
           , failed `Set.isSubsetOf` skip -- no notifications already
-          -> notify oven "State failure"
-                [(a, str_ $ "State " ++ fromState (fst qCandidate) ++ " failed due to " ++ maybe "Preparing" fromTest qTest) | a <- admins]
+          -> do
+            Shower{..} <- shower mem False
+            notifyAll oven "State failure" admins $ do
+                str_ "State " <> showState (fst qCandidate)
+                str_ " failed due to " <> showTestAt qCandidate qTest <> br_
+                pre_ $ summary $ TL.unpack aStdout
         _ -> return id
 
     now <- getCurrentTime
