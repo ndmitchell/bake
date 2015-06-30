@@ -30,6 +30,9 @@ import Prelude
 
 data Rope = Branch [Rope] | Leaf String
 
+instance Eq Rope where a == b = renderRope a == renderRope b
+instance Ord Rope where compare a b = compare (renderRope a) (renderRope b)
+
 renderRope :: Rope -> String
 renderRope x = f x ""
     where f (Branch []) k = k
@@ -53,7 +56,7 @@ url_ = concatMap f
         f (ord -> x) = "%" ++ ['0' | x < 16] ++ showHex x ""
 
 
-data HTML_ a = HTML_ Rope a
+data HTML_ a = HTML_ Rope a deriving (Eq,Ord)
 
 type HTML = HTML_ ()
 
