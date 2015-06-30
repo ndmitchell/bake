@@ -45,14 +45,8 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
         let prune = expire (addSeconds (negate timeout) now)
         modifyCVar_ var $ \s -> do
             let s2 = prune s
-            s2 <- if Map.keysSet (clients s) == Map.keysSet (clients s2) then return s2 else do
-                let msg = unlines
-                        ["Set of clients has changed"
-                        ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s)
-                        ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
-                bad <- notify oven "Client change" $ map (,str_ msg) $ admins s2
-                return $ bad s2
-            return s2
+            bad <- clientChange s s2
+            return $ bad s2
 
     putStrLn $ "Started server on port " ++ show port
     server port $ \i@Input{..} -> do
@@ -86,17 +80,11 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
                                 when (fst (active s2) /= fst (active s)) $ extra $ do
                                     res <- patchExtra (fst $ active s2) Nothing
                                     storeExtraAdd (store s2) (Left $ fst $ active s2) res
-                                s2 <- if Map.keysSet (clients s) == Map.keysSet (clients s2) then return s2 else do
-                                    let msg = unlines
-                                            ["Set of clients has changed"
-                                            ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s)
-                                            ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
-                                    bad <- notify oven "Client change" $ map (,str_ msg) $ admins s2
-                                    return $ bad s2
+                                bad <- clientChange s s2
                                 when (fatal s == [] && fatal s2 /= []) $ do
                                     let msg = "Fatal error\n" ++ head (fatal s2)
                                     void $ notify oven "Fatal error" $ map (,str_ msg) $ admins s2
-                                return (s2,q)
+                                return (bad s2,q)
                             return $ case res of
                                 Just (Left e) -> OutputError e
                                 Just (Right q) -> questionToOutput $ Just q
@@ -104,6 +92,16 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
                 else
                     return OutputMissing
             evaluate $ force res
+
+
+clientChange :: Memory -> Memory -> IO (Memory -> Memory)
+clientChange s1 s2 = do
+    if Map.keysSet (clients s1) == Map.keysSet (clients s2) then return id else do
+        let msg = unlines
+                ["Set of clients has changed"
+                ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s1)
+                ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
+        notify (oven s1) "Client change" $ map (,str_ msg) $ admins s2
 
 
 initialiseFake :: Oven State Patch Test -> Prettys -> IO Memory
