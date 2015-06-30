@@ -109,7 +109,7 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
 initialiseFake :: Oven State Patch Test -> Prettys -> IO Memory
 initialiseFake oven prettys = do
     store <- newStore False "bake-store"
-    mem <- newMemory oven prettys store (toState "", Answer (TL.pack "Initial state created by view mode") Nothing [] False)
+    mem <- newMemory oven prettys store (stateFailure, Answer (TL.pack "Initial state created by view mode") Nothing [] False)
     return mem{fatal = ["View mode, database is read-only"]}
 
 initialise :: Oven State Patch Test -> Prettys -> [Author] -> Worker -> IO Memory
