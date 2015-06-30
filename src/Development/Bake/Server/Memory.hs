@@ -21,6 +21,8 @@ import Data.Maybe
 import General.HTML
 import Control.Monad
 import General.Extra
+import Data.Monoid
+import Prelude
 
 
 stateFailure = toState ""
@@ -77,7 +79,9 @@ instance NFData Memory where
 
 notify :: Memory -> String -> [(Author, HTML)] -> IO (Memory -> Memory)
 notify mem subject messages = do
-    res <- try_ $ ovenNotify (oven mem) subject $ map (second renderHTML) messages
+    messages <- return $ concat [(a,b) : map (,b) (admins mem) | (a,b) <- messages]
+    res <- try_ $ forM_ (groupSort messages) $ \(author, body) -> do
+        ovenNotify (oven mem) author subject $ renderHTML $ mconcat $ intersperse (br_ <> br_) $ nubOrd body
     return $ \mem -> mem{fatal = ["Notification failure: " ++ show e | Left e <- [res]] ++ fatal mem}
 
 notifyAdmins :: Memory -> String -> HTML -> IO (Memory -> Memory)

@@ -61,7 +61,7 @@ data Oven state patch test = Oven
         -- ^ Prepare a candidate to be run, produces the tests that must pass
     ,ovenTestInfo :: test -> TestInfo test
         -- ^ Produce information about a test
-    ,ovenNotify :: String -> [(Author, String)] -> IO ()
+    ,ovenNotify :: Author -> String -> String -> IO ()
         -- ^ Tell an author some information contained in the string (usually an email)
     ,ovenPatchExtra :: state -> Maybe patch -> IO (String, String)
         -- ^ Extra information about a patch, a single line (HTML span),
@@ -80,13 +80,13 @@ ovenTest :: IO [test] -> (test -> TestInfo test)
 ovenTest prepare info o = o{ovenPrepare= \_ _ -> prepare, ovenTestInfo=info}
 
 -- | Add an additional notification to the list.
-ovenNotifyAdd :: (String -> [(Author, String)] -> IO ()) -> Oven state patch test -> Oven state patch test
-ovenNotifyAdd f o = o{ovenNotify = \a s -> f a s >> ovenNotify o a s}
+ovenNotifyAdd :: (Author -> String -> String -> IO ()) -> Oven state patch test -> Oven state patch test
+ovenNotifyAdd f o = o{ovenNotify = \a s b -> f a s b >> ovenNotify o a s b}
 
 -- | Produce notifications on 'stdout' when users should be notified about success/failure.
 ovenNotifyStdout :: Oven state patch test -> Oven state patch test
-ovenNotifyStdout = ovenNotifyAdd $ \subject messages ->
-    putBlock "Email" $ ("Subject: " ++ subject) : [a ++ ", " ++ b | (a,b) <- messages]
+ovenNotifyStdout = ovenNotifyAdd $ \author subject body ->
+    putBlock "Email" ["To: " ++ author, "Subject: " ++ subject, body]
 
 -- | A type representing a translation between a value and a string, which can be
 --   produced by 'readShowStringy' if the type has both 'Read' and 'Show' instances.
@@ -119,7 +119,7 @@ defaultOven :: Oven () () ()
 defaultOven = Oven
     {ovenInit = return ()
     ,ovenUpdate = \_ _ -> return ()
-    ,ovenNotify = \_ _ -> return ()
+    ,ovenNotify = \_ _ _ -> return ()
     ,ovenPrepare = \_ _ -> return []
     ,ovenTestInfo = \_ -> mempty
     ,ovenPatchExtra = \_ _ -> return ("","")
