@@ -337,7 +337,7 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state
                 if paAlive pi then
                     do br_; admin (DelPatch "admin" p) $ str_ "Delete"
                 else if isNothing $ paMerge pi then
-                    do br_; admin (AddPatch "admin" $ toPatch $ '\'' : fromPatch p) $ str_ "Retry"
+                    do br_; admin (AddPatch (paAuthor pi) $ toPatch $ '\'' : fromPatch p) $ str_ "Retry"
                 else
                     mempty
             | otherwise = mempty
