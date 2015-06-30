@@ -87,8 +87,8 @@ data Shower = Shower
     ,showThreads :: Int -> HTML
     }
 
-shower :: Store -> Prettys -> Bool -> IO Shower
-shower store Prettys{..} argsAdmin = do
+shower :: Memory -> Bool -> IO Shower
+shower Memory{prettys=Prettys{..},..} argsAdmin = do
     showRel <- showRelativeTime
     let shwState s | s == toState "" = span__ [class_ "bad" ] $ str_ $ "invalid state"
         shwState s = shwLink ("state=" ++ fromState s) $ str_ $ prettyState s
