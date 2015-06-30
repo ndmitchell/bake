@@ -15,7 +15,7 @@ import General.Extra
 import Data.Tuple.Extra
 import Data.Maybe
 import Data.Monoid
-import Control.Monad
+import Control.Monad.Extra
 import Data.List.Extra
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -71,17 +71,32 @@ reacts = f 10
                 | otherwise = return mem
 
 
+failingTestOutput :: Store -> Point -> Maybe Test -> Maybe String
+failingTestOutput store (state, patch) test = listToMaybe $ catMaybes
+    [ storeRunFile store runid
+    | (runid, _, _, Answer{aSuccess=False}) <- storeRunList store Nothing (Just test) (Just state) patch Nothing]
+
+
 react :: Memory -> Maybe (IO Memory)
 react mem@Memory{..}
     | xs <- rejectable mem
     , xs@(_:_) <- filter (\(p,t) -> t `Map.notMember` maybe Map.empty snd (paReject $ storePatch store p)) xs
     = Just $ do
         let fresh = filter (isNothing . paReject . storePatch store . fst) xs
-        bad <- if fresh == [] then return id else
+        let point p = (fst active, takeWhile (/= p) (snd active) ++ [p])
+        bad <- if fresh == [] then return id else do
             -- only notify on the first rejectable test for each patch
-            notify oven "Rejected" [(paAuthor $ storePatch store p, str_ $ fromPatch p ++ " was rejected due to " ++ maybe "Preparing" fromTest t) | (p,t) <- fresh]
+            Shower{..} <- shower mem False
+            notify oven "Rejected"
+                [ (paAuthor,) $ do
+                    showPatch p <> str_ " submitted at " <> showTime paQueued
+                    str_ " rejected due to " <> showTestAt (point p) t
+                    whenJust (failingTestOutput store (point p) t) $ \s ->
+                        br_ <> pre_ (summary s)
+                | (p,t) <- nubOrdOn fst xs, let PatchInfo{..} = storePatch store p]
+
         store <- storeUpdate store
-            [IUReject p t (fst active, takeWhile (/= p) (snd active) ++ [p]) | (p,t) <- xs]
+            [IUReject p t (point p) | (p,t) <- xs]
         return $ bad mem{store = store}
 
     | plausible mem
