@@ -83,7 +83,7 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
                                     storeExtraAdd (store s2) (Left $ fst $ active s2) res
                                 bad <- clientChange s s2
                                 when (fatal s == [] && fatal s2 /= []) $ do
-                                    void $ notifyAll oven "Fatal error" (admins s2) $ pre_ $ summary $ head $ fatal s2
+                                    void $ notifyAdmins s2 "Fatal error" $ pre_ $ summary $ head $ fatal s2
                                 return (bad s2,q)
                             return $ case res of
                                 Just (Left e) -> OutputError e
@@ -98,7 +98,7 @@ clientChange :: Memory -> Memory -> IO (Memory -> Memory)
 clientChange s1 s2 = do
     let before = Map.keysSet $ clients s1
     let after  = Map.keysSet $ clients s2
-    let f msg xs = sequence [notifyAll (oven s2) (msg ++ ": " ++ fromClient x) (admins s2) $ str_ "" | x <- Set.toList xs]
+    let f msg xs = sequence [notifyAdmins s2 (msg ++ ": " ++ fromClient x) $ str_ "" | x <- Set.toList xs]
     a <- f "Client added" $ after `Set.difference` before
     b <- f "Client timed out" $ before `Set.difference` after
     return $ foldr (.) id $ a ++ b
@@ -123,8 +123,8 @@ initialise oven prettys admins extra = do
     mem <- newMemory oven prettys store (state0, answer)
     mem <- return mem{admins = admins ,fatal = ["Failed to initialise, " ++ TL.unpack (aStdout answer) | isNothing res]}
 
-    bad <- if isJust res then notifyAll oven "Starting" admins $ str_ "Server starting" else
-        notifyAll oven "Fatal error during initialise" admins $
+    bad <- if isJust res then notifyAdmins mem "Starting" $ str_ "Server starting" else
+        notifyAdmins mem "Fatal error during initialise" $
             str_ "Failed to initialise" <> br_ <> pre_ (summary $ TL.unpack $ aStdout answer)
     return $ bad mem
 

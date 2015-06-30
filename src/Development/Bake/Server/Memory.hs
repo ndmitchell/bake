@@ -3,7 +3,7 @@
 module Development.Bake.Server.Memory(
     ClientInfo(..), Memory(..),
     newMemory, stateFailure,
-    notify, notifyAll, summary,
+    notify, notifyAdmins, summary,
     Shower(..), shower,
     ) where
 
@@ -75,13 +75,13 @@ instance NFData Memory where
     rnf Memory{..} = ()
 
 
-notify :: Oven State Patch Test -> String -> [(Author, HTML)] -> IO (Memory -> Memory)
-notify oven subject messages = do
-    res <- try_ $ ovenNotify oven subject $ map (second renderHTML) messages
+notify :: Memory -> String -> [(Author, HTML)] -> IO (Memory -> Memory)
+notify mem subject messages = do
+    res <- try_ $ ovenNotify (oven mem) subject $ map (second renderHTML) messages
     return $ \mem -> mem{fatal = ["Notification failure: " ++ show e | Left e <- [res]] ++ fatal mem}
 
-notifyAll :: Oven State Patch Test -> String -> [Author] -> HTML -> IO (Memory -> Memory)
-notifyAll oven subject to message = notify oven subject $ map (,message) to
+notifyAdmins :: Memory -> String -> HTML -> IO (Memory -> Memory)
+notifyAdmins mem subject message = notify mem subject $ map (,message) $ admins mem
 
 summary :: String -> HTML
 summary x | length x < 10000 = str_ x

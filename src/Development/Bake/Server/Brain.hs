@@ -87,7 +87,7 @@ react mem@Memory{..}
         bad <- if fresh == [] then return id else do
             -- only notify on the first rejectable test for each patch
             Shower{..} <- shower mem False
-            notify oven "Rejected"
+            notify mem "Rejected"
                 [ (paAuthor,) $ do
                     showPatch p <> str_ " submitted at " <> showTime paQueued
                     str_ " rejected due to " <> showTestAt (point p) t
@@ -105,7 +105,7 @@ react mem@Memory{..}
         Shower{..} <- shower mem False
         -- don't notify people twice in quick succession
         bad <- if mergeable mem then return id else
-            notify oven "Plausible"
+            notify mem "Plausible"
                 [ (paAuthor, showPatch p <> str_ " submitted at " <> showTime paQueued <> str_ " is now plausible")
                 | p <- xs, let PatchInfo{..} = storePatch store p]
         store <- storeUpdate store $ map IUPlausible xs
@@ -123,7 +123,7 @@ react mem@Memory{..}
                 return mem{fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
             Just s -> do
                 Shower{..} <- shower mem False
-                bad <- notify oven "Merged"
+                bad <- notify mem "Merged"
                     [ (paAuthor, showPatch p <> str_ " submitted at " <> showTime paQueued <> str_ " is now merged")
                     | p <- snd active, let PatchInfo{..} = storePatch store p]
                 store <- storeUpdate store $ IUState s answer (Just active) : map IUMerge (snd active)
@@ -221,7 +221,7 @@ update mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
           , failed `Set.isSubsetOf` skip -- no notifications already
           -> do
             Shower{..} <- shower mem False
-            notifyAll oven "State failure" admins $ do
+            notifyAdmins mem "State failure" $ do
                 str_ "State " <> showState (fst qCandidate)
                 str_ " failed due to " <> showTestAt qCandidate qTest <> br_
                 pre_ $ summary $ TL.unpack aStdout
