@@ -87,7 +87,11 @@ react mem@Memory{..}
     | plausible mem
     , xs@(_:_) <- filter (isNothing . paPlausible . storePatch store) $ snd active
     = Just $ do
-        bad <- notify oven "Plausible" [(paAuthor $ storePatch store p, str_ $ fromPatch p ++ " is now plausbile") | p <- xs]
+        Shower{..} <- shower mem False
+        -- don't notify people twice in quick succession
+        bad <- notify oven "Plausible"
+            [ (paAuthor, showPatch p <> str_ " submitted at " <> showTime paQueued <> str_ " is now plausible")
+            | p <- xs, let PatchInfo{..} = storePatch store p]
         store <- storeUpdate store $ map IUPlausible xs
         return $ bad mem{store = store}
 
@@ -102,7 +106,10 @@ react mem@Memory{..}
             Nothing -> do
                 return mem{fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
             Just s -> do
-                bad <- notify oven "Merged" [(paAuthor $ storePatch store p, str_ $ fromPatch p ++ " is now merged") | p <- snd active]
+                Shower{..} <- shower mem False
+                bad <- notify oven "Merged"
+                    [ (paAuthor, showPatch p <> str_ " submitted at " <> showTime paQueued <> str_ " is now merged")
+                    | p <- snd active, let PatchInfo{..} = storePatch store p]
                 store <- storeUpdate store $ IUState s answer (Just active) : map IUMerge (snd active)
                 return $ bad mem{active = (s, []), store = store}
 
