@@ -56,7 +56,6 @@ test dir = do
             () <- cmd "git clone" repo "."
             () <- cmd "git config user.email" [s ++ "@example.com"]
             () <- cmd "git config user.name" ["Mr " ++ toUpper (head s) : map toLower (tail s)]
-            print "checkout"
             () <- cmd "git checkout -b" s
             return ()
 
