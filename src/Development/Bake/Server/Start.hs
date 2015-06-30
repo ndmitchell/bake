@@ -115,22 +115,18 @@ initialise oven prettys admins extra = do
     now <- getCurrentTime
     putStrLn "Initialising server, computing initial state..."
     (res, answer) <- runInit
-    when (isNothing res) $ do
-        let msg = str_ "Failed to initialise" <> br_ <> pre_ (summary $ TL.unpack $ aStdout answer)
-        void $ notifyAll oven "Fatal error during initialise" admins msg
     let state0 = fromMaybe stateFailure res
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
     store <- newStore False "bake-store"
     when (isJust res) $ do
         extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing
     mem <- newMemory oven prettys store (state0, answer)
+    mem <- return mem{admins = admins ,fatal = ["Failed to initialise, " ++ TL.unpack (aStdout answer) | isNothing res]}
 
-    bad <- if isNothing res then return id else notifyAll oven "Starting" admins $ str_ "Server starting"
-
-    return $ bad $ mem
-        {admins = admins
-        ,fatal = ["Failed to initialise, " ++ TL.unpack (aStdout answer) | isNothing res]
-        }
+    bad <- if isJust res then notifyAll oven "Starting" admins $ str_ "Server starting" else
+        notifyAll oven "Fatal error during initialise" admins $
+            str_ "Failed to initialise" <> br_ <> pre_ (summary $ TL.unpack $ aStdout answer)
+    return $ bad mem
 
 
 -- | Get information about a patch
