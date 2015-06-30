@@ -27,6 +27,7 @@ import Control.Monad.Extra
 import System.Console.CmdArgs.Verbosity
 import System.FilePath
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Paths_bake
@@ -96,12 +97,12 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
 
 clientChange :: Memory -> Memory -> IO (Memory -> Memory)
 clientChange s1 s2 = do
-    if Map.keysSet (clients s1) == Map.keysSet (clients s2) then return id else do
-        let msg = unlines
-                ["Set of clients has changed"
-                ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s1)
-                ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
-        notify (oven s1) "Client change" $ map (,str_ msg) $ admins s2
+    let before = Map.keysSet $ clients s1
+    let after  = Map.keysSet $ clients s2
+    let f msg xs = sequence [notifyAll (oven s2) (msg ++ ": " ++ fromClient x) (admins s2) $ str_ "" | x <- Set.toList xs]
+    a <- f "Client added" $ after `Set.difference` before
+    b <- f "Client timed out" $ before `Set.difference` after
+    return $ foldr (.) id $ a ++ b
 
 
 initialiseFake :: Oven State Patch Test -> Prettys -> IO Memory
