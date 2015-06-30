@@ -2,7 +2,8 @@
 
 module Development.Bake.Server.Memory(
     ClientInfo(..), Memory(..),
-    newMemory, stateFailure
+    newMemory, stateFailure,
+    Shower(..), shower,
     ) where
 
 import Development.Bake.Server.Store
@@ -15,6 +16,10 @@ import qualified Data.Set as Set
 import Data.Tuple.Extra
 import Data.List.Extra
 import Data.Maybe
+import General.HTML
+import Control.Monad
+import General.Extra
+
 
 stateFailure = toState ""
 
@@ -66,3 +71,50 @@ newMemory oven prettys store (state, answer) = do
 
 instance NFData Memory where
     rnf Memory{..} = ()
+
+
+data Shower = Shower
+    {showLink :: String -> HTML -> HTML
+    ,showPatch :: Patch -> HTML
+    ,showExtra :: Either State Patch -> HTML
+    ,showTest :: Maybe Test -> HTML
+    ,showTestAt :: (State, [Patch]) -> Maybe Test -> HTML
+    ,showQuestion :: Question -> HTML
+    ,showClient :: Client -> HTML
+    ,showState :: State -> HTML
+    ,showCandidate :: (State, [Patch]) -> HTML
+    ,showTime :: UTCTime -> HTML
+    ,showThreads :: Int -> HTML
+    }
+
+shower :: Store -> Prettys -> Bool -> IO Shower
+shower store Prettys{..} argsAdmin = do
+    showRel <- showRelativeTime
+    let shwState s | s == toState "" = span__ [class_ "bad" ] $ str_ $ "invalid state"
+        shwState s = shwLink ("state=" ++ fromState s) $ str_ $ prettyState s
+    let shwPatch p = shwLink ("patch=" ++ fromPatch p) $ str_ $ prettyPatch p
+    return $ Shower
+        {showLink = shwLink
+        ,showPatch = shwPatch
+        ,showState = shwState
+        ,showCandidate = \(s,ps) -> do
+            shwState s
+            when (not $ null ps) $ str_ " plus " <> commas_ (map shwPatch ps)
+        ,showExtra = \e -> raw_ $ maybe "" fst $ storeExtra store e
+        ,showClient = \c -> shwLink ("client=" ++ url_ (fromClient c)) $ str_ $ fromClient c
+        ,showTest = f Nothing Nothing []
+        ,showTestAt = \(s,ps) -> f Nothing (Just s) ps
+        ,showQuestion = \Question{..} -> f (Just qClient) (Just $ fst qCandidate) (snd qCandidate) qTest
+        ,showTime = \x -> span__ [class_ "nobr"] $ str_ $ showUTCTime "%H:%M" x ++ " (" ++ showRel x ++ ")"
+        ,showThreads = \i -> str_ $ show i ++ " thread" ++ ['s' | i /= 1]
+        }
+    where
+        shwLink url = a__ [href_ $ (if argsAdmin then "?admin=&" else "?") ++ url]
+
+        f c s ps t =
+            shwLink (intercalate "&" parts) $ str_ $
+            maybe "Preparing" prettyTest t
+            where parts = ["client=" ++ url_ (fromClient c) | Just c <- [c]] ++
+                          ["state=" ++ url_ (fromState s) | Just s <- [s]] ++
+                          ["patch=" ++ url_ (fromPatch p) | p <- ps] ++
+                          ["test=" ++ url_ (maybe "" fromTest t)]
