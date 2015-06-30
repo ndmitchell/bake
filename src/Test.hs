@@ -86,12 +86,11 @@ test dir = do
     flip finally (do writeIORef aborting True; mapM_ terminateProcess $ p0 : ps) $ do
         let edit name act = withCurrentDirectory (dir </> "repo-" ++ name) $ do
                 act
-                () <- cmd "git add *"
-                () <- cmd "git commit -m" ["Update from " ++ name]
-                () <- cmd "git push origin" name
+                unit $ cmd "git add *"
+                unit $ cmd "git commit -m" ["Update from " ++ name]
+                unit $ cmd "git push origin" name
                 Stdout sha1 <- cmd "git rev-parse HEAD"
-                () <- cmd exe "addpatch" ("--name=" ++ name ++ "=" ++ sha1) ("--author=" ++ name)
-                return ()
+                unit $ cmd exe "addpatch" ("--name=" ++ name ++ "=" ++ sha1) ("--author=" ++ name)
 
         putStrLn "% MAKING EDIT AS BOB"
         edit "bob" $
