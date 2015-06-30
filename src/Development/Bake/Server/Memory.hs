@@ -75,9 +75,9 @@ instance NFData Memory where
     rnf Memory{..} = ()
 
 
-notify :: Oven State Patch Test -> String -> [(Author, String)] -> IO (Memory -> Memory)
+notify :: Oven State Patch Test -> String -> [(Author, HTML)] -> IO (Memory -> Memory)
 notify oven subject messages = do
-    res <- try_ $ ovenNotify oven subject messages
+    res <- try_ $ ovenNotify oven subject $ map (second renderHTML) messages
     return $ \mem -> mem{fatal = ["Notification failure: " ++ show e | Left e <- [res]] ++ fatal mem}
 
 

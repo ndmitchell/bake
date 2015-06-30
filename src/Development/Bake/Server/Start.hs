@@ -50,7 +50,7 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
                         ["Set of clients has changed"
                         ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s)
                         ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
-                bad <- notify oven "Client change" $ map (,msg) $ admins s2
+                bad <- notify oven "Client change" $ map (,str_ msg) $ admins s2
                 return $ bad s2
             return s2
 
@@ -91,11 +91,11 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
                                             ["Set of clients has changed"
                                             ,"Was: " ++ unwords (map fromClient $ Map.keys $ clients s)
                                             ,"Now: " ++ unwords (map fromClient $ Map.keys $ clients s2)]
-                                    bad <- notify oven "Client change" $ map (,msg) $ admins s2
+                                    bad <- notify oven "Client change" $ map (,str_ msg) $ admins s2
                                     return $ bad s2
                                 when (fatal s == [] && fatal s2 /= []) $ do
                                     let msg = "Fatal error\n" ++ head (fatal s2)
-                                    void $ notify oven "Fatal error" $ map (,msg) $ admins s2
+                                    void $ notify oven "Fatal error" $ map (,str_ msg) $ admins s2
                                 return (s2,q)
                             return $ case res of
                                 Just (Left e) -> OutputError e
@@ -118,7 +118,7 @@ initialise oven prettys admins extra = do
     putStrLn "Initialising server, computing initial state..."
     (res, answer) <- runInit
     when (isNothing res) $
-        void $ notify oven "Failed to initialise" $ map (,"Failed to initialise, pretty serious") admins
+        void $ notify oven "Failed to initialise" $ map (,str_ "Failed to initialise, pretty serious") admins
     let state0 = fromMaybe stateFailure res
     putStrLn $ "Initial state: " ++ maybe "!FAILURE!" fromState res
     store <- newStore False "bake-store"
@@ -126,7 +126,7 @@ initialise oven prettys admins extra = do
         extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing
     mem <- newMemory oven prettys store (state0, answer)
 
-    bad <- if isNothing res then return id else notify oven "Starting" $ map (,"Server starting") admins
+    bad <- if isNothing res then return id else notify oven "Starting" $ map (,str_ "Server starting") admins
 
     return $ bad $ mem
         {admins = admins

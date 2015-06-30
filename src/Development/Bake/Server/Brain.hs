@@ -22,6 +22,7 @@ import qualified Data.Set as Set
 import Development.Bake.Server.Store
 import qualified Data.Text.Lazy as TL
 import Control.Exception.Extra
+import General.HTML
 import Prelude
 
 import Development.Bake.Server.Memory
@@ -78,7 +79,7 @@ react mem@Memory{..}
         let fresh = filter (isNothing . paReject . storePatch store . fst) xs
         bad <- if fresh == [] then return id else
             -- only notify on the first rejectable test for each patch
-            notify oven "Rejected" [(paAuthor $ storePatch store p, fromPatch p ++ " was rejected due to " ++ maybe "Preparing" fromTest t) | (p,t) <- fresh]
+            notify oven "Rejected" [(paAuthor $ storePatch store p, str_ $ fromPatch p ++ " was rejected due to " ++ maybe "Preparing" fromTest t) | (p,t) <- fresh]
         store <- storeUpdate store
             [IUReject p t (fst active, takeWhile (/= p) (snd active) ++ [p]) | (p,t) <- xs]
         return $ bad mem{store = store}
@@ -86,7 +87,7 @@ react mem@Memory{..}
     | plausible mem
     , xs@(_:_) <- filter (isNothing . paPlausible . storePatch store) $ snd active
     = Just $ do
-        bad <- notify oven "Plausible" [(paAuthor $ storePatch store p, fromPatch p ++ " is now plausbile") | p <- xs]
+        bad <- notify oven "Plausible" [(paAuthor $ storePatch store p, str_ $ fromPatch p ++ " is now plausbile") | p <- xs]
         store <- storeUpdate store $ map IUPlausible xs
         return $ bad mem{store = store}
 
@@ -101,7 +102,7 @@ react mem@Memory{..}
             Nothing -> do
                 return mem{fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
             Just s -> do
-                bad <- notify oven "Merged" [(paAuthor $ storePatch store p, fromPatch p ++ " is now merged") | p <- snd active]
+                bad <- notify oven "Merged" [(paAuthor $ storePatch store p, str_ $ fromPatch p ++ " is now merged") | p <- snd active]
                 store <- storeUpdate store $ IUState s answer (Just active) : map IUMerge (snd active)
                 return $ bad mem{active = (s, []), store = store}
 
@@ -196,7 +197,7 @@ update mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
           , let failed = poFail $ storePoint store qCandidate
           , failed `Set.isSubsetOf` skip -- no notifications already
           -> notify oven "State failure"
-                [(a, "State " ++ fromState (fst qCandidate) ++ " failed due to " ++ maybe "Preparing" fromTest qTest) | a <- admins]
+                [(a, str_ $ "State " ++ fromState (fst qCandidate) ++ " failed due to " ++ maybe "Preparing" fromTest qTest) | a <- admins]
         _ -> return id
 
     now <- getCurrentTime
