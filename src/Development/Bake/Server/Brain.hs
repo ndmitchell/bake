@@ -92,7 +92,7 @@ react mem@Memory{..}
                     showPatch p <> str_ " submitted at " <> showTime paQueued
                     str_ " rejected due to " <> showTestAt (point p) t
                     whenJust (failingTestOutput store (point p) t) $ \s ->
-                        br_ <> pre_ (summary s)
+                        br_ <> br_ <> pre_ (summary s)
                 | (p,t) <- nubOrdOn fst xs, let PatchInfo{..} = storePatch store p]
 
         store <- storeUpdate store
@@ -223,7 +223,7 @@ update mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
             Shower{..} <- shower mem False
             notifyAdmins mem "State failure" $ do
                 str_ "State " <> showState (fst qCandidate)
-                str_ " failed due to " <> showTestAt qCandidate qTest <> br_
+                str_ " failed due to " <> showTestAt qCandidate qTest <> br_ <> br_
                 pre_ $ summary $ TL.unpack aStdout
         _ -> return id
 
