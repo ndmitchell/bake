@@ -89,9 +89,10 @@ react mem@Memory{..}
     = Just $ do
         Shower{..} <- shower mem False
         -- don't notify people twice in quick succession
-        bad <- notify oven "Plausible"
-            [ (paAuthor, showPatch p <> str_ " submitted at " <> showTime paQueued <> str_ " is now plausible")
-            | p <- xs, let PatchInfo{..} = storePatch store p]
+        bad <- if mergeable mem then return id else
+            notify oven "Plausible"
+                [ (paAuthor, showPatch p <> str_ " submitted at " <> showTime paQueued <> str_ " is now plausible")
+                | p <- xs, let PatchInfo{..} = storePatch store p]
         store <- storeUpdate store $ map IUPlausible xs
         return $ bad mem{store = store}
 
