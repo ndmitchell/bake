@@ -19,14 +19,17 @@ import System.IO.Unsafe
 
 
 -- | Oven creation for modules using git with the step strategy.
+--   Note that any files not in .gitignore will be removed at each step, so make sure your incremental build-products
+--   are properly ignored.
 ovenStepGit
     :: IO [FilePath] -- ^ Function that does a compile and returns the pieces that should be available at test time
     -> String -- ^ Git repo you are using
     -> String -- ^ Branch used as the initial starting point
     -> Maybe FilePath -- ^ Path under which the git will be checked out
+    -> [String] -- ^ .gitignore patterns where build products live
     -> Oven () () test -- ^ Normal oven
     -> Oven SHA1 SHA1 test
-ovenStepGit act repo branch path o = o
+ovenStepGit act repo branch path keep o = o
     {ovenInit = gitInit repo branch
     ,ovenUpdate = stepUpdate
     ,ovenPrepare = \s ps -> do stepPrepare s ps; ovenPrepare o () $ map (const ()) ps
@@ -53,6 +56,7 @@ ovenStepGit act repo branch path o = o
                     -- stops us creating lots of garbage in the reflog, which slows everything down
                     -- time_ $ cmd (Cwd git) "git reflog expire --all --expire=all --expire-unreachable=all"
                     time_ $ cmd (Cwd git) "git reset" -- to unwedge a previous merge conflict
+                    time_ $ cmd (Cwd git) "git clean -dfx" ["-e" ++ x | x <- keep] -- to remove files left over from a previous merge conflict
                  else do
                     time_ $ cmd (Cwd git) "git clone" [repo] "."
                     time_ $ cmd (Cwd git) "git config user.email" ["https://github.com/ndmitchell/bake"]

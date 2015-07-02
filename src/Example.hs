@@ -32,7 +32,7 @@ main = do
     bake $
         ovenPretty $
         (if useStep
-            then ovenStepGit compile repo "master" Nothing
+            then ovenStepGit compile repo "master" Nothing ["dist"]
             else ovenIncremental . ovenGit repo "master" Nothing) $
         ovenNotifyStdout $
         ovenTest (return allTests) execute
