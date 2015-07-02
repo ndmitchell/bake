@@ -1,4 +1,4 @@
-{-# LANGUAGE RecordWildCards, TupleSections, ViewPatterns #-}
+{-# LANGUAGE RecordWildCards, NamedFieldPuns, TupleSections, ViewPatterns #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Server.Start(
@@ -62,10 +62,29 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
                 else if ["html"] `isPrefixOf` inputURL then do
                     datadir <- getDataDir
                     return $ OutputFile $ datadir </> "html" </> last inputURL
+
                 else if inputURL == ["dump"] then do
                     mem <- readCVar var
                     storeSave "temp.sqlite" $ store mem
                     return $ OutputFile "temp.sqlite"
+
+                else if inputURL == ["alive"] then do
+                    Memory{store} <- readCVar var
+                    let xs = sortOn (paQueued . storePatch store) $ Set.toList $ storeAlive store
+                    return $ OutputString $ unlines $ map fromPatch xs
+
+                else if inputURL == ["active"] then do
+                    Memory{active} <- readCVar var
+                    return $ OutputString $ unlines $ map fromPatch $ snd active
+
+                else if inputURL == ["state"] then do
+                    Memory{active} <- readCVar var
+                    return $ OutputString $ unlines [fromState $ fst active]
+
+                else if inputURL == ["skip"] then do
+                    Memory{store} <- readCVar var
+                    return $ OutputString $ unlines $ map fromTest $ Map.keys $ storeSkip store
+
                 else if ["api"] `isPrefixOf` inputURL then
                     case messageFromInput i{inputURL = drop 1 inputURL} of
                         Left e -> return $ OutputError e
