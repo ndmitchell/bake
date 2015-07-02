@@ -1,10 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module Development.Bake.Core.Send(
-    sendPause, sendUnpause,
-    sendAddPatch, sendDelPatch, sendDelAllPatches, sendRequeue,
-    sendAddSkip, sendDelSkip,
-    sendSetState
+    sendAddPatch, sendDelPatch, sendSetState,
+    sendPause, sendUnpause, sendRequeue,
+    sendAddSkip, sendDelSkip
     ) where
 
 import Control.Monad
@@ -22,9 +21,6 @@ sendAddPatch hp author x = void $ sendMessage hp $ AddPatch author $ toPatch x
 
 sendDelPatch :: (Host,Port) -> Author -> String -> IO ()
 sendDelPatch hp author x = void $ sendMessage hp $ DelPatch author $ toPatch x
-
-sendDelAllPatches :: (Host,Port) -> Author -> IO ()
-sendDelAllPatches hp author = void $ sendMessage hp $ DelAllPatches author
 
 sendRequeue :: (Host,Port) -> Author -> IO ()
 sendRequeue hp author = void $ sendMessage hp $ Requeue author

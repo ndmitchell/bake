@@ -77,9 +77,6 @@ web admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -
             when argsAdmin $ do
                 h2_ $ str_ "Admin"
                 ul_ $ do
-                    li_ $ if Set.null $ storeAlive store
-                        then str_ "Cannot delete all patches, no patches available"
-                        else admin (DelAllPatches "admin") $ str_ "Delete all patches"
                     li_ $ if null (Set.toList (storeAlive store) \\ snd active)
                         then str_ "Cannot requeue, no queued patches"
                         else admin (Requeue "admin") $ str_ "Reqeue"

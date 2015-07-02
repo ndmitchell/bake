@@ -33,7 +33,6 @@ data Bake
     | Client {host :: Host, port :: Port, author :: [Author], name :: String, threads :: Int, provide :: [String], ping :: Double}
     | AddPatch {host :: Host, port :: Port, author :: [Author], name :: String}
     | DelPatch {host :: Host, port :: Port, author :: [Author], name :: String}
-    | DelPatches {host :: Host, port :: Port, author :: [Author]}
     | Requeue {host :: Host, port :: Port, author :: [Author]}
     | SetState {host :: Host, port :: Port, author :: [Author], state :: String}
     | Pause {host :: Host, port :: Port, author :: [Author]}
@@ -54,7 +53,6 @@ bakeMode = cmdArgsMode $ modes
     ,Client{host = "", threads = 1, name = "", ping = 60, provide = []}
     ,AddPatch{}
     ,DelPatch{}
-    ,DelPatches{}
     ,Requeue{}
     ,SetState{state = ""}
     ,Pause{}
@@ -99,7 +97,6 @@ bake_ oven = do
             startClient (getHostPort host port) author1 name threads provide ping oven
         AddPatch{..} -> sendAddPatch (getHostPort host port) author1 =<< check "patch" (undefined :: patch) name
         DelPatch{..} -> sendDelPatch (getHostPort host port) author1 =<< check "patch" (undefined :: patch) name
-        DelPatches{..} -> sendDelAllPatches (getHostPort host port) author1
         Requeue{..} -> sendRequeue (getHostPort host port) author1
         SetState{..} -> sendSetState (getHostPort host port) author1 state
         Pause{..} -> sendPause (getHostPort host port) author1

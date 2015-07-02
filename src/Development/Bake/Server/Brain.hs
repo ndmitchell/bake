@@ -165,10 +165,6 @@ update mem@Memory{..} (DelPatch _ p) =
         store <- storeUpdate store [IUDelete p]
         return $ Right mem{store = store, active = second (delete p) active}
 
-update mem@Memory{..} (DelAllPatches author) = do
-    store <- storeUpdate store $ map IUDelete $ Set.toList $ storeAlive store
-    return $ Right mem{store = store, active = (fst active, [])}
-
 update mem@Memory{..} (SetState author s) = 
     if fst active == s then
         return $ Left "state is already at that value"
@@ -206,10 +202,6 @@ update mem@Memory{..} (DelSkip author test)
     | otherwise = do
         store <- storeUpdate store [SUDel test]
         return $ Right mem{store = store}
-
-update mem@Memory{..} (ClearSkip author) = do
-    store <- storeUpdate store $ map SUDel $ Map.keys $ storeSkip store
-    return $ Right mem{store = store}
 
 update mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
     bad <- case () of
