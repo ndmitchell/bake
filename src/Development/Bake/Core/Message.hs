@@ -22,12 +22,12 @@ data Message
     -- Send by the user
     = SetState Author State
     | AddPatch Author Patch
-    | DelPatch Author Patch
-    | Requeue Author
-    | Pause Author
-    | Unpause Author
+    | DelPatch Patch
+    | Requeue
+    | Pause
+    | Unpause
     | AddSkip Author Test
-    | DelSkip Author Test
+    | DelSkip Test
     -- Sent by the client
     | Pinged Ping
     | Finished {question :: Question, answer :: Answer}
@@ -35,13 +35,13 @@ data Message
 
 instance NFData Message where
     rnf (AddPatch x y) = rnf x `seq` rnf y
-    rnf (DelPatch x y) = rnf x `seq` rnf y
-    rnf (Requeue x) = rnf x
+    rnf (DelPatch x) = rnf x
+    rnf Requeue = ()
     rnf (SetState x y) = rnf x `seq` rnf y
-    rnf (Pause x) = rnf x
-    rnf (Unpause x) = rnf x
+    rnf Pause = ()
+    rnf Unpause = ()
     rnf (AddSkip x y) = rnf x `seq` rnf y
-    rnf (DelSkip x y) = rnf x `seq` rnf y
+    rnf (DelSkip x) = rnf x
     rnf (Pinged x) = rnf x
     rnf (Finished x y) = rnf x `seq` rnf y
 
@@ -121,13 +121,13 @@ instance FromJSON Answer where
 
 messageToInput :: Message -> Input
 messageToInput (AddPatch author patch) = Input ["api","add"] [("author",author),("patch",fromPatch patch)] ""
-messageToInput (DelPatch author patch) = Input ["api","del"] [("author",author),("patch",fromPatch patch)] ""
-messageToInput (Requeue author) = Input ["api","requeue"] [("author",author)] ""
+messageToInput (DelPatch patch) = Input ["api","del"] [("patch",fromPatch patch)] ""
+messageToInput Requeue = Input ["api","requeue"] [] ""
 messageToInput (SetState author state) = Input ["api","set"] [("author",author),("state",fromState state)] ""
-messageToInput (Pause author) = Input ["api","pause"] [("author",author)] ""
-messageToInput (Unpause author) = Input ["api","unpause"] [("author",author)] ""
+messageToInput Pause = Input ["api","pause"] [] ""
+messageToInput Unpause = Input ["api","unpause"] [] ""
 messageToInput (AddSkip author test) = Input ["api","addskip"] [("author",author),("test",fromTest test)] ""
-messageToInput (DelSkip author test) = Input ["api","delskip"] [("author",author),("test",fromTest test)] ""
+messageToInput (DelSkip test) = Input ["api","delskip"] [("test",fromTest test)] ""
 messageToInput (Pinged Ping{..}) = Input ["api","ping"] 
     ([("client",fromClient pClient),("author",pAuthor)] ++
      [("provide",x) | x <- pProvide] ++
@@ -139,13 +139,13 @@ messageToInput x@Finished{} = Input ["api","finish"] [] $ encode x
 messageFromInput :: Input -> Either String Message
 messageFromInput (Input [msg] args body)
     | msg == "add" = AddPatch <$> str "author" <*> (toPatch <$> str "patch")
-    | msg == "del" = DelPatch <$> str "author" <*> (toPatch <$> str "patch")
+    | msg == "del" = DelPatch <$> (toPatch <$> str "patch")
     | msg == "addskip" = AddSkip <$> str "author" <*> (toTest <$> str "test")
-    | msg == "delskip" = DelSkip <$> str "author" <*> (toTest <$> str "test")
-    | msg == "requeue" = Requeue <$> str "author"
+    | msg == "delskip" = DelSkip <$> (toTest <$> str "test")
+    | msg == "requeue" = pure Requeue
     | msg == "set" = SetState <$> str "author" <*> (toState <$> str "state")
-    | msg == "pause" = Pause <$> str "author"
-    | msg == "unpause" = Unpause <$> str "author"
+    | msg == "pause" = pure Pause
+    | msg == "unpause" = pure Unpause
     | msg == "ping" = Pinged <$> (Ping <$> (toClient <$> str "client") <*>
         str "author" <*> strs "provide" <*> int "maxthreads" <*> int "nowthreads")
     | msg == "finish" = eitherDecode body

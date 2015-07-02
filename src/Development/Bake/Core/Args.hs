@@ -32,11 +32,11 @@ data Bake
     = Server {port :: Port, author :: [Author], timeout :: Double, admin :: String}
     | Client {host :: Host, port :: Port, author :: [Author], name :: String, threads :: Int, provide :: [String], ping :: Double}
     | AddPatch {host :: Host, port :: Port, author :: [Author], name :: String}
-    | DelPatch {host :: Host, port :: Port, author :: [Author], name :: String}
-    | Requeue {host :: Host, port :: Port, author :: [Author]}
+    | DelPatch {host :: Host, port :: Port, name :: String}
+    | Requeue {host :: Host, port :: Port}
     | SetState {host :: Host, port :: Port, author :: [Author], state :: String}
-    | Pause {host :: Host, port :: Port, author :: [Author]}
-    | Unpause {host :: Host, port :: Port, author :: [Author]}
+    | Pause {host :: Host, port :: Port}
+    | Unpause {host :: Host, port :: Port}
     | GC {bytes :: Integer, ratio :: Double, days :: Double, dirs :: [FilePath]}
     | Admin {password :: [String]}
     | View {port :: Port, file :: FilePath}
@@ -96,11 +96,11 @@ bake_ oven = do
             name <- if name /= "" then return name else pick defaultNames
             startClient (getHostPort host port) author1 name threads provide ping oven
         AddPatch{..} -> sendAddPatch (getHostPort host port) author1 =<< check "patch" (undefined :: patch) name
-        DelPatch{..} -> sendDelPatch (getHostPort host port) author1 =<< check "patch" (undefined :: patch) name
-        Requeue{..} -> sendRequeue (getHostPort host port) author1
+        DelPatch{..} -> sendDelPatch (getHostPort host port) =<< check "patch" (undefined :: patch) name
+        Requeue{..} -> sendRequeue (getHostPort host port)
         SetState{..} -> sendSetState (getHostPort host port) author1 state
-        Pause{..} -> sendPause (getHostPort host port) author1
-        Unpause{..} -> sendUnpause (getHostPort host port) author1
+        Pause{..} -> sendPause (getHostPort host port)
+        Unpause{..} -> sendUnpause (getHostPort host port)
         GC{..} -> garbageCollect bytes ratio (days * 24*60*60) (if null dirs then ["."] else dirs)
         Admin{..} -> do
             when (null password) $ putStrLn "Pass passwords on the command line to be suitable for 'server --admin=XXX'"

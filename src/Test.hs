@@ -107,7 +107,7 @@ test dir = do
                 when (src /= expect) $ do
                     error $ "Expected to have updated Main, but got:\n" ++ src
 
-        unit $ cmd exe "pause" "--author=bake"
+        unit $ cmd exe "pause"
         putStrLn "% MAKING A GOOD EDIT AS BOB"
         edit "bob" $ do
             unit $ cmd "git fetch origin"
@@ -127,7 +127,7 @@ test dir = do
         putStrLn "% MAKING ANOTHER GOOD EDIT AS TONY"
         edit "tony" $ do
             writeFile "Main.hs" "-- Tony waz ere 1981\nmodule Main(main) where\n\n-- Entry point\nmain :: IO ()\nmain = print 1\n"
-        unit $ cmd exe "unpause" "--author=bake"
+        unit $ cmd exe "unpause"
 
         retry 15 $ do
             sleep 10

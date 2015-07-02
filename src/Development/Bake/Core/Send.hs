@@ -10,26 +10,26 @@ import Control.Monad
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 
-sendPause :: (Host,Port) -> Author -> IO ()
-sendPause hp author = void $ sendMessage hp $ Pause author
+sendPause :: (Host,Port) -> IO ()
+sendPause hp = void $ sendMessage hp Pause
 
-sendUnpause :: (Host,Port) -> Author -> IO ()
-sendUnpause hp author = void $ sendMessage hp $ Unpause author
+sendUnpause :: (Host,Port) -> IO ()
+sendUnpause hp = void $ sendMessage hp Unpause
 
 sendAddPatch :: (Host,Port) -> Author -> String -> IO ()
 sendAddPatch hp author x = void $ sendMessage hp $ AddPatch author $ toPatch x
 
-sendDelPatch :: (Host,Port) -> Author -> String -> IO ()
-sendDelPatch hp author x = void $ sendMessage hp $ DelPatch author $ toPatch x
+sendDelPatch :: (Host,Port) -> String -> IO ()
+sendDelPatch hp x = void $ sendMessage hp $ DelPatch $ toPatch x
 
-sendRequeue :: (Host,Port) -> Author -> IO ()
-sendRequeue hp author = void $ sendMessage hp $ Requeue author
+sendRequeue :: (Host,Port) -> IO ()
+sendRequeue hp = void $ sendMessage hp Requeue
 
 sendAddSkip :: (Host,Port) -> Author -> String -> IO ()
 sendAddSkip hp author x = void $ sendMessage hp $ AddSkip author $ toTest x
 
-sendDelSkip :: (Host,Port) -> Author -> String -> IO ()
-sendDelSkip hp author x = void $ sendMessage hp $ DelSkip author $ toTest x
+sendDelSkip :: (Host,Port) -> String -> IO ()
+sendDelSkip hp x = void $ sendMessage hp $ DelSkip $ toTest x
 
 sendSetState :: (Host,Port) -> Author -> String -> IO ()
 sendSetState hp author x = void $ sendMessage hp $ SetState author $ toState x

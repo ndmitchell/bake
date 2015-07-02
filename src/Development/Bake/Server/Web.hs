@@ -69,7 +69,7 @@ web admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -
                 header_ "skipped" "Skipped tests"
                 ul_ $ fmap mconcat $ forM (Map.toList $ storeSkip store) $ \(test,author) -> li_ $ do
                     showTest (Just test) <> str_ (", by " ++ author ++ ".")
-                    when argsAdmin $ str_ " " <> admin (DelSkip "admin" test) (str_ "Remove")
+                    when argsAdmin $ str_ " " <> admin (DelSkip test) (str_ "Remove")
             header_ "clients" "Clients"
             table "No clients available" ["Name","Running"]
                 (map (rowClient shower mem) $ Nothing : map Just (Map.toList clients))
@@ -79,10 +79,10 @@ web admn (args admn -> a@Args{..}) mem@Memory{..} = recordIO $ fmap (first (\x -
                 ul_ $ do
                     li_ $ if null (Set.toList (storeAlive store) \\ snd active)
                         then str_ "Cannot requeue, no queued patches"
-                        else admin (Requeue "admin") $ str_ "Reqeue"
+                        else admin Requeue $ str_ "Reqeue"
                     li_ $ if paused
-                        then admin (Unpause "admin") $ str_ "Unpause"
-                        else admin (Pause "admin") $ str_ "Pause"
+                        then admin Unpause $ str_ "Unpause"
+                        else admin Pause $ str_ "Pause"
             return "home"
 
          else if argsStats then do
@@ -332,7 +332,7 @@ rowPatch Shower{..} mem@Memory{..} argsAdmin info = (code, [showTime time, state
         special
             | argsAdmin, Right (p, pi) <- info =
                 if paAlive pi then
-                    do br_; admin (DelPatch "admin" p) $ str_ "Delete"
+                    do br_; admin (DelPatch p) $ str_ "Delete"
                 else if isNothing $ paMerge pi then
                     do br_; admin (AddPatch (paAuthor pi) $ toPatch $ '\'' : fromPatch p) $ str_ "Retry"
                 else

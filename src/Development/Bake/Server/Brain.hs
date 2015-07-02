@@ -158,7 +158,7 @@ update mem@Memory{..} (AddPatch author p) =
         store <- storeUpdate store $ IUQueue p author : map IUSupersede supersede
         return $ Right mem{store = store}
 
-update mem@Memory{..} (DelPatch _ p) =
+update mem@Memory{..} (DelPatch p) =
     if not $ p `Set.member` storeAlive store then
         return $ Left "patch is already dead or not known"
     else do
@@ -172,18 +172,18 @@ update mem@Memory{..} (SetState author s) =
         store <- storeUpdate store [IUState s (Answer (TL.pack $ "From SetState by " ++ author) Nothing [] True) Nothing]
         return $ Right mem{store = store, active = (s, snd active)}
 
-update mem@Memory{..} (Requeue author) = do
+update mem@Memory{..} Requeue = do
     let add = Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
     store <- storeUpdate store $ map IUStart add
     return $ Right mem
         {active = (fst active, snd active ++ sortOn (paAuthor . storePatch store) add)
         ,store = store}
 
-update mem@Memory{..} (Pause _)
+update mem@Memory{..} Pause
     | paused = return $ Left "already paused"
     | otherwise = return $ Right mem{paused = True}
 
-update mem@Memory{..} (Unpause _)
+update mem@Memory{..} Unpause
     | not paused = return $ Left "already unpaused"
     | otherwise = return $ Right mem{paused = False}
 
@@ -197,7 +197,7 @@ update mem@Memory{..} (AddSkip author test)
         store <- storeUpdate store [SUAdd test author]
         return $ Right mem{store = store}
 
-update mem@Memory{..} (DelSkip author test)
+update mem@Memory{..} (DelSkip test)
     | test `Map.notMember` storeSkip store = return $ Left "already not skipped"
     | otherwise = do
         store <- storeUpdate store [SUDel test]

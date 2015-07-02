@@ -100,7 +100,7 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
                 let Just mx = lookup c workers
                 in (Pinged $ Ping c (fromClient c) [] mx $ mx - count s c, s)
             Paused b ->
-                (if b then Pause "" else Unpause "", s)
+                (if b then Pause else Unpause, s)
         (mem, q) <- prod (memory s) msg
         q <- return $ either error id <$> q
         -- print q
