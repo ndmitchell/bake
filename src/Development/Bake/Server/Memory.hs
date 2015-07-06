@@ -124,7 +124,7 @@ shower Memory{prettys=Prettys{..},..} argsAdmin = do
         ,showTest = f Nothing Nothing []
         ,showTestAt = \(s,ps) -> f Nothing (Just s) ps
         ,showQuestion = \Question{..} -> f (Just qClient) (Just $ fst qCandidate) (snd qCandidate) qTest
-        ,showTime = \x -> span__ [class_ "nobr"] $ str_ $ showUTCTime "%H:%M" x ++ " (" ++ showRel x ++ ")"
+        ,showTime = \x -> span__ [class_ "nobr"] $ str_ $ showUTCTime "%H:%M" x ++ " UTC (" ++ showRel x ++ ")"
         ,showThreads = \i -> str_ $ show i ++ " thread" ++ ['s' | i /= 1]
         }
     where
