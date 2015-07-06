@@ -64,13 +64,10 @@ showRelativeTime :: IO (UTCTime -> String)
 showRelativeTime = do
     now <- getCurrentTime
     return $ \old ->
-        let secs = subtractTime now old
-            mins = secs / 60
-            hours = mins / 60
-        in if timeToDate now /= timeToDate old then showDate (timeToDate old)
-        else if hours > 5 then show (round hours) ++ " hours ago"
-        else if mins > 2 then show (round mins) ++ " mins ago"
-        else show (max 2 $ round secs) ++ " secs ago"
+        let secs = subtractTime now old in
+        if timeToDate now /= timeToDate old then showDate (timeToDate old)
+        else if secs < 60 then show (max 1 $ floor secs) ++ "s ago" -- 4.32s is too precise, 0s feels wrong
+        else showDuration secs ++ " ago"
 
 showUTCTime :: String -> UTCTime -> String
 showUTCTime = formatTime defaultTimeLocale
