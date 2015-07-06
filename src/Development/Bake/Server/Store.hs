@@ -340,7 +340,7 @@ storeUpdate store xs = do
                 pt2 <- fst <$> cachePoint cache pt
                 pa <- fst <$> cachePatch cache p
                 Only run:_ <- sqlSelect conn rnId [rnSuccess %== False, rnPoint %== pt2, rnTest %== t]
-                sqlUpdate conn [pcReject := Just now] [pcPatch %== p]
+                sqlUpdate conn [pcReject := Just now] [pcPatch %== p, pcReject %== Nothing]
                 void $ sqlInsert conn rjTable (pa, t, run)
             SUAdd t msg -> do
                 void $ sqlInsert conn skTable (t, msg)
