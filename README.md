@@ -80,7 +80,7 @@ We define `main = bake`, then fill in some configuration. We first declare we ar
 
 Now we have defined the example, we need to start up some servers and clients using the command line for our tool. Assuming we compiled as `bake`, we can write `bake server` and `bake client` (we'll need to launch at least one client per OS). We can view the state by visiting `http://127.0.0.1:5000` in a web browser.
 
-To add a patch we can run `bake addpatch --name=cb3c2a71`, using the SHA1 of the commit, which will try and integrate that patch into the `master` branch, after all the tests have passed.
+To add a patch we can run `bake addpatch --name=d088cc3c677a867185f083aca200cb421c27b984`, using the SHA1 of the commit, which will try and integrate that patch into the `master` branch, after all the tests have passed. Alternatively, we can run `bake addpatch --name=$(git rev-parse HEAD)` to try and integrate our working tree into `master`.
 
 When viewing the server, there are a few additional URL's that may be of use:
 
