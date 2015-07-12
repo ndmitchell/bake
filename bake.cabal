@@ -21,7 +21,7 @@ homepage:           https://github.com/ndmitchell/bake#readme
 bug-reports:        https://github.com/ndmitchell/bake/issues
 tested-with:        GHC==7.10.1, GHC==7.8.4, GHC==7.6.3
 
-extra-source-files:
+extra-doc-files:
     CHANGES.txt
     README.md
 
