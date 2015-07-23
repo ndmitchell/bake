@@ -87,7 +87,7 @@ ovenStepGit act repo branch path keep o = o
                 -- since we support SetState
                 Exit _ <- time $ cmd (Cwd git) "git push" [repo] [":" ++ branch]
                 time_ $ cmd (Cwd git) "git push" [repo] [branch ++ ":" ++ branch]
-                return $ sha1 $ trim x
+                return $ toSHA1 $ trim x
 
         stepPrepare s ps = do
             root <- root

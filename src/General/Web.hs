@@ -16,6 +16,8 @@ import Development.Bake.Core.Type hiding (run)
 import Network.Wai
 import Control.DeepSeq
 import Control.Exception
+import Control.Monad
+import System.IO
 import Network.HTTP.Types.Status
 import Network.HTTP hiding (Request)
 import qualified Data.Text as Text
@@ -65,7 +67,7 @@ server :: Port -> (Input -> IO Output) -> IO ()
 #ifdef PROFILE
 server port act = return ()
 #else
-server port act = runSettings (setOnException exception $ setPort port defaultSettings) $ \req reply -> do
+server port act = runSettings settings $ \req reply -> do
     bod <- strictRequestBody req
     whenLoud $ print ("receiving",bod,requestHeaders req,port)
     let pay = Input
@@ -83,10 +85,13 @@ server port act = runSettings (setOnException exception $ setPort port defaultSe
         OutputHTML msg -> responseLBS status200 (("content-type","text/html"):nocache) $ LBS.pack msg
         OutputError msg -> responseLBS status500 nocache $ LBS.pack msg
         OutputMissing -> responseLBS status404 nocache $ LBS.pack "Resource not found"
+    where
+        settings = setOnExceptionResponse exceptionResponseForDebug $
+                   setOnException exception $
+                   setPort port defaultSettings
+
 
 exception :: Maybe Request -> SomeException -> IO ()
-exception r e
-    | Just (_ :: InvalidRequest) <- fromException e = return ()
-    | otherwise = putStrLn $ "Error when processing " ++ maybe "Nothing" (show . rawPathInfo) r ++
-                             "\n    " ++ show e
+exception r e = when (defaultShouldDisplayException e) $
+    hPutStrLn stderr $ "Error when processing " ++ maybe "Nothing" (show . rawPathInfo) r ++ "\n    " ++ show e
 #endif

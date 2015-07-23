@@ -20,6 +20,7 @@ import System.Exit
 import Safe
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TL
 
 
 state x = "--state=" ++ fromState x
@@ -46,14 +47,15 @@ runAll name args1 args2 parse = do
     exe <- getExecutablePath
     dir <- createDir ("bake-" ++ name) args1
 
-    (time, res) <- duration $ try_ $ do
+    (time, res) <- duration $ try_ $ withTempFile $ \file -> do
         exe <- getExecutablePath
-        (exit, Stdouterr out) <- cmd (Cwd dir) exe ("run" ++ name) args1 args2
+        exit <- cmd [Cwd dir, FileStdout file, FileStderr file] exe ("run" ++ name) args1 args2
         ex <- if exit /= ExitSuccess then return Nothing else do
             ans <- fmap parse $ readFile' $ dir </> ".bake.result"
             evaluate $ rnf ans
             return $ Just ans
-        return (ex, Answer (TL.pack out) (Just 0) [] (exit == ExitSuccess))
+        out <- TL.readFile file
+        return (ex, Answer out (Just 0) [] (exit == ExitSuccess))
     case res of
         Left e -> do
             e <- showException e

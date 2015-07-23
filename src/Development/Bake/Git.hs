@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Development.Bake.Git(
-    SHA1(..), sha1, ovenGit,
+    SHA1, fromSHA1, toSHA1, ovenGit,
     gitPatchExtra, gitInit
     ) where
 
@@ -21,17 +21,27 @@ import Data.Monoid
 import Prelude
 
 
-newtype SHA1 = SHA1 {fromSHA1 :: String} deriving (Show,Eq)
+data SHA1 = SHA1 Int String deriving (Show,Eq) -- a number of leading primes, followed by a valid SHA1
 
-sha1 :: String -> SHA1
-sha1 x | length x /= 40 = error $ "SHA1 for Git must be 40 characters long, got " ++ show x
-       | not $ all (`elem` "0123456789abcdef") x = error $ "SHA1 for Git must be all lower case hex, got " ++ show x 
-       | otherwise = SHA1 x
+-- | Convert a SHA1 obtained from Git into a SHA1. Only done by ovenInit or ovenUpdate
+toSHA1 :: String -> SHA1
+toSHA1 x = checkSHA1 x $ SHA1 0 x
+
+fromSHA1 :: SHA1 -> String
+fromSHA1 (SHA1 _ x) = x
 
 instance Stringy SHA1 where
-    stringyTo = fromSHA1
-    stringyPretty = take 7 . fromSHA1
-    stringyFrom = sha1
+    stringyFrom x = checkSHA1 b $ SHA1 (length a) b
+        where (a,b) = span (== '\'') x
+    stringyTo (SHA1 primes sha) = replicate primes '\'' ++ sha
+    stringyPretty (SHA1 primes sha) = replicate primes '\'' ++ take 7 sha
+
+-- either returns the second argument, or raises an error
+checkSHA1 :: String -> a -> a
+checkSHA1 x res
+    | length x /= 40 = error $ "SHA1 for Git must be 40 characters long, got " ++ show x
+    | not $ all (`elem` "0123456789abcdef") x = error $ "SHA1 for Git must be all lower case hex, got " ++ show x
+    | otherwise = res
 
 
 -- | Modify an 'Oven' to work with the Git version control system.
@@ -69,7 +79,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             gitCheckout s ps
             Stdout x <- time $ cmd (Cwd path) "git rev-parse" [branch]
             time_ $ cmd (Cwd path) "git push" [repo] [branch ++ ":" ++ branch]
-            return $ sha1 $ trim x
+            return $ toSHA1 $ trim x
 
         gitCheckout s ps = traced "gitCheckout" $ do
             createDirectoryIfMissing True path
@@ -96,7 +106,7 @@ gitInit repo branch = traced "gitInit" $ do
     Stdout hash <- time $ cmd "git ls-remote" [repo] [branch]
     case words $ concat $ takeEnd 1 $ lines hash of
         [] -> error "Couldn't find branch"
-        x:xs -> return $ sha1 $ trim x
+        x:xs -> return $ toSHA1 $ trim x
 
 
 traced :: String -> IO a -> IO a
@@ -118,13 +128,13 @@ gitPatchExtra s Nothing dir = do
     return (renderHTML $ do str_ $ count ++ " patches"; br_; str_ summary
            ,renderHTML $ pre_ $ str_ full)
 
-gitPatchExtra (SHA1 s) (Just (SHA1 p)) dir = do
+gitPatchExtra s (Just p) dir = do
     Stdout diff <- time $ cmd (Cwd dir)
-        "git diff" [s ++ "..." ++ p]
+        "git diff" [fromSHA1 s ++ "..." ++ fromSHA1 p]
     Stdout stat <- time $ cmd (Cwd dir)
-        "git diff --stat" [s ++ "..." ++ p]
+        "git diff --stat" [fromSHA1 s ++ "..." ++ fromSHA1 p]
     Stdout log <- time $ cmd (Cwd dir)
-        "git log --no-merges -n1 --pretty=format:%s" [p]
+        "git log --no-merges -n1 --pretty=format:%s" [fromSHA1 p]
     return (renderHTML $ do str_ $ reduceStat stat; br_; str_ $ take 120 $ takeWhile (/= '\n') log
            ,renderHTML $ pre_ $ do prettyStat stat; str_ "\n"; prettyDiff diff)
 
