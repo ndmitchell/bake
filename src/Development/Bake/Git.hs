@@ -1,7 +1,7 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Development.Bake.Git(
-    SHA1(..), sha1, ovenGit,
+    SHA1, fromSHA1, toSHA1, ovenGit,
     gitPatchExtra, gitInit
     ) where
 
@@ -23,9 +23,9 @@ import Prelude
 
 newtype SHA1 = SHA1 {fromSHA1 :: String} deriving (Show,Eq)
 
-sha1 :: String -> SHA1
-sha1 ('\'': x) = sha1' x
-sha1 x = sha1' x
+toSHA1 :: String -> SHA1
+toSHA1 ('\'': x) = sha1' x
+toSHA1 x = sha1' x
 
 sha1' :: String -> SHA1
 sha1' x | length x /= 40 = error $ "SHA1 for Git must be 40 characters long, got " ++ show x
@@ -35,7 +35,7 @@ sha1' x | length x /= 40 = error $ "SHA1 for Git must be 40 characters long, got
 instance Stringy SHA1 where
     stringyTo = fromSHA1
     stringyPretty = take 7 . fromSHA1
-    stringyFrom = sha1
+    stringyFrom = toSHA1
 
 
 -- | Modify an 'Oven' to work with the Git version control system.
@@ -73,7 +73,7 @@ ovenGit repo branch (fromMaybe "." -> path) o = o
             gitCheckout s ps
             Stdout x <- time $ cmd (Cwd path) "git rev-parse" [branch]
             time_ $ cmd (Cwd path) "git push" [repo] [branch ++ ":" ++ branch]
-            return $ sha1 $ trim x
+            return $ toSHA1 $ trim x
 
         gitCheckout s ps = traced "gitCheckout" $ do
             createDirectoryIfMissing True path
@@ -100,7 +100,7 @@ gitInit repo branch = traced "gitInit" $ do
     Stdout hash <- time $ cmd "git ls-remote" [repo] [branch]
     case words $ concat $ takeEnd 1 $ lines hash of
         [] -> error "Couldn't find branch"
-        x:xs -> return $ sha1 $ trim x
+        x:xs -> return $ toSHA1 $ trim x
 
 
 traced :: String -> IO a -> IO a
