@@ -14,7 +14,6 @@ import System.Time.Extra
 import Data.IORef
 import Data.Tuple.Extra
 import System.Environment.Extra
-import qualified Data.Text.Lazy as TL
 
 
 -- given server, name, threads
@@ -50,7 +49,6 @@ startClient hp author (toClient -> client) maxThreads provide ping (concrete -> 
                     ,"Id: " ++ show i
                     ,"Result: " ++ (if aSuccess then "Success" else "Failure")
                     ,"Duration: " ++ maybe "none" showDuration aDuration
-                    ,"Output: " ++ TL.unpack aStdout
                     ]
                 atomicModifyIORef nowThreads $ \now -> (now + qThreads, ())
                 sendMessage hp $ Finished q a
