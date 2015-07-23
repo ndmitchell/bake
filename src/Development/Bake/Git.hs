@@ -122,13 +122,13 @@ gitPatchExtra s Nothing dir = do
     return (renderHTML $ do str_ $ count ++ " patches"; br_; str_ summary
            ,renderHTML $ pre_ $ str_ full)
 
-gitPatchExtra (SHA1 s) (Just (SHA1 p)) dir = do
+gitPatchExtra s (Just p) dir = do
     Stdout diff <- time $ cmd (Cwd dir)
-        "git diff" [s ++ "..." ++ p]
+        "git diff" [fromSHA1 s ++ "..." ++ fromSHA1 p]
     Stdout stat <- time $ cmd (Cwd dir)
-        "git diff --stat" [s ++ "..." ++ p]
+        "git diff --stat" [fromSHA1 s ++ "..." ++ fromSHA1 p]
     Stdout log <- time $ cmd (Cwd dir)
-        "git log --no-merges -n1 --pretty=format:%s" [p]
+        "git log --no-merges -n1 --pretty=format:%s" [fromSHA1 p]
     return (renderHTML $ do str_ $ reduceStat stat; br_; str_ $ take 120 $ takeWhile (/= '\n') log
            ,renderHTML $ pre_ $ do prettyStat stat; str_ "\n"; prettyDiff diff)
 
