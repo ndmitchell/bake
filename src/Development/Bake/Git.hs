@@ -24,9 +24,13 @@ import Prelude
 newtype SHA1 = SHA1 {fromSHA1 :: String} deriving (Show,Eq)
 
 sha1 :: String -> SHA1
-sha1 x | length x /= 40 = error $ "SHA1 for Git must be 40 characters long, got " ++ show x
-       | not $ all (`elem` "0123456789abcdef") x = error $ "SHA1 for Git must be all lower case hex, got " ++ show x 
-       | otherwise = SHA1 x
+sha1 ('\'': x) = sha1' x
+sha1 x = sha1' x
+
+sha1' :: String -> SHA1
+sha1' x | length x /= 40 = error $ "SHA1 for Git must be 40 characters long, got " ++ show x
+        | not $ all (`elem` "0123456789abcdef") x = error $ "SHA1 for Git must be all lower case hex, got " ++ show x 
+        | otherwise = SHA1 x
 
 instance Stringy SHA1 where
     stringyTo = fromSHA1
