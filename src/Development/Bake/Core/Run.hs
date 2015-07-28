@@ -19,8 +19,8 @@ import Data.Maybe
 import System.Exit
 import Safe
 import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.IO as TL
 
 
 state x = "--state=" ++ fromState x
@@ -54,8 +54,8 @@ runAll name args1 args2 parse = do
             ans <- fmap parse $ readFile' $ dir </> ".bake.result"
             evaluate $ rnf ans
             return $ Just ans
-        out <- TL.readFile file
-        return (ex, Answer out (Just 0) [] (exit == ExitSuccess))
+        out <- T.readFile file
+        return (ex, Answer (TL.fromStrict out) (Just 0) [] (exit == ExitSuccess))
     case res of
         Left e -> do
             e <- showException e
