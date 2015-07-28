@@ -96,7 +96,7 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
                                         res <- patchExtra (fst $ active s) $ Just p
                                         storeExtraAdd (store s) (Right p) res
                                     _ -> return ()
-                                (s2,q) <- recordIO $ (["brain"],) <$> prod (prune s) v
+                                (s2,q) <- recordIO $ (["brain",lower $ fst $ word1 $ show v],) <$> prod (prune s) v
                                 when (fst (active s2) /= fst (active s)) $ extra $ do
                                     res <- patchExtra (fst $ active s2) Nothing
                                     storeExtraAdd (store s2) (Left $ fst $ active s2) res
