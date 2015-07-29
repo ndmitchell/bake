@@ -55,6 +55,7 @@ runAll name args1 args2 parse = do
             evaluate $ rnf ans
             return $ Just ans
         out <- T.readFile file
+        print ("Read file", file, T.length out)
         return (ex, Answer (TL.fromStrict out) (Just 0) [] (exit == ExitSuccess))
     case res of
         Left e -> do
