@@ -54,8 +54,9 @@ runAll name args1 args2 parse = do
             ans <- fmap parse $ readFile' $ dir </> ".bake.result"
             evaluate $ rnf ans
             return $ Just ans
+        size <- withFile file ReadMode hFileSize
         out <- T.readFile file
-        print ("Read file", file, T.length out)
+        print ("Read file", file, T.length out, size)
         return (ex, Answer (TL.fromStrict out) (Just 0) [] (exit == ExitSuccess))
     case res of
         Left e -> do
