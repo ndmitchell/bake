@@ -20,6 +20,7 @@ import Control.Applicative
 import Data.Monoid
 import Data.List
 import Control.Monad
+import Control.DeepSeq
 import Data.Char
 import Numeric
 import Prelude
@@ -32,6 +33,10 @@ data Rope = Branch [Rope] | Leaf String
 
 instance Eq Rope where a == b = renderRope a == renderRope b
 instance Ord Rope where compare a b = compare (renderRope a) (renderRope b)
+
+instance NFData Rope where
+    rnf (Branch x) = rnf x
+    rnf (Leaf x) = rnf x
 
 renderRope :: Rope -> String
 renderRope x = f x ""
@@ -84,6 +89,8 @@ instance Monad HTML_ where
     return = pure
     HTML_ x1 x2 >>= f = let HTML_ y1 y2 = f x2 in HTML_ (x1 `mappend` y1) y2
 
+instance NFData a => NFData (HTML_ a) where
+    rnf (HTML_ a b) = rnf a `seq` rnf b
 
 str_ :: String -> HTML
 str_ = raw_ . escapeHTML
