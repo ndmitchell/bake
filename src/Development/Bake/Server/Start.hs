@@ -88,7 +88,7 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
 
                 else if ["api"] `isPrefixOf` inputURL then
                     case messageFromInput i{inputURL = drop 1 inputURL} of
-                        Left e -> return $ OutputError e
+                        Left e -> return $ OutputError $ "Encoding error when turning input into message, " ++ e ++ "\n\n" ++ take 100 (show i)
                         Right v -> do
                             evaluate $ rnf v
                             res <- modifyCVar var $ \s -> do
