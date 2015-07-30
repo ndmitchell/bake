@@ -118,30 +118,37 @@ instance ToJSON Answer where
 
 instance FromJSON Answer where
     parseJSON (Object v) = Answer <$>
-        unsafeTmpFile <$> (v .: "stdout") <*> (v .: "duration") <*> (v .: "tests") <*> (v .: "success")
+        unsafeTmpFileText <$> (v .: "stdout") <*> (v .: "duration") <*> (v .: "tests") <*> (v .: "success")
     parseJSON _ = mzero
 
-{-# NOINLINE unsafeTmpFile #-}
-unsafeTmpFile :: T.Text -> BigString
-unsafeTmpFile x = unsafePerformIO $ do
+{-# NOINLINE unsafeTmpFileText #-}
+unsafeTmpFileText :: T.Text -> BigString
+unsafeTmpFileText x = unsafePerformIO $ do
     tmp <- newTmpFile
     withTmpFile tmp $ \file -> T.writeFile file x
     return tmp
 
+{-# NOINLINE unsafeTmpFileLBS #-}
+unsafeTmpFileLBS :: LBS.ByteString -> BigString
+unsafeTmpFileLBS x = unsafePerformIO $ do
+    tmp <- newTmpFile
+    withTmpFile tmp $ \file -> LBS.writeFile file x
+    return tmp
+
 messageToInput :: Message -> Input
-messageToInput (AddPatch author patch) = Input ["api","add"] [("author",author),("patch",fromPatch patch)] ""
-messageToInput (DelPatch patch) = Input ["api","del"] [("patch",fromPatch patch)] ""
-messageToInput Requeue = Input ["api","requeue"] [] ""
-messageToInput (SetState author state) = Input ["api","set"] [("author",author),("state",fromState state)] ""
-messageToInput Pause = Input ["api","pause"] [] ""
-messageToInput Unpause = Input ["api","unpause"] [] ""
-messageToInput (AddSkip author test) = Input ["api","addskip"] [("author",author),("test",fromTest test)] ""
-messageToInput (DelSkip test) = Input ["api","delskip"] [("test",fromTest test)] ""
+messageToInput (AddPatch author patch) = Input ["api","add"] [("author",author),("patch",fromPatch patch)] []
+messageToInput (DelPatch patch) = Input ["api","del"] [("patch",fromPatch patch)] []
+messageToInput Requeue = Input ["api","requeue"] [] []
+messageToInput (SetState author state) = Input ["api","set"] [("author",author),("state",fromState state)] []
+messageToInput Pause = Input ["api","pause"] [] []
+messageToInput Unpause = Input ["api","unpause"] [] []
+messageToInput (AddSkip author test) = Input ["api","addskip"] [("author",author),("test",fromTest test)] []
+messageToInput (DelSkip test) = Input ["api","delskip"] [("test",fromTest test)] []
 messageToInput (Pinged Ping{..}) = Input ["api","ping"] 
     ([("client",fromClient pClient),("author",pAuthor)] ++
      [("provide",x) | x <- pProvide] ++
-     [("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)]) ""
-messageToInput x@Finished{} = Input ["api","finish"] [] $ encode x
+     [("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)]) []
+messageToInput x@Finished{} = Input ["api","finish"] [] [("_", unsafeTmpFileLBS $ encode x)]
 
 
 -- return either an error message (not a valid message), or a message
@@ -157,7 +164,11 @@ messageFromInput (Input [msg] args body)
     | msg == "unpause" = pure Unpause
     | msg == "ping" = Pinged <$> (Ping <$> (toClient <$> str "client") <*>
         str "author" <*> strs "provide" <*> int "maxthreads" <*> int "nowthreads")
-    | msg == "finish" = eitherDecode body
+    | msg == "finish" = unsafePerformIO $ do
+        body <- maybe (writeTmpFile "") return $ lookup "_" body
+        withTmpFile body $ \file -> do
+            body <- LBS.readFile file
+            return $! eitherDecode body
     where strs x = Right $ map snd $ filter ((==) x . fst) args
           str x | Just v <- lookup x args = Right v
                 | otherwise = Left $ "Missing field " ++ show x ++ " from " ++ show msg
