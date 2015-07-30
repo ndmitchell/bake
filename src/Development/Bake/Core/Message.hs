@@ -7,12 +7,12 @@ module Development.Bake.Core.Message(
 
 import Development.Bake.Core.Type
 import General.Web
+import General.BigString
 import Control.Applicative
 import Control.Monad
 import Control.DeepSeq
 import Data.Aeson hiding (Success)
 import System.Time.Extra
-import General.Extra
 import Safe
 import System.IO.Unsafe
 import qualified Data.Text as T

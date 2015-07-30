@@ -12,6 +12,7 @@ import Development.Bake.Core.Run
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Extra
+import General.BigString
 import Control.DeepSeq
 import Control.Applicative
 import Data.Tuple.Extra

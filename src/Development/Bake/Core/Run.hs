@@ -8,6 +8,7 @@ import Development.Bake.Core.Type hiding (Client)
 import Development.Bake.Core.Message
 import Development.Shake.Command
 import Control.Exception.Extra
+import General.BigString
 import General.Extra
 import System.Time.Extra
 import Control.DeepSeq

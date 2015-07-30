@@ -11,6 +11,7 @@ import General.HTML
 import Development.Bake.Core.Message
 import Development.Bake.Core.Run
 import General.Extra
+import General.BigString
 import Development.Bake.Server.Brain
 import Development.Bake.Server.Web
 import Development.Bake.Server.Stats

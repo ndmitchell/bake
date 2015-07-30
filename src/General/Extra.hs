@@ -19,7 +19,6 @@ module General.Extra(
     Worker, newWorker,
     makeRelativeEx,
     transitiveClosure, findCycle,
-    TmpFile, newTmpFile, withTmpFile, writeTmpFile, readTmpFile,
     putBlock,
     maybe',
     commas, commasLimit, unwordsLimit
@@ -34,7 +33,6 @@ import Data.IORef
 import Data.List.Extra
 import System.Directory.Extra
 import Data.Hashable
-import Control.DeepSeq
 import Numeric
 import System.FilePath
 import Control.Exception.Extra
@@ -44,9 +42,6 @@ import Control.Concurrent.Extra
 import Development.Shake.Command
 import Data.Maybe
 import System.Random
-import Foreign.Ptr
-import Foreign.ForeignPtr
-import Foreign.Concurrent
 import Data.Either.Extra
 import Data.Time.Format
 #if __GLASGOW_HASKELL__< 710
@@ -319,32 +314,3 @@ limit rejoin i xs = rejoin a ++ (if null b then "" else "...")
 
 maybe' :: Maybe a -> b -> (a -> b) -> b
 maybe' x nothing just = maybe nothing just x
-
-
----------------------------------------------------------------------
--- TEMP FILE
-
-data TmpFile = TmpFile FilePath (ForeignPtr ())
-
-instance Eq TmpFile where TmpFile a _ == TmpFile b _ = a == b
-instance Show TmpFile where show (TmpFile a _) = "TmpFile " ++ show a
-instance NFData TmpFile where rnf (TmpFile a b) = rnf a `seq` b `seq` ()
-
-newTmpFile :: IO TmpFile
-newTmpFile = do
-    (file, close) <- newTempFile
-    ptr <- newForeignPtr_ nullPtr
-    Foreign.Concurrent.addForeignPtrFinalizer ptr close
-    return $ TmpFile file ptr
-
-withTmpFile :: TmpFile -> (FilePath -> IO a) -> IO a
-withTmpFile (TmpFile file ptr) op = withForeignPtr ptr $ const $ op file
-
-writeTmpFile :: String -> IO TmpFile
-writeTmpFile str = do
-    tmp <- newTmpFile
-    withTmpFile tmp $ \file -> writeFile file str
-    return tmp
-
-readTmpFile :: TmpFile -> IO String
-readTmpFile tmp = withTmpFile tmp readFile'

@@ -15,6 +15,7 @@ import Data.Tuple.Extra
 import Data.Monoid
 import Data.Maybe
 import Numeric.Extra
+import General.BigString
 import General.Extra
 import System.Random
 import System.IO.Extra
