@@ -52,7 +52,7 @@ send :: (Host,Port) -> Input -> IO LBS.ByteString
 send (host,port) Input{..} = do
     let url = "http://" ++ host ++ ":" ++ show port ++ concatMap ('/':) inputURL ++
               concat (zipWith (++) ("?":repeat "&") [a ++ "=" ++ b | (a,b) <- inputArgs])
-    whenLoud $ print ("sending",inputBody,host,port)
+    whenLoud $ print ("sending",LBS.length inputBody,host,port)
     res <- simpleHTTP (getRequest url)
         {rqBody=inputBody
         ,rqHeaders=[Header HdrContentType "application/x-www-form-urlencoded", Header HdrContentLength $ show $ LBS.length inputBody]}
