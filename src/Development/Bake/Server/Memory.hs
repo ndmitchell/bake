@@ -89,7 +89,7 @@ notifyAdmins :: Memory -> String -> HTML -> IO (Memory -> Memory)
 notifyAdmins mem subject message = notify mem subject $ map (,message) $ admins mem
 
 summary :: String -> HTML
-summary x | length x < 10000 = str_ x
+summary x | null $ drop 10000 x {- space efficient version of: length x < 10000 -} = str_ x
           | otherwise = str_ (take 5000 x) <> br_ <> str_ "..." <> br_ <> str_ (takeEnd 5000 x)
 
 data Shower = Shower
