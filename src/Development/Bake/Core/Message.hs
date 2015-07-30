@@ -60,7 +60,7 @@ instance NFData Question where
     rnf (Question a b c d) = rnf (a,b,c,d)
 
 data Answer = Answer
-    {aStdout :: TmpFile
+    {aStdout :: BigString
     ,aDuration :: Maybe Seconds -- Nothing for a skip
     ,aTests :: [Test]
     ,aSuccess :: Bool
@@ -122,7 +122,7 @@ instance FromJSON Answer where
     parseJSON _ = mzero
 
 {-# NOINLINE unsafeTmpFile #-}
-unsafeTmpFile :: T.Text -> TmpFile
+unsafeTmpFile :: T.Text -> BigString
 unsafeTmpFile x = unsafePerformIO $ do
     tmp <- newTmpFile
     withTmpFile tmp $ \file -> T.writeFile file x
