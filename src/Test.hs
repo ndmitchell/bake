@@ -71,7 +71,7 @@ test dir = do
     createDirectoryIfMissing True $ dir </> "server"
     curdir <- getCurrentDirectory
     environment <- (\env -> ("REPO",repo):("bake_datadir",curdir):env) <$> getEnvironment
-    p0 <- createProcessAlive (proc exe ["server"])
+    p0 <- createProcessAlive (proc exe ["server","--author=admin"])
         {cwd=Just $ dir </> "server", env=Just environment}
     sleep 5
     ps <- forM (zip [1..] Example.platforms) $ \(i,p) -> do
