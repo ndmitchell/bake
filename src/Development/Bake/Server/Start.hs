@@ -115,8 +115,8 @@ startServer port authors timeout admin fake (concrete -> (prettys, oven)) = do
 
 clientChange :: Memory -> Memory -> IO (Memory -> Memory)
 clientChange s1 s2 = do
-    let before = Map.keysSet $ clients s1
-    let after  = Map.keysSet $ clients s2
+    let before = Map.keysSet $ Map.filter ciAlive $ clients s1
+    let after  = Map.keysSet $ Map.filter ciAlive $ clients s2
     let f msg xs = sequence [notifyAdmins s2 (msg ++ ": " ++ fromClient x) $ str_ "" | x <- Set.toList xs]
     a <- f "Client added" $ after `Set.difference` before
     b <- f "Client timed out" $ before `Set.difference` after
