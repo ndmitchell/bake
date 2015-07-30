@@ -13,6 +13,7 @@ import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Extra
 import Control.DeepSeq
+import Control.Applicative
 import Data.Tuple.Extra
 import Data.Maybe
 import Data.Monoid
