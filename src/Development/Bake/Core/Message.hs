@@ -12,8 +12,11 @@ import Control.Monad
 import Control.DeepSeq
 import Data.Aeson hiding (Success)
 import System.Time.Extra
+import General.Extra
 import Safe
-import qualified Data.Text.Lazy as TL
+import System.IO.Unsafe
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Prelude
 
@@ -57,7 +60,7 @@ instance NFData Question where
     rnf (Question a b c d) = rnf (a,b,c,d)
 
 data Answer = Answer
-    {aStdout :: TL.Text
+    {aStdout :: TmpFile
     ,aDuration :: Maybe Seconds -- Nothing for a skip
     ,aTests :: [Test]
     ,aSuccess :: Bool
@@ -108,16 +111,22 @@ fromJSONCandidate _ = mzero
 
 instance ToJSON Answer where
     toJSON Answer{..} = object
-        ["stdout" .= aStdout
+        ["stdout" .= unsafePerformIO (withTmpFile aStdout T.readFile)
         ,"duration" .= aDuration
         ,"tests" .= aTests
         ,"success" .= aSuccess]
 
 instance FromJSON Answer where
     parseJSON (Object v) = Answer <$>
-        (v .: "stdout") <*> (v .: "duration") <*> (v .: "tests") <*> (v .: "success")
+        unsafeTmpFile <$> (v .: "stdout") <*> (v .: "duration") <*> (v .: "tests") <*> (v .: "success")
     parseJSON _ = mzero
 
+{-# NOINLINE unsafeTmpFile #-}
+unsafeTmpFile :: T.Text -> TmpFile
+unsafeTmpFile x = unsafePerformIO $ do
+    tmp <- newTmpFile
+    withTmpFile tmp $ \file -> T.writeFile file x
+    return tmp
 
 messageToInput :: Message -> Input
 messageToInput (AddPatch author patch) = Input ["api","add"] [("author",author),("patch",fromPatch patch)] ""

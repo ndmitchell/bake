@@ -12,6 +12,7 @@ import Development.Bake.Core.Run
 import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Extra
+import Control.DeepSeq
 import Data.Tuple.Extra
 import Data.Maybe
 import Data.Monoid
@@ -20,7 +21,6 @@ import Data.List.Extra
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Development.Bake.Server.Store
-import qualified Data.Text.Lazy as TL
 import Control.Exception.Extra
 import General.HTML
 import Prelude
@@ -49,8 +49,9 @@ prod mem msg = safely $ do
                 Pinged p | null $ fatal mem, Just q <- output (ovenTestInfo $ oven mem) mem p ->
                     case () of
                         -- we still test things on the skip list when testing on a state (to get some feedback)
-                        _ | Just t <- qTest q, snd (qCandidate q) /= [], Just reason <- Map.lookup t (storeSkip $ store mem) ->
-                            prod mem $ Finished q $ Answer (TL.pack $ "Skipped due to being on the skip list\n" ++ reason) Nothing [] True
+                        _ | Just t <- qTest q, snd (qCandidate q) /= [], Just reason <- Map.lookup t (storeSkip $ store mem) -> do
+                            tmp <- writeTmpFile $ "Skipped due to being on the skip list\n" ++ reason
+                            prod mem $ Finished q $ Answer tmp Nothing [] True
                         _ -> do
                             now <- getCurrentTime
                             return (mem{running = (now,q) : running mem}, Just $ Right q)
@@ -114,13 +115,15 @@ react mem@Memory{..}
     | mergeable mem
     , not $ null $ snd active
     = Just $ do
-        (s, answer) <-
-            if not simulated then uncurry runUpdate active
-            else do s <- ovenUpdate oven (fst active) (snd active); return (Just s, Answer mempty (Just 0) mempty True)
+        (s, answer) <- if not simulated then uncurry runUpdate active else do
+            tmp <- writeTmpFile ""
+            s <- ovenUpdate oven (fst active) (snd active)
+            return (Just s, Answer tmp (Just 0) mempty True)
 
         case s of
             Nothing -> do
-                return mem{fatal = ("Failed to update\n" ++ TL.unpack (aStdout answer)) : fatal}
+                str <- readTmpFile $ aStdout answer
+                return mem{fatal = ("Failed to update\n" ++ str) : fatal}
             Just s -> do
                 Shower{..} <- shower mem False
                 bad <- notify mem "Merged"
@@ -169,7 +172,8 @@ update mem@Memory{..} (SetState author s) =
     if fst active == s then
         return $ Left "state is already at that value"
     else do
-        store <- storeUpdate store [IUState s (Answer (TL.pack $ "From SetState by " ++ author) Nothing [] True) Nothing]
+        tmp <- writeTmpFile $ "From SetState by " ++ author
+        store <- storeUpdate store [IUState s (Answer tmp Nothing [] True) Nothing]
         return $ Right mem{store = store, active = (s, snd active)}
 
 update mem@Memory{..} Requeue = do
@@ -213,10 +217,14 @@ update mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
           , failed `Set.isSubsetOf` skip -- no notifications already
           -> do
             Shower{..} <- shower mem False
+            str <- withTmpFile aStdout $ \file -> do
+                str <- summary <$> readFile file
+                evaluate $ rnf str
+                return str
             notifyAdmins mem "State failure" $ do
                 str_ "State " <> showState (fst qCandidate)
                 str_ " failed due to " <> showTestAt qCandidate qTest <> br_ <> br_
-                pre_ $ summary $ TL.unpack aStdout
+                pre_ str
         _ -> return id
 
     now <- getCurrentTime

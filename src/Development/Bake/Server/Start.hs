@@ -126,7 +126,8 @@ clientChange s1 s2 = do
 initialiseFake :: Oven State Patch Test -> Prettys -> IO Memory
 initialiseFake oven prettys = do
     store <- newStore False "bake-store"
-    mem <- newMemory oven prettys store (stateFailure, Answer (TL.pack "Initial state created by view mode") Nothing [] False)
+    tmp <- writeTmpFile "Initial state created by view mode"
+    mem <- newMemory oven prettys store (stateFailure, Answer tmp Nothing [] False)
     return mem{fatal = ["View mode, database is read-only"]}
 
 initialise :: Oven State Patch Test -> Prettys -> [Author] -> Worker -> IO Memory
@@ -140,11 +141,16 @@ initialise oven prettys admins extra = do
     when (isJust res) $ do
         extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing
     mem <- newMemory oven prettys store (state0, answer)
-    mem <- return mem{admins = admins ,fatal = ["Failed to initialise, " ++ TL.unpack (aStdout answer) | isNothing res]}
+    str <- if isJust res then return "" else readTmpFile $ aStdout answer
+    mem <- return mem{admins = admins ,fatal = ["Failed to initialise, " ++ str | isNothing res]}
 
-    bad <- if isJust res then notifyAdmins mem "Starting" $ str_ "Server starting" else
+    bad <- if isJust res then notifyAdmins mem "Starting" $ str_ "Server starting" else do
+        str <- withTmpFile (aStdout answer) $ \file -> do
+            str <- summary <$> readFile file
+            evaluate $ rnf str
+            return str
         notifyAdmins mem "Fatal error during initialise" $
-            str_ "Failed to initialise" <> br_ <> pre_ (summary $ TL.unpack $ aStdout answer)
+            str_ "Failed to initialise" <> br_ <> pre_ str
     return $ bad mem
 
 
@@ -152,6 +158,10 @@ initialise oven prettys admins extra = do
 patchExtra :: State -> Maybe Patch -> IO (T.Text, TL.Text)
 patchExtra s p = do
     (ex,ans) <- runExtra s p
-    let failSummary = T.pack $ renderHTML $ i_ $ str_ "Error when computing patch information"
-    let failDetail = TL.pack $ renderHTML $ pre_ $ str_ $ TL.unpack $ aStdout ans
-    return $ fromMaybe (failSummary, failDetail) ex
+    case ex of
+        Just x -> return x
+        Nothing -> do
+            let failSummary = T.pack $ renderHTML $ i_ $ str_ "Error when computing patch information"
+            str <- readTmpFile $ aStdout ans
+            let failDetail = TL.pack $ renderHTML $ pre_ $ str_ str
+            return (failSummary, failDetail)

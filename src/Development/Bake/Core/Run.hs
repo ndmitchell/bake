@@ -19,7 +19,6 @@ import Data.Maybe
 import System.Exit
 import Safe
 import qualified Data.Text as T
-import qualified Data.Text.IO as T
 import qualified Data.Text.Lazy as TL
 
 
@@ -47,19 +46,19 @@ runAll name args1 args2 parse = do
     exe <- getExecutablePath
     dir <- createDir ("bake-" ++ name) args1
 
-    (time, res) <- duration $ try_ $ withTempFile $ \file -> do
+    (time, res) <- duration $ try_ $ do
+        tmp <- newTmpFile
         exe <- getExecutablePath
-        exit <- cmd [Cwd dir, FileStdout file, FileStderr file] exe ("run" ++ name) args1 args2
+        exit <- withTmpFile tmp $ \file ->
+            cmd [Cwd dir, FileStdout file, FileStderr file] exe ("run" ++ name) args1 args2
         ex <- if exit /= ExitSuccess then return Nothing else do
             ans <- fmap parse $ readFile' $ dir </> ".bake.result"
             evaluate $ rnf ans
             return $ Just ans
-        size <- withFile file ReadMode hFileSize
-        out <- T.readFile file
-        print ("Read file", file, T.length out, size)
-        return (ex, Answer (TL.fromStrict out) (Just 0) [] (exit == ExitSuccess))
+        return (ex, Answer tmp (Just 0) [] (exit == ExitSuccess))
     case res of
         Left e -> do
             e <- showException e
-            return (Nothing, Answer (TL.pack e) (Just time) [] False)
+            tmp <- writeTmpFile e
+            return (Nothing, Answer tmp (Just time) [] False)
         Right (ex,ans) -> return (ex, ans{aDuration=Just time})
