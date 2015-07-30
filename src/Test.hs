@@ -37,6 +37,7 @@ test dir = do
         unit $ cmd "chmod -R 755 .bake-test"
         unit $ cmd "rm -rf .bake-test"
         return ()
+    setEnv "http_proxy" ""
 
     createDirectoryIfMissing True (dir </> "repo")
     withCurrentDirectory (dir </> "repo") $ do
