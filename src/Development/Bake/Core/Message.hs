@@ -34,7 +34,7 @@ data Message
     -- Sent by the client
     | Pinged Ping
     | Finished {question :: Question, answer :: Answer}
-    deriving (Show,Eq)
+    deriving Show
 
 instance NFData Message where
     rnf (AddPatch x y) = rnf x `seq` rnf y
@@ -65,7 +65,7 @@ data Answer = Answer
     ,aTests :: [Test]
     ,aSuccess :: Bool
     }
-    deriving (Show,Eq)
+    deriving Show
 
 instance NFData Answer where
     rnf (Answer a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
