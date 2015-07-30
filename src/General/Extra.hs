@@ -21,6 +21,7 @@ module General.Extra(
     transitiveClosure, findCycle,
     putBlock,
     maybe',
+    withs,
     commas, commasLimit, unwordsLimit
     ) where
 
@@ -314,3 +315,7 @@ limit rejoin i xs = rejoin a ++ (if null b then "" else "...")
 
 maybe' :: Maybe a -> b -> (a -> b) -> b
 maybe' x nothing just = maybe nothing just x
+
+withs :: [(a -> r) -> r] -> ([a] -> r) -> r
+withs [] act = act []
+withs (f:fs) act = f $ \a -> withs fs $ \as -> act $ a:as
