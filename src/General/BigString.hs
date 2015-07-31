@@ -1,8 +1,8 @@
 
 module General.BigString(
     BigString,
-    bigStringFromFile, bigStringFromText, bigStringFromString, bigStringFromByteString, bigStringFromLazyByteString,
-    bigStringToFile, bigStringToText, bigStringToString, bigStringWithString, bigStringToByteString, bigStringToLazyByteString,
+    bigStringFromFile, bigStringFromText, bigStringFromString, bigStringFromByteString,
+    bigStringToFile, bigStringToText, bigStringToString, bigStringWithString, bigStringToByteString,
     bigStringBackEnd, withBigStringPart
     ) where
 
@@ -20,7 +20,6 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as LBS
 import Network.Wai.Parse
 import Data.Function
 import Control.Monad
@@ -114,17 +113,6 @@ bigStringFromByteString x | BS.length x < limit = Memory $ T.decodeUtf8 x
 bigStringToByteString :: BigString -> BS.ByteString
 bigStringToByteString (Memory x) = T.encodeUtf8 x
 bigStringToByteString x = unsafeWithFile x $ \file -> withFile file ReadMode $ \h -> do hSetBinaryMode h True; BS.hGetContents h
-
-
----------------------------------------------------------------------
--- LEGACY BYTESTRING
-
-bigStringFromLazyByteString :: LBS.ByteString -> BigString
-bigStringFromLazyByteString x = unsafeFromFile (`LBS.writeFile` x)
-
-
-bigStringToLazyByteString :: BigString -> LBS.ByteString
-bigStringToLazyByteString x = LBS.fromStrict $ unsafeWithFile x BS.readFile
 
 
 ---------------------------------------------------------------------
