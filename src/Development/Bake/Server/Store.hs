@@ -299,13 +299,26 @@ data Update
     | PURun UTCTime Question Answer
       deriving Show
 
+instance NFData Update where
+    rnf (IUState a b c) = rnf (a,b,c)
+    rnf (IUQueue a b) = rnf (a,b)
+    rnf (IUStart a) = rnf a
+    rnf (IUDelete a) = rnf a
+    rnf (IUReject a b c) = rnf (a,b,c)
+    rnf (IUPlausible a) = rnf a
+    rnf (IUSupersede a) = rnf a
+    rnf (IUMerge a) = rnf a
+    rnf (SUAdd a b) = rnf (a,b)
+    rnf (SUDel a) = rnf a
+    rnf (PURun a b c) = rnf (a,b,c)
+
 -- don't inline so GHC can't tell the store is returned unchanged
 {-# NOINLINE storeUpdate #-}
 storeUpdate :: Store -> [Update] -> IO Store
 storeUpdate store xs = do
     -- important so that if the updates depend on the current store they are forced first
     -- the perils of impurity!
-    evaluate $ rnf $ show xs
+    evaluate $ rnf xs
 
     now <- getCurrentTime
     (\f -> foldM f store xs) $ \store x -> do
