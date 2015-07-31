@@ -21,6 +21,7 @@ import General.Extra
 import General.BigString
 import Control.DeepSeq
 import Control.Exception
+import Control.Applicative
 import Control.Monad
 import System.IO
 import Network.HTTP.Conduit as C
@@ -30,6 +31,7 @@ import qualified Data.Text as Text
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import System.Console.CmdArgs.Verbosity
+import Prelude
 
 
 data Input = Input
