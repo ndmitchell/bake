@@ -1,8 +1,8 @@
 
 module General.BigString(
     BigString,
-    bigStringFromFile, bigStringFromText, bigStringFromString, bigStringFromLazyByteString,
-    bigStringToFile, bigStringToText, bigStringToString, bigStringWithString, bigStringToLazyByteString,
+    bigStringFromFile, bigStringFromText, bigStringFromString, bigStringFromByteString, bigStringFromLazyByteString,
+    bigStringToFile, bigStringToText, bigStringToString, bigStringWithString, bigStringToByteString, bigStringToLazyByteString,
     bigStringBackEnd, withBigStringPart
     ) where
 
@@ -17,6 +17,7 @@ import Control.Exception
 import Data.Monoid
 import System.Directory
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
@@ -80,11 +81,11 @@ unsafeWithFile x op = unsafePerformIO $ bigStringWithFile x op
 
 bigStringFromText :: T.Text -> BigString
 bigStringFromText x | T.length x < limit = Memory x
-                    | otherwise = unsafeFromFile (`T.writeFile` x)
+                    | otherwise = unsafeFromFile $ \file -> withFile file WriteMode $ \h -> do hSetEncoding h utf8; T.hPutStr h x
 
 bigStringFromString :: String -> BigString
 bigStringFromString x | null $ drop limit x = Memory $ T.pack x
-                      | otherwise = unsafeFromFile (`writeFile` x)
+                      | otherwise = unsafeFromFile (`writeFileUTF8` x)
 
 bigStringToFile :: BigString -> FilePath -> IO ()
 bigStringToFile (Memory x) out = T.writeFile out x
@@ -92,11 +93,11 @@ bigStringToFile x out = bigStringWithFile x $ \file -> copyFile file out
 
 bigStringToText :: BigString -> T.Text
 bigStringToText (Memory x) = x
-bigStringToText x = unsafeWithFile x $ T.readFile
+bigStringToText x = unsafeWithFile x $ \file -> withFile file ReadMode $ \h -> do hSetEncoding h utf8; T.hGetContents h
 
 bigStringToString :: BigString -> String
 bigStringToString (Memory x) = T.unpack x
-bigStringToString x = unsafeWithFile x readFile'
+bigStringToString x = unsafeWithFile x readFileUTF8'
 
 bigStringWithString :: NFData a => BigString -> (String -> a) -> a
 bigStringWithString (Memory x) op = let res = op $ T.unpack x in rnf res `seq` res
@@ -105,6 +106,14 @@ bigStringWithString x op = unsafeWithFile x $ \file -> do
     let res = op src
     evaluate $ rnf res
     return res
+
+bigStringFromByteString :: BS.ByteString -> BigString
+bigStringFromByteString x | BS.length x < limit = Memory $ T.decodeUtf8 x
+                          | otherwise = unsafeFromFile $ \file -> withFile file WriteMode $ \h -> do hSetBinaryMode h True; BS.hPutStr h x
+
+bigStringToByteString :: BigString -> BS.ByteString
+bigStringToByteString (Memory x) = T.encodeUtf8 x
+bigStringToByteString x = unsafeWithFile x $ \file -> withFile file ReadMode $ \h -> do hSetBinaryMode h True; BS.hGetContents h
 
 
 ---------------------------------------------------------------------
@@ -131,4 +140,5 @@ bigStringBackEnd _ _ ask = fmap fst $ bigStringFromFile $ \file -> do
                 loop
 
 withBigStringPart :: String -> BigString -> (Part -> IO a) -> IO a
+withBigStringPart name (Memory x) op = op $ partBS (T.pack name) (T.encodeUtf8 x)
 withBigStringPart name body op = bigStringWithFile body $ \file -> op $ partFileSourceChunked (T.pack name) file

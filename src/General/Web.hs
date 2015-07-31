@@ -75,11 +75,12 @@ server port act = return ()
 #else
 server port act = runSettings settings $ \req reply -> do
     whenLoud $ print ("receiving", map Text.unpack $ pathInfo req, S.requestHeaders req, port)
-    (_, files) <- parseRequestBody bigStringBackEnd req
+    (params, files) <- parseRequestBody bigStringBackEnd req
+
     let pay = Input
             (map Text.unpack $ pathInfo req)
-            [(BS.unpack a, maybe "" BS.unpack b) | (a,b) <- S.queryString req]
-            [(BS.unpack name, fileContent) | (name, FileInfo{..}) <- files]
+            [(BS.unpack a, maybe "" BS.unpack b) | (a,b) <- S.queryString req] $
+            [(BS.unpack name, bigStringFromByteString x) | (name,x) <- params] ++ [(BS.unpack name, fileContent) | (name, FileInfo{..}) <- files]
     res <- act pay
     -- from http://stackoverflow.com/questions/49547/making-sure-a-web-page-is-not-cached-across-all-browsers
     let nocache = [("Cache-Control","no-cache, no-store, must-revalidate")
