@@ -1,6 +1,8 @@
 
 module General.BigString(
-    BigString, bigStringFromFile, bigStringFromText, bigStringFromString, bigStringFromLazyByteString,
+    BigString,
+    bigStringFromFile, bigStringFromText, bigStringFromString, bigStringFromLazyByteString,
+    bigStringToText, bigStringToString, bigStringWithString,
     newTmpFile, withTmpFile, writeTmpFile, readTmpFile
     ) where
 
@@ -10,6 +12,7 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Concurrent
 import System.IO.Unsafe
+import Control.Exception
 import Data.Monoid
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
@@ -33,22 +36,44 @@ instance NFData BigString where rnf (TmpFile a b) = rnf a `seq` b `seq` ()
 
 
 bigStringFromFile :: (FilePath -> IO a) -> IO (BigString, a)
-bigStringFromFile = undefined
+bigStringFromFile op = do
+	tmp <- newTmpFile
+	res <- withTmpFile tmp op
+	return (tmp, res)
 
+{-# NOINLINE bigStringFromText #-}
 bigStringFromText :: T.Text -> BigString
 bigStringFromText x = unsafePerformIO $ do
     tmp <- newTmpFile
     withTmpFile tmp $ \file -> T.writeFile file x
     return tmp
 
+{-# NOINLINE bigStringFromLazyByteString #-}
 bigStringFromLazyByteString :: LBS.ByteString -> BigString
 bigStringFromLazyByteString x = unsafePerformIO $ do
     tmp <- newTmpFile
     withTmpFile tmp $ \file -> LBS.writeFile file x
     return tmp
 
+{-# NOINLINE bigStringFromString #-}
 bigStringFromString :: String -> BigString
 bigStringFromString x = unsafePerformIO $ writeTmpFile x
+
+{-# NOINLINE bigStringToText #-}
+bigStringToText :: BigString -> T.Text
+bigStringToText x = unsafePerformIO $ withTmpFile x T.readFile
+
+{-# NOINLINE bigStringToString #-}
+bigStringToString :: BigString -> String
+bigStringToString x = unsafePerformIO $ withTmpFile x readFile'
+
+{-# NOINLINE bigStringWithString #-}
+bigStringWithString :: NFData a => BigString -> (String -> a) -> a
+bigStringWithString x op = unsafePerformIO $ withTmpFile x $ \file -> do
+	src <- readFile file
+	let res = op src
+	evaluate $ rnf res
+	return res
 
 
 newTmpFile :: IO BigString
