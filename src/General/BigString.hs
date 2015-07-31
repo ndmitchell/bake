@@ -39,13 +39,13 @@ instance Monoid BigString where
     mempty = bigStringFromText mempty
     mappend a b = bigStringFromText $ bigStringToText a <> bigStringToText b
 
-instance Show BigString where
-    show x = show (bigStringToText x)
 
 instance NFData BigString where
     rnf (Memory x) = rnf x
     rnf (File a b) = rnf a `seq` b `seq` ()
 
+instance Show BigString where
+    show _ = "<BigString>"
 
 ---------------------------------------------------------------------
 -- PRIMITIVES
