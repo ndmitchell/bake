@@ -33,8 +33,7 @@ instance Monoid BigString where
 	mappend a b = bigStringFromString $ bigStringToString a ++ bigStringToString b
 
 
-instance Eq BigString where TmpFile a _ == TmpFile b _ = a == b
-instance Show BigString where show (TmpFile a _) = "TmpFile " ++ show a
+instance Show BigString where show x = show (bigStringToText x)
 instance NFData BigString where rnf (TmpFile a b) = rnf a `seq` b `seq` ()
 
 
