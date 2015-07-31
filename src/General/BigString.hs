@@ -19,7 +19,8 @@ import System.Directory
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as T
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy.Char8 as LBS
 import Network.Wai.Parse
 import Data.Function
 import Control.Monad
@@ -37,8 +38,13 @@ data BigString = Memory T.Text
 
 instance Monoid BigString where
     mempty = bigStringFromText mempty
-    mappend a b = bigStringFromText $ bigStringToText a <> bigStringToText b
-
+    mappend (Memory a) (Memory b) | T.length a + T.length b <= limit = Memory $ a <> b
+    mappend x y = unsafeFromFile $ \out -> withFile out WriteMode $ \out -> do
+        hSetBinaryMode out True
+        forM_ [x,y] $ \inp -> bigStringWithFile inp $ \inp -> withFile inp ReadMode $ \inp -> do
+            hSetBinaryMode inp True
+            src <- LBS.hGetContents inp
+            LBS.hPut out src
 
 instance NFData BigString where
     rnf (Memory x) = rnf x
