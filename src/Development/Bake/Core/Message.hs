@@ -13,7 +13,6 @@ import Control.Monad
 import Control.DeepSeq
 import Data.Aeson hiding (Success)
 import System.Time.Extra
-import Data.Monoid
 import Safe
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Prelude
@@ -133,7 +132,16 @@ messageToInput (Pinged Ping{..}) = Input ["api","ping"]
     ([("client",fromClient pClient),("author",pAuthor)] ++
      [("provide",x) | x <- pProvide] ++
      [("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)]) []
-messageToInput x@Finished{} = Input ["api","finish"] [] [("_", bigStringFromLazyByteString $ encode x)]
+messageToInput (Finished Question{..} Answer{..}) = Input ["api","finish"] []
+    [("state", bigStringFromString $ fromState $ fst qCandidate)
+    ,("patch", bigStringFromString $ unlines $ map fromPatch $ snd qCandidate)
+    ,("test", bigStringFromString $ maybe "" fromTest qTest)
+    ,("threads", bigStringFromString $ show qThreads)
+    ,("client", bigStringFromString $ fromClient qClient)
+    ,("stdout", aStdout)
+    ,("duration", bigStringFromString $ maybe "" show aDuration)
+    ,("tests", bigStringFromString $ unlines $ map fromTest aTests)
+    ,("success", bigStringFromString $ show aSuccess)]
 
 
 -- return either an error message (not a valid message), or a message
@@ -149,11 +157,23 @@ messageFromInput (Input [msg] args body)
     | msg == "unpause" = pure Unpause
     | msg == "ping" = Pinged <$> (Ping <$> (toClient <$> str "client") <*>
         str "author" <*> strs "provide" <*> int "maxthreads" <*> int "nowthreads")
-    | msg == "finish" = eitherDecode $ maybe mempty bigStringToLazyByteString $ lookup "_" body
     where strs x = Right $ map snd $ filter ((==) x . fst) args
           str x | Just v <- lookup x args = Right v
                 | otherwise = Left $ "Missing field " ++ show x ++ " from " ++ show msg
           int x = readNote "messageFromInput, expecting Int" <$> str x
+messageFromInput (Input [msg] args body)
+    | msg == "finish" = do
+        let f x = case lookup x body of Nothing -> Left $ "Missing field " ++ show x ++ " from " ++ show (map fst body); Just x -> Right x
+        state <- toState . bigStringToString <$> f "state"
+        patch <- map toPatch . lines . bigStringToString <$> f "patch"
+        qTest <- (\x -> if null x then Nothing else Just $ toTest x) . bigStringToString <$> f "test"
+        qThreads <- read . bigStringToString <$> f "threads"
+        qClient <- toClient . bigStringToString <$> f "client"
+        aStdout <- f "stdout"
+        aDuration <- (\x -> if null x then Nothing else Just $ read x) . bigStringToString <$> f "duration"
+        aTests <- map toTest . lines . bigStringToString <$> f "tests"
+        aSuccess <- read . bigStringToString <$> f "success"
+        return $ Finished Question{qCandidate=(state,patch),..} Answer{..}
 messageFromInput (Input msg args body) = Left $ "Invalid API call, got " ++ show msg
 
 
