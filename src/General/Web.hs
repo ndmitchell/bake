@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings, CPP #-}
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Use conduitManagerSettings to work with http-conduit-2.1.6 and below
 
 module General.Web(
     Input(..), Output(..), send, server
