@@ -120,7 +120,7 @@ bigStringToByteString x = unsafeWithFile x $ \file -> withFile file ReadMode $ \
 
 bigStringBackEnd :: BackEnd BigString
 bigStringBackEnd _ _ ask = fmap fst $ bigStringFromFile $ \file -> do
-    withFile file AppendMode $ \h -> do
+    withFile file WriteMode $ \h -> do
         fix $ \loop -> do
             bs <- ask
             unless (BS.null bs) $ do
