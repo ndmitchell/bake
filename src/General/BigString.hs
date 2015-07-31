@@ -12,6 +12,7 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Concurrent
 import System.IO.Unsafe
+import Control.Applicative
 import Control.Exception
 import Data.Monoid
 import System.Directory
@@ -25,64 +26,100 @@ import Control.Monad
 import Network.HTTP.Client.MultipartFormData
 import Prelude
 
+limit = 5000 -- above this level, save to disk
 
-data BigString = TmpFile FilePath (ForeignPtr ())
+
+---------------------------------------------------------------------
+-- DEFINITION
+
+data BigString = Memory T.Text
+               | File FilePath (ForeignPtr ())
 
 instance Monoid BigString where
-	mempty = bigStringFromString ""
-	mappend a b = bigStringFromString $ bigStringToString a ++ bigStringToString b
+	mempty = bigStringFromText mempty
+	mappend a b = bigStringFromText $ bigStringToText a <> bigStringToText b
+
+instance Show BigString where
+    show x = show (bigStringToText x)
+
+instance NFData BigString where
+    rnf (Memory x) = rnf x
+    rnf (File a b) = rnf a `seq` b `seq` ()
 
 
-instance Show BigString where show x = show (bigStringToText x)
-instance NFData BigString where rnf (TmpFile a b) = rnf a `seq` b `seq` ()
-
+---------------------------------------------------------------------
+-- PRIMITIVES
 
 bigStringFromFile :: (FilePath -> IO a) -> IO (BigString, a)
 bigStringFromFile op = do
-	tmp <- newTmpFile
-	res <- withTmpFile tmp op
-	return (tmp, res)
+    (file, close) <- newTempFile
+    ptr <- newForeignPtr_ nullPtr
+    Foreign.Concurrent.addForeignPtrFinalizer ptr close
+    res <- withForeignPtr ptr $ const $ op file
+    return (File file ptr, res)
 
-{-# NOINLINE bigStringFromText #-}
+-- Not exported, as it is a bit unsafe - two invariants:
+-- 1) must not use file after returning
+-- 2) must not write to the file
+bigStringWithFile :: BigString -> (FilePath -> IO a) -> IO a
+bigStringWithFile (Memory x) op = withTempFile $ \file -> do T.writeFile file x; op file
+bigStringWithFile (File file ptr) op = withForeignPtr ptr $ const $ op file
+
+
+{-# NOINLINE unsafeFromFile #-}
+unsafeFromFile :: (FilePath -> IO ()) -> BigString
+unsafeFromFile op = unsafePerformIO $ fst <$> bigStringFromFile op
+
+{-# NOINLINE unsafeWithFile #-}
+unsafeWithFile :: BigString -> (FilePath -> IO a) -> a
+unsafeWithFile x op = unsafePerformIO $ bigStringWithFile x op
+
+
+---------------------------------------------------------------------
+-- DERIVED
+
 bigStringFromText :: T.Text -> BigString
-bigStringFromText x = unsafePerformIO $ do
-    tmp <- newTmpFile
-    withTmpFile tmp $ \file -> T.writeFile file x
-    return tmp
+bigStringFromText x | T.length x < limit = Memory x
+                    | otherwise = unsafeFromFile (`T.writeFile` x)
 
-{-# NOINLINE bigStringFromLazyByteString #-}
-bigStringFromLazyByteString :: LBS.ByteString -> BigString
-bigStringFromLazyByteString x = unsafePerformIO $ do
-    tmp <- newTmpFile
-    withTmpFile tmp $ \file -> LBS.writeFile file x
-    return tmp
-
-{-# NOINLINE bigStringFromString #-}
 bigStringFromString :: String -> BigString
-bigStringFromString x = unsafePerformIO $ writeTmpFile x
+bigStringFromString x | null $ drop limit x = Memory $ T.pack x
+                      | otherwise = unsafeFromFile (`writeFile` x)
 
 bigStringToFile :: BigString -> FilePath -> IO ()
-bigStringToFile x out = withTmpFile x $ \file -> copyFile file out
+bigStringToFile (Memory x) out = T.writeFile out x
+bigStringToFile x out = bigStringWithFile x $ \file -> copyFile file out
 
-{-# NOINLINE bigStringToText #-}
 bigStringToText :: BigString -> T.Text
-bigStringToText x = unsafePerformIO $ withTmpFile x T.readFile
+bigStringToText (Memory x) = x
+bigStringToText x = unsafeWithFile x $ T.readFile
 
-{-# NOINLINE bigStringToString #-}
 bigStringToString :: BigString -> String
-bigStringToString x = unsafePerformIO $ withTmpFile x readFile'
+bigStringToString (Memory x) = T.unpack x
+bigStringToString x = unsafeWithFile x readFile'
 
-{-# NOINLINE bigStringWithString #-}
 bigStringWithString :: NFData a => BigString -> (String -> a) -> a
-bigStringWithString x op = unsafePerformIO $ withTmpFile x $ \file -> do
+bigStringWithString (Memory x) op = let res = op $ T.unpack x in rnf res `seq` res
+bigStringWithString x op = unsafeWithFile x $ \file -> do
     src <- readFile file
     let res = op src
     evaluate $ rnf res
     return res
 
-{-# NOINLINE bigStringToLazyByteString #-}
+
+---------------------------------------------------------------------
+-- LEGACY BYTESTRING
+
+bigStringFromLazyByteString :: LBS.ByteString -> BigString
+bigStringFromLazyByteString x = unsafeFromFile (`LBS.writeFile` x)
+
+
 bigStringToLazyByteString :: BigString -> LBS.ByteString
-bigStringToLazyByteString x = LBS.fromChunks $ return $ unsafePerformIO $ withTmpFile x BS.readFile
+bigStringToLazyByteString x = LBS.fromStrict $ unsafeWithFile x BS.readFile
+
+
+---------------------------------------------------------------------
+-- WEBBY
 
 bigStringBackEnd :: BackEnd BigString
 bigStringBackEnd _ _ ask = fmap fst $ bigStringFromFile $ \file -> do
@@ -94,21 +131,4 @@ bigStringBackEnd _ _ ask = fmap fst $ bigStringFromFile $ \file -> do
                 loop
 
 withBigStringPart :: String -> BigString -> (Part -> IO a) -> IO a
-withBigStringPart name body op = withTmpFile body $ \file -> op $ partFileSourceChunked (T.pack name) file
-
-
-newTmpFile :: IO BigString
-newTmpFile = do
-    (file, close) <- newTempFile
-    ptr <- newForeignPtr_ nullPtr
-    Foreign.Concurrent.addForeignPtrFinalizer ptr close
-    return $ TmpFile file ptr
-
-withTmpFile :: BigString -> (FilePath -> IO a) -> IO a
-withTmpFile (TmpFile file ptr) op = withForeignPtr ptr $ const $ op file
-
-writeTmpFile :: String -> IO BigString
-writeTmpFile str = do
-    tmp <- newTmpFile
-    withTmpFile tmp $ \file -> writeFile file str
-    return tmp
+withBigStringPart name body op = bigStringWithFile body $ \file -> op $ partFileSourceChunked (T.pack name) file
