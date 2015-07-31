@@ -79,7 +79,7 @@ unsafeWithFile x op = unsafePerformIO $ bigStringWithFile x op
 -- DERIVED
 
 bigStringFromText :: T.Text -> BigString
-bigStringFromText x | T.length x < limit = Memory x
+bigStringFromText x | T.length x <= limit = Memory x
                     | otherwise = unsafeFromFile $ \file -> withFile file WriteMode $ \h -> do hSetEncoding h utf8; T.hPutStr h x
 
 bigStringFromString :: String -> BigString
@@ -107,7 +107,7 @@ bigStringWithString x op = unsafeWithFile x $ \file -> do
     return res
 
 bigStringFromByteString :: BS.ByteString -> BigString
-bigStringFromByteString x | BS.length x < limit = Memory $ T.decodeUtf8 x
+bigStringFromByteString x | BS.length x <= limit = Memory $ T.decodeUtf8 x
                           | otherwise = unsafeFromFile $ \file -> withFile file WriteMode $ \h -> do hSetBinaryMode h True; BS.hPutStr h x
 
 bigStringToByteString :: BigString -> BS.ByteString
