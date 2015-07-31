@@ -13,10 +13,8 @@ import Control.Monad
 import Control.DeepSeq
 import Data.Aeson hiding (Success)
 import System.Time.Extra
+import Data.Monoid
 import Safe
-import System.IO.Unsafe
-import qualified Data.Text as T
-import qualified Data.Text.IO as T
 import qualified Data.ByteString.Lazy.Char8 as LBS
 import Prelude
 
@@ -111,29 +109,16 @@ fromJSONCandidate _ = mzero
 
 instance ToJSON Answer where
     toJSON Answer{..} = object
-        ["stdout" .= unsafePerformIO (withTmpFile aStdout T.readFile)
+        ["stdout" .= bigStringToText aStdout
         ,"duration" .= aDuration
         ,"tests" .= aTests
         ,"success" .= aSuccess]
 
 instance FromJSON Answer where
     parseJSON (Object v) = Answer <$>
-        unsafeTmpFileText <$> (v .: "stdout") <*> (v .: "duration") <*> (v .: "tests") <*> (v .: "success")
+        bigStringFromText <$> (v .: "stdout") <*> (v .: "duration") <*> (v .: "tests") <*> (v .: "success")
     parseJSON _ = mzero
 
-{-# NOINLINE unsafeTmpFileText #-}
-unsafeTmpFileText :: T.Text -> BigString
-unsafeTmpFileText x = unsafePerformIO $ do
-    tmp <- newTmpFile
-    withTmpFile tmp $ \file -> T.writeFile file x
-    return tmp
-
-{-# NOINLINE unsafeTmpFileLBS #-}
-unsafeTmpFileLBS :: LBS.ByteString -> BigString
-unsafeTmpFileLBS x = unsafePerformIO $ do
-    tmp <- newTmpFile
-    withTmpFile tmp $ \file -> LBS.writeFile file x
-    return tmp
 
 messageToInput :: Message -> Input
 messageToInput (AddPatch author patch) = Input ["api","add"] [("author",author),("patch",fromPatch patch)] []
@@ -148,7 +133,7 @@ messageToInput (Pinged Ping{..}) = Input ["api","ping"]
     ([("client",fromClient pClient),("author",pAuthor)] ++
      [("provide",x) | x <- pProvide] ++
      [("maxthreads",show pMaxThreads),("nowthreads",show pNowThreads)]) []
-messageToInput x@Finished{} = Input ["api","finish"] [] [("_", unsafeTmpFileLBS $ encode x)]
+messageToInput x@Finished{} = Input ["api","finish"] [] [("_", bigStringFromLazyByteString $ encode x)]
 
 
 -- return either an error message (not a valid message), or a message
@@ -164,11 +149,7 @@ messageFromInput (Input [msg] args body)
     | msg == "unpause" = pure Unpause
     | msg == "ping" = Pinged <$> (Ping <$> (toClient <$> str "client") <*>
         str "author" <*> strs "provide" <*> int "maxthreads" <*> int "nowthreads")
-    | msg == "finish" = unsafePerformIO $ do
-        body <- maybe (writeTmpFile "") return $ lookup "_" body
-        withTmpFile body $ \file -> do
-            body <- LBS.readFile file
-            return $! eitherDecode body
+    | msg == "finish" = eitherDecode $ maybe mempty bigStringToLazyByteString $ lookup "_" body
     where strs x = Right $ map snd $ filter ((==) x . fst) args
           str x | Just v <- lookup x args = Right v
                 | otherwise = Left $ "Missing field " ++ show x ++ " from " ++ show msg

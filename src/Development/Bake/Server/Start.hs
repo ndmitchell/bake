@@ -127,8 +127,7 @@ clientChange s1 s2 = do
 initialiseFake :: Oven State Patch Test -> Prettys -> IO Memory
 initialiseFake oven prettys = do
     store <- newStore False "bake-store"
-    tmp <- writeTmpFile "Initial state created by view mode"
-    mem <- newMemory oven prettys store (stateFailure, Answer tmp Nothing [] False)
+    mem <- newMemory oven prettys store (stateFailure, Answer (bigStringFromString "Initial state created by view mode") Nothing [] False)
     return mem{fatal = ["View mode, database is read-only"]}
 
 initialise :: Oven State Patch Test -> Prettys -> [Author] -> Worker -> IO Memory
@@ -142,16 +141,11 @@ initialise oven prettys admins extra = do
     when (isJust res) $ do
         extra $ storeExtraAdd store (Left state0) =<< patchExtra state0 Nothing
     mem <- newMemory oven prettys store (state0, answer)
-    str <- if isJust res then return "" else readTmpFile $ aStdout answer
-    mem <- return mem{admins = admins ,fatal = ["Failed to initialise, " ++ str | isNothing res]}
+    mem <- return mem{admins = admins ,fatal = ["Failed to initialise, " ++ bigStringToString (aStdout answer) | isNothing res]}
 
-    bad <- if isJust res then notifyAdmins mem "Starting" $ str_ "Server starting" else do
-        str <- withTmpFile (aStdout answer) $ \file -> do
-            str <- summary <$> readFile file
-            evaluate $ rnf str
-            return str
+    bad <- if isJust res then notifyAdmins mem "Starting" $ str_ "Server starting" else
         notifyAdmins mem "Fatal error during initialise" $
-            str_ "Failed to initialise" <> br_ <> pre_ str
+            str_ "Failed to initialise" <> br_ <> pre_ (bigStringWithString (aStdout answer) summary)
     return $ bad mem
 
 
@@ -163,6 +157,5 @@ patchExtra s p = do
         Just x -> return x
         Nothing -> do
             let failSummary = T.pack $ renderHTML $ i_ $ str_ "Error when computing patch information"
-            str <- readTmpFile $ aStdout ans
-            let failDetail = TL.pack $ renderHTML $ pre_ $ str_ str
+            let failDetail = TL.pack $ renderHTML $ pre_ $ str_ (bigStringToString $ aStdout ans)
             return (failSummary, failDetail)

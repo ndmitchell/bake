@@ -15,7 +15,6 @@ import Data.Tuple.Extra
 import Data.Monoid
 import Data.Maybe
 import Numeric.Extra
-import General.BigString
 import General.Extra
 import System.Random
 import System.IO.Extra
@@ -79,8 +78,7 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
             ,ovenPrepare = undefined
             ,ovenPatchExtra = undefined
             }
-    tmp <- writeTmpFile ""
-    mem <- newMemory oven (Prettys fromState fromPatch fromTest) s (restate [], Answer tmp (Just 0) [] True)
+    mem <- newMemory oven (Prettys fromState fromPatch fromTest) s (restate [], Answer mempty (Just 0) [] True)
     mem <- return mem
         {active = (restate [], [])
         ,simulated = True}
@@ -96,7 +94,7 @@ simulation testInfo workers u step = withTempDir $ \dir -> do
         (msg,s) <- return $ case res of
             Submit p pass fail -> (AddPatch "" p, s{patch = (p,pass,fail) : patch s})
             Reply q good tests ->
-                let ans = Answer tmp (Just 0) (if good && isNothing (qTest q) then tests else []) good
+                let ans = Answer mempty (Just 0) (if good && isNothing (qTest q) then tests else []) good
                 in (Finished q ans, s)
             Request c ->
                 let Just mx = lookup c workers

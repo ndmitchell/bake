@@ -270,10 +270,9 @@ storeRunList Store{..} client test state patches run = unsafePerformIO $ do
                [rnPoint %== x | Just x <- [point]] ++
                [rnId %== x | Just x <- [run]]
     xs <- sqlSelect conn (rnId, rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration) (orderDesc rnStart : limit 1001 : filt)
-    tmp <- writeTmpFile ""
     forM xs $ \(rnId, rnPoint, rnTest, rnSuccess, rnClient, rnStart, rnDuration) -> do
         pt <- cachePointId cache rnPoint
-        return (rnId, rnStart, Question pt rnTest 0 rnClient, Answer tmp rnDuration [] rnSuccess)
+        return (rnId, rnStart, Question pt rnTest 0 rnClient, Answer mempty rnDuration [] rnSuccess)
 
 storeStateList :: Store -> [(State, StateInfo)]
 storeStateList Store{..} = unsafePerformIO $ do
@@ -325,8 +324,7 @@ storeUpdate store xs = do
                         sqlUpdate conn [saCreate := now, saPoint := pt, saDuration := aDuration] [saId %== x]
                         return x
                 createDirectoryIfMissing True (path </> show x)
-                withTmpFile aStdout $ \aStdout ->
-                    copyFile aStdout $ path </> show x </> "update.txt"
+                bigStringToFile aStdout $ path </> show x </> "update.txt"
             IUQueue p a -> do
                 void $ sqlInsert conn pcTable (p,a,now,Nothing,Nothing,Nothing,Nothing,Nothing,Nothing)
             IUStart p -> do
@@ -361,8 +359,7 @@ storeUpdate store xs = do
                             putStrLn $ "Warning: Test disagreement at " ++ show pt ++ ", maybe a changed generator?"
                 x <- sqlInsert conn rnTable (pt,qTest,aSuccess,qClient,t,aDuration)
                 createDirectoryIfMissing True $ path </> show pt
-                withTmpFile aStdout $ \aStdout ->
-                    copyFile aStdout $ path </> show pt </> show x ++ "-" ++ maybe "Prepare" (safely . fromTest) qTest <.> "txt"
+                bigStringToFile aStdout $ path </> show pt </> show x ++ "-" ++ maybe "Prepare" (safely . fromTest) qTest <.> "txt"
 
 safely :: String -> String
 safely = map f . take 100

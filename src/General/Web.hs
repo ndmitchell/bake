@@ -64,8 +64,8 @@ send (host,port) Input{..} = do
     whenLoud $ print ("sending",length inputBody,host,port)
     req <- parseUrl url
     m <- newManager conduitManagerSettings
-    withs (map (withTmpFile . snd) inputBody) $ \files -> do
-        body <- formDataBody (zipWith partFileSourceChunked (map (Text.pack . fst) inputBody) files) req
+    withs (map (uncurry withBigStringPart) inputBody) $ \parts -> do
+        body <- formDataBody parts req
         responseBody <$> httpLbs body m
 
 
@@ -75,7 +75,7 @@ server port act = return ()
 #else
 server port act = runSettings settings $ \req reply -> do
     whenLoud $ print ("receiving", map Text.unpack $ pathInfo req, S.requestHeaders req, port)
-    (_, files) <- parseRequestBody backEndBigString req
+    (_, files) <- parseRequestBody bigStringBackEnd req
     let pay = Input
             (map Text.unpack $ pathInfo req)
             [(BS.unpack a, maybe "" BS.unpack b) | (a,b) <- S.queryString req]
@@ -96,18 +96,6 @@ server port act = runSettings settings $ \req reply -> do
                    setOnException exception $
                    setPort port defaultSettings
 
-
-backEndBigString :: BackEnd BigString
-backEndBigString _ _ ask = do
-    tmp <- newTmpFile
-    withTmpFile tmp $ \file -> do
-        withFile file AppendMode $ \h -> do
-            fix $ \loop -> do
-                bs <- ask
-                unless (BS.null bs) $ do
-                    BS.hPut h bs
-                    loop
-    return tmp
 
 
 exception :: Maybe S.Request -> SomeException -> IO ()

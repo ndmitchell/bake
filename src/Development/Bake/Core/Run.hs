@@ -48,18 +48,16 @@ runAll name args1 args2 parse = do
     dir <- createDir ("bake-" ++ name) args1
 
     (time, res) <- duration $ try_ $ do
-        tmp <- newTmpFile
         exe <- getExecutablePath
-        exit <- withTmpFile tmp $ \file ->
+        (out, exit) <- bigStringFromFile $ \file ->
             cmd [Cwd dir, FileStdout file, FileStderr file] exe ("run" ++ name) args1 args2
         ex <- if exit /= ExitSuccess then return Nothing else do
             ans <- fmap parse $ readFile' $ dir </> ".bake.result"
             evaluate $ rnf ans
             return $ Just ans
-        return (ex, Answer tmp (Just 0) [] (exit == ExitSuccess))
+        return (ex, Answer out (Just 0) [] (exit == ExitSuccess))
     case res of
         Left e -> do
             e <- showException e
-            tmp <- writeTmpFile e
-            return (Nothing, Answer tmp (Just time) [] False)
+            return (Nothing, Answer (bigStringFromString e) (Just time) [] False)
         Right (ex,ans) -> return (ex, ans{aDuration=Just time})

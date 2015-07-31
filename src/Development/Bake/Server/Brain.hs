@@ -13,8 +13,6 @@ import Development.Bake.Core.Type
 import Development.Bake.Core.Message
 import General.Extra
 import General.BigString
-import Control.DeepSeq
-import Control.Applicative
 import Data.Tuple.Extra
 import Data.Maybe
 import Data.Monoid
@@ -52,8 +50,7 @@ prod mem msg = safely $ do
                     case () of
                         -- we still test things on the skip list when testing on a state (to get some feedback)
                         _ | Just t <- qTest q, snd (qCandidate q) /= [], Just reason <- Map.lookup t (storeSkip $ store mem) -> do
-                            tmp <- writeTmpFile $ "Skipped due to being on the skip list\n" ++ reason
-                            prod mem $ Finished q $ Answer tmp Nothing [] True
+                            prod mem $ Finished q $ Answer (bigStringFromString $ "Skipped due to being on the skip list\n" ++ reason) Nothing [] True
                         _ -> do
                             now <- getCurrentTime
                             return (mem{running = (now,q) : running mem}, Just $ Right q)
@@ -118,14 +115,12 @@ react mem@Memory{..}
     , not $ null $ snd active
     = Just $ do
         (s, answer) <- if not simulated then uncurry runUpdate active else do
-            tmp <- writeTmpFile ""
             s <- ovenUpdate oven (fst active) (snd active)
-            return (Just s, Answer tmp (Just 0) mempty True)
+            return (Just s, Answer mempty (Just 0) mempty True)
 
         case s of
             Nothing -> do
-                str <- readTmpFile $ aStdout answer
-                return mem{fatal = ("Failed to update\n" ++ str) : fatal}
+                return mem{fatal = ("Failed to update\n" ++ bigStringToString (aStdout answer)) : fatal}
             Just s -> do
                 Shower{..} <- shower mem False
                 bad <- notify mem "Merged"
@@ -174,8 +169,7 @@ update mem@Memory{..} (SetState author s) =
     if fst active == s then
         return $ Left "state is already at that value"
     else do
-        tmp <- writeTmpFile $ "From SetState by " ++ author
-        store <- storeUpdate store [IUState s (Answer tmp Nothing [] True) Nothing]
+        store <- storeUpdate store [IUState s (Answer (bigStringFromString $ "From SetState by " ++ author) Nothing [] True) Nothing]
         return $ Right mem{store = store, active = (s, snd active)}
 
 update mem@Memory{..} Requeue = do
@@ -219,14 +213,10 @@ update mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
           , failed `Set.isSubsetOf` skip -- no notifications already
           -> do
             Shower{..} <- shower mem False
-            str <- withTmpFile aStdout $ \file -> do
-                str <- summary <$> readFile file
-                evaluate $ rnf str
-                return str
             notifyAdmins mem "State failure" $ do
                 str_ "State " <> showState (fst qCandidate)
                 str_ " failed due to " <> showTestAt qCandidate qTest <> br_ <> br_
-                pre_ str
+                pre_ (bigStringWithString aStdout summary)
         _ -> return id
 
     now <- getCurrentTime
