@@ -79,15 +79,6 @@ data Ping = Ping
 instance NFData Ping where
     rnf (Ping a b c d e) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
 
--- JSON instance is only true for Finished
-instance ToJSON Message where
-    toJSON (Finished q a) = object ["question" .= q, "answer" .= a]
-    toJSON _ = error "ToJSON Message is only supported for Finished"
-
-instance FromJSON Message where
-    parseJSON (Object v) = Finished <$>
-        (v .: "question") <*> (v .: "answer")
-    parseJSON _ = mzero
 
 instance ToJSON Question where
     toJSON Question{..} = object
@@ -105,18 +96,6 @@ toJSONCandidate (s, ps) = object ["state" .= s, "patches" .= ps]
 
 fromJSONCandidate (Object v) = (,) <$> (v .: "state") <*> (v .: "patches")
 fromJSONCandidate _ = mzero
-
-instance ToJSON Answer where
-    toJSON Answer{..} = object
-        ["stdout" .= bigStringToText aStdout
-        ,"duration" .= aDuration
-        ,"tests" .= aTests
-        ,"success" .= aSuccess]
-
-instance FromJSON Answer where
-    parseJSON (Object v) = Answer <$>
-        bigStringFromText <$> (v .: "stdout") <*> (v .: "duration") <*> (v .: "tests") <*> (v .: "success")
-    parseJSON _ = mzero
 
 
 messageToInput :: Message -> Input
