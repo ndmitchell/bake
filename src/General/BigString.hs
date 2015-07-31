@@ -24,10 +24,7 @@ data BigString = TmpFile FilePath (ForeignPtr ())
 
 instance Monoid BigString where
 	mempty = bigStringFromString ""
-	mappend a b = unsafePerformIO $ do
-		a <- readTmpFile a
-		b <- readTmpFile b
-		writeTmpFile $ a ++ b
+	mappend a b = bigStringFromString $ bigStringToString a ++ bigStringToString b
 
 
 instance Eq BigString where TmpFile a _ == TmpFile b _ = a == b
