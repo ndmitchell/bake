@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 module Test(main) where
 
@@ -37,7 +38,9 @@ test dir = do
         unit $ cmd "chmod -R 755 .bake-test"
         unit $ cmd "rm -rf .bake-test"
         return ()
+#if __GLASGOW_HASKELL__ >= 708
     setEnv "http_proxy" ""
+#endif
 
     createDirectoryIfMissing True (dir </> "repo")
     withCurrentDirectory (dir </> "repo") $ do
