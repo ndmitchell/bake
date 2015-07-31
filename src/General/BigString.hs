@@ -37,8 +37,8 @@ data BigString = Memory T.Text
                | File FilePath (ForeignPtr ())
 
 instance Monoid BigString where
-	mempty = bigStringFromText mempty
-	mappend a b = bigStringFromText $ bigStringToText a <> bigStringToText b
+    mempty = bigStringFromText mempty
+    mappend a b = bigStringFromText $ bigStringToText a <> bigStringToText b
 
 instance Show BigString where
     show x = show (bigStringToText x)
