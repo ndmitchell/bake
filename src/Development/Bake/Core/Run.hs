@@ -12,6 +12,8 @@ import General.BigString
 import General.Extra
 import System.Time.Extra
 import Control.DeepSeq
+import Control.Concurrent.Extra
+import System.IO.Unsafe
 import Data.Tuple.Extra
 import System.IO.Extra
 import System.Environment.Extra
@@ -21,6 +23,11 @@ import System.Exit
 import Safe
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+
+
+{-# NOINLINE running #-}
+running :: Var Int
+running = unsafePerformIO $ newVar 0
 
 
 state x = "--state=" ++ fromState x
@@ -49,8 +56,14 @@ runAll name args1 args2 parse = do
 
     (time, res) <- duration $ try_ $ do
         exe <- getExecutablePath
-        (out, exit) <- bigStringFromFile $ \file ->
-            cmd [Cwd dir, FileStdout file, FileStderr file] exe ("run" ++ name) args1 args2
+        (out, exit) <- bigStringFromFile $ \file -> do
+            res <- bracket_ (modifyVar_ running $ return . succ) (modifyVar_ running $ return . pred) $ do
+                v <- readVar running
+                print $ "RUNNING = " ++ show v
+                cmd [Cwd dir, FileStdout file, FileStderr file] exe ("run" ++ name) args1 args2
+            v <- readVar running
+            print $ "RUNNING = " ++ show v
+            return res
         ex <- if exit /= ExitSuccess then return Nothing else do
             ans <- fmap parse $ readFile' $ dir </> ".bake.result"
             evaluate $ rnf ans
