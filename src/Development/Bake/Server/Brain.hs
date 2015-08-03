@@ -138,9 +138,10 @@ react mem@Memory{..}
     , extendActive mem
     , add@(_:_) <- Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
     = Just $ do
+        add <- sortOn (paQueued . storePatch store) add
         store <- storeUpdate store $ map IUStart add
         return mem
-            {active = (fst active, snd active ++ sortOn (paQueued . storePatch store) add)
+            {active = (fst active, snd active ++ add)
             ,store = store}
 
     | otherwise = Nothing
