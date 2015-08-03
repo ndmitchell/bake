@@ -144,13 +144,13 @@ messageFromInput (Input [msg] args body)
     | msg == "finish" = do
         let f x = case lookup x body of Nothing -> Left $ "Missing field " ++ show x ++ " from " ++ show (map fst body); Just x -> Right x
         state <- toState . bigStringToString <$> f "state"
-        patch <- map toPatch . lines . bigStringToString <$> f "patch"
+        patch <- map toPatch . lines . filter (/= '\r') . bigStringToString <$> f "patch"
         qTest <- (\x -> if null x then Nothing else Just $ toTest x) . bigStringToString <$> f "test"
         qThreads <- read . bigStringToString <$> f "threads"
         qClient <- toClient . bigStringToString <$> f "client"
         aStdout <- f "stdout"
         aDuration <- (\x -> if null x then Nothing else Just $ read x) . bigStringToString <$> f "duration"
-        aTests <- map toTest . lines . bigStringToString <$> f "tests"
+        aTests <- map toTest . lines . filter (/= '\r') . bigStringToString <$> f "tests"
         aSuccess <- read . bigStringToString <$> f "success"
         return $ Finished Question{qCandidate=(state,patch),..} Answer{..}
 messageFromInput (Input msg args body) = Left $ "Invalid API call, got " ++ show msg
