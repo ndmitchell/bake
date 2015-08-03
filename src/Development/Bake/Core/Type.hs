@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, ScopedTypeVariables, DeriveDataTypeable #-}
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, ViewPatterns #-}
 
 -- | Define a continuous integration system.
 module Development.Bake.Core.Type(
@@ -14,6 +14,7 @@ module Development.Bake.Core.Type(
     Client, toClient, fromClient,
     Point,
     concrete, Prettys(..),
+    validTests,
     Author
     ) where
 
@@ -219,3 +220,12 @@ concrete o@Oven{..} = (Prettys prestate prepatch pretest, o
         check s | null $ stringyTo s = error "Problem with stringyTo/stringyFrom, generated blank string"
                 | stringyTo s == stringyTo (stringyFrom (stringyTo s) :: o) = s
                 | otherwise = error $ "Problem with stringyTo/stringyFrom on " ++ stringyTo s
+
+
+-- | Check a set of tests is valid - no cycles and no dependencies that cannot be satisfied
+validTests :: Stringy test => (test -> TestInfo test) -> [test] -> Either String ()
+validTests info (map stringyTo -> res)
+    | Just xs <- findCycle follow res = Left $ unlines $ "Tests form a cycle:" : xs
+    | missing@(_:_) <- transitiveClosure follow res \\ res = Left $ unlines $ "Test is a dependency that cannot be reached:" : missing
+    | otherwise = Right ()
+    where follow t = map stringyTo $ testDepend $ info $ stringyFrom t

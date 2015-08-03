@@ -118,13 +118,9 @@ bake_ oven = do
                         (stringyFrom state)
                         (map stringyFrom patch)
 
-                    -- check the patches all make sense
-                    let follow t = map stringyTo $ testDepend $ ovenTestInfo oven $ stringyFrom t
-                    whenJust (findCycle follow $ map stringyTo res) $ \xs ->
-                        error $ unlines $ "Tests form a cycle:" : xs
-                    let missing = transitiveClosure follow (map stringyTo res) \\ map stringyTo res
-                    when (missing /= []) $
-                        error $ unlines $ "Test is a dependency that cannot be reached:" : missing
+                    case validTests (ovenTestInfo oven) res of
+                        Left err -> fail err
+                        Right () -> return ()
 
                     writeFile ".bake.result" $ show $ map stringyTo res
                 Just test -> do
