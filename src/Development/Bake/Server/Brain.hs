@@ -175,9 +175,10 @@ update mem@Memory{..} (SetState author s) =
 
 update mem@Memory{..} Requeue = do
     let add = Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
+    add <- sortOn (paQueued . storePatch store) add
     store <- storeUpdate store $ map IUStart add
     return $ Right mem
-        {active = (fst active, snd active ++ sortOn (paAuthor . storePatch store) add)
+        {active = (fst active, snd active ++ add)
         ,store = store}
 
 update mem@Memory{..} Pause
