@@ -50,6 +50,8 @@ ovenStepGit act repo branch path keep o = o
             withFileLock (root </> ".bake-lock") $ do
                 ready <- doesFileExist $ git </> ".git/HEAD"
                 if ready then do
+                    -- if a branch goes away on the server this is required
+                    time_ $ cmd (Cwd git) "git remote prune origin"
                     -- for some reason git sometimes times out, not sure why
                     -- hopefully this will help track it down
                     time_ $ cmd (Cwd git) (Timeout $ 15*60) "git fetch"
