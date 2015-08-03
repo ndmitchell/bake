@@ -12,7 +12,6 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Concurrent
 import System.IO.Unsafe
-import Control.Applicative
 import Control.Exception
 import Data.Monoid
 import System.Directory
@@ -39,9 +38,9 @@ data BigString = Memory T.Text
 instance Monoid BigString where
     mempty = bigStringFromText mempty
     mappend (Memory a) (Memory b) | T.length a + T.length b <= limit = Memory $ a <> b
-    mappend x y = unsafeFromFile $ \out -> withFile out WriteMode $ \out -> do
+    mappend x y = unsafeWriteHandle $ \out -> do
         hSetBinaryMode out True
-        forM_ [x,y] $ \inp -> bigStringWithFile inp $ \inp -> withFile inp ReadMode $ \inp -> do
+        forM_ [x,y] $ \inp -> readHandle inp $ \inp -> do
             hSetBinaryMode inp True
             src <- LBS.hGetContents inp
             LBS.hPut out src
@@ -72,13 +71,28 @@ bigStringWithFile (Memory x) op = withTempFile $ \file -> do T.writeFile file x;
 bigStringWithFile (File file ptr) op = withForeignPtr ptr $ const $ op file
 
 
-{-# NOINLINE unsafeFromFile #-}
-unsafeFromFile :: (FilePath -> IO ()) -> BigString
-unsafeFromFile op = unsafePerformIO $ fst <$> bigStringFromFile op
+writeHandle :: (Handle -> IO ()) -> IO BigString
+writeHandle op = fmap fst $ bigStringFromFile $ \file ->
+    withFile file WriteMode $ \h -> do
+        hSetNewlineMode h noNewlineTranslation
+        hSetEncoding h utf8
+        op h
 
-{-# NOINLINE unsafeWithFile #-}
-unsafeWithFile :: BigString -> (FilePath -> IO a) -> a
-unsafeWithFile x op = unsafePerformIO $ bigStringWithFile x op
+readHandle :: BigString -> (Handle -> IO a) -> IO a
+readHandle x op = bigStringWithFile x $ \file ->
+    withFile file ReadMode $ \h -> do
+        hSetNewlineMode h noNewlineTranslation
+        hSetEncoding h utf8
+        op h
+
+
+{-# NOINLINE unsafeWriteHandle #-}
+unsafeWriteHandle :: (Handle -> IO ()) -> BigString
+unsafeWriteHandle op = unsafePerformIO $ writeHandle op
+
+{-# NOINLINE unsafeReadHandle #-}
+unsafeReadHandle :: BigString -> (Handle -> IO a) -> a
+unsafeReadHandle x op = unsafePerformIO $ readHandle x op
 
 
 ---------------------------------------------------------------------
@@ -86,52 +100,54 @@ unsafeWithFile x op = unsafePerformIO $ bigStringWithFile x op
 
 bigStringFromText :: T.Text -> BigString
 bigStringFromText x | T.length x <= limit = Memory x
-                    | otherwise = unsafeFromFile $ \file -> withFile file WriteMode $ \h -> do hSetEncoding h utf8; T.hPutStr h x
+                    | otherwise = unsafeWriteHandle (`T.hPutStr` x)
 
 bigStringFromString :: String -> BigString
 bigStringFromString x | null $ drop limit x = Memory $ T.pack x
-                      | otherwise = unsafeFromFile (`writeFileUTF8` x)
+                      | otherwise = unsafeWriteHandle (`hPutStr` x)
 
 bigStringToFile :: BigString -> FilePath -> IO ()
-bigStringToFile (Memory x) out = T.writeFile out x
+bigStringToFile (Memory x) out = withFile out WriteMode $ \h -> do
+    hSetNewlineMode h noNewlineTranslation
+    hSetEncoding h utf8
+    T.hPutStr h x
 bigStringToFile x out = bigStringWithFile x $ \file -> copyFile file out
 
 bigStringToText :: BigString -> T.Text
 bigStringToText (Memory x) = x
-bigStringToText x = unsafeWithFile x $ \file -> withFile file ReadMode $ \h -> do hSetEncoding h utf8; T.hGetContents h
+bigStringToText x = unsafeReadHandle x T.hGetContents
 
 bigStringToString :: BigString -> String
 bigStringToString (Memory x) = T.unpack x
-bigStringToString x = unsafeWithFile x readFileUTF8'
+bigStringToString x = unsafeReadHandle x $ fmap T.unpack . T.hGetContents
 
 bigStringWithString :: NFData a => BigString -> (String -> a) -> a
 bigStringWithString (Memory x) op = let res = op $ T.unpack x in rnf res `seq` res
-bigStringWithString x op = unsafeWithFile x $ \file -> do
-    src <- readFile file
+bigStringWithString x op = unsafeReadHandle x $ \h -> do
+    src <- hGetContents h
     let res = op src
     evaluate $ rnf res
     return res
 
 bigStringFromByteString :: BS.ByteString -> BigString
 bigStringFromByteString x | BS.length x <= limit = Memory $ T.decodeUtf8 x
-                          | otherwise = unsafeFromFile $ \file -> withFile file WriteMode $ \h -> do hSetBinaryMode h True; BS.hPutStr h x
+                          | otherwise = unsafeWriteHandle $ \h -> do hSetBinaryMode h True; BS.hPutStr h x
 
 bigStringToByteString :: BigString -> BS.ByteString
 bigStringToByteString (Memory x) = T.encodeUtf8 x
-bigStringToByteString x = unsafeWithFile x $ \file -> withFile file ReadMode $ \h -> do hSetBinaryMode h True; BS.hGetContents h
+bigStringToByteString x = unsafeReadHandle x $ \h -> do hSetBinaryMode h True; BS.hGetContents h
 
 
 ---------------------------------------------------------------------
 -- WEBBY
 
 bigStringBackEnd :: BackEnd BigString
-bigStringBackEnd _ _ ask = fmap fst $ bigStringFromFile $ \file -> do
-    withFile file WriteMode $ \h -> do
-        fix $ \loop -> do
-            bs <- ask
-            unless (BS.null bs) $ do
-                BS.hPut h bs
-                loop
+bigStringBackEnd _ _ ask = writeHandle $ \h -> do
+    fix $ \loop -> do
+        bs <- ask
+        unless (BS.null bs) $ do
+            BS.hPut h bs
+            loop
 
 withBigStringPart :: String -> BigString -> (Part -> IO a) -> IO a
 withBigStringPart name (Memory x) op = op $ partBS (T.pack name) (T.encodeUtf8 x)
