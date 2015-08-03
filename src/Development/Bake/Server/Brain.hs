@@ -240,9 +240,12 @@ output info mem Ping{..} | pNowThreads == 0 = Nothing
 2) anyone not done in active or a superset
 3) anyone not done in active
 -}
-output info mem@Memory{..} Ping{..} = -- trace (show (length bad, length good)) $
-        fmap question $ enoughThreads $ listToMaybe $ filter suitable $ nubOrd $ concatMap dependencies $ bad ++ good
+output info mem@Memory{..} Ping{..}
+    | pNowThreads == pMaxThreads, isNothing res = error $ show (enoughThreads $ listToMaybe $ filter suitable $ nubOrd $ concatMap dependencies $ bad ++ good, filter suitable good, concatMap dependencies $ bad ++ good, bad, good)
+    | otherwise = res
     where
+        res = fmap question $ enoughThreads $ listToMaybe $ filter suitable $ nubOrd $ concatMap dependencies $ bad ++ good
+
         self = storePoint store active
         failedSelf = Set.toList $ poFail self
         failedPrefix = Map.fromListWith mappend $
