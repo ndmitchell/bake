@@ -241,7 +241,7 @@ output info mem Ping{..} | pNowThreads == 0 = Nothing
 3) anyone not done in active
 -}
 output info mem@Memory{..} Ping{..}
-    | pNowThreads == pMaxThreads, isNothing res = error $ show (enoughThreads $ listToMaybe $ filter suitable $ nubOrd $ concatMap dependencies $ bad ++ good, filter suitable good, concatMap dependencies $ bad ++ good, bad, good)
+    | False, pNowThreads == pMaxThreads, isNothing res = error $ show (enoughThreads $ listToMaybe $ filter suitable $ nubOrd $ concatMap dependencies $ bad ++ good, filter suitable good, concatMap dependencies $ bad ++ good, bad, good)
     | otherwise = res
     where
         res = fmap question $ enoughThreads $ listToMaybe $ filter suitable $ nubOrd $ concatMap dependencies $ bad ++ good
