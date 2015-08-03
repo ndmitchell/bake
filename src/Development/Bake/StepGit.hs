@@ -57,7 +57,7 @@ ovenStepGit act repo branch path keep o = o
                     time_ $ cmd (Cwd git) (Timeout $ 15*60) "git fetch"
                     -- stops us creating lots of garbage in the reflog, which slows everything down
                     -- time_ $ cmd (Cwd git) "git reflog expire --all --expire=all --expire-unreachable=all"
-                    time_ $ cmd (Cwd git) "git reset" -- to unwedge a previous merge conflict
+                    time_ $ cmd (Cwd git) "git reset --hard" -- to unwedge a previous merge conflict
                     time_ $ cmd (Cwd git) "git clean -dfx" ["-e" ++ x | x <- keep] -- to remove files left over from a previous merge conflict
                  else do
                     time_ $ cmd (Cwd git) "git clone" [repo] "."
