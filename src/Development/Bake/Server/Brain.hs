@@ -221,6 +221,12 @@ update mem@Memory{..} (Finished q@Question{..} a@Answer{..}) = do
                 pre_ (bigStringWithString aStdout summary)
         _ -> return id
 
+    case () of
+        _ | qTest == Nothing
+          , Left bad <- validTests (ovenTestInfo oven) aTests
+          -> fail bad
+        _ -> return ()
+
     now <- getCurrentTime
     let (eq,neq) = partition ((==) q . snd) running
     let time = head $ map fst eq ++ [now]
