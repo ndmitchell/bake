@@ -89,7 +89,7 @@ react mem@Memory{..}
             Shower{..} <- shower mem False
             notify mem "Rejected"
                 [ (paAuthor,) $ do
-                    showPatch p <> str_ " submitted at " <> showTime paQueued
+                    showPatch p <> str_ " submitted by " <> str_ paAuthor <> str_ " at " <> showTime paQueued
                     str_ " rejected due to " <> showTestAt (point p) t
                     whenJust (failingTestOutput store (point p) t) $ \s ->
                         br_ <> br_ <> pre_ (summary s)
@@ -106,7 +106,7 @@ react mem@Memory{..}
         -- don't notify people twice in quick succession
         bad <- if mergeable mem then return id else
             notify mem "Plausible"
-                [ (paAuthor, showPatch p <> str_ " submitted at " <> showTime paQueued <> str_ " is now plausible")
+                [ (paAuthor, showPatch p <> str_ " submitted by " <> str_ paAuthor <> str_ " at " <> showTime paQueued <> str_ " is now plausible")
                 | p <- xs, let PatchInfo{..} = storePatch store p]
         store <- storeUpdate store $ map IUPlausible xs
         return $ bad mem{store = store}
@@ -124,7 +124,7 @@ react mem@Memory{..}
             Just s -> do
                 Shower{..} <- shower mem False
                 bad <- notify mem "Merged"
-                    [ (paAuthor, showPatch p <> str_ " submitted at " <> showTime paQueued <> str_ " is now merged")
+                    [ (paAuthor, showPatch p <> str_ " submitted by " <> str_ paAuthor <> str_ " at " <> showTime paQueued <> str_ " is now merged")
                     | p <- snd active, let PatchInfo{..} = storePatch store p]
                 store <- storeUpdate store $ IUState s answer (Just active) : map IUMerge (snd active)
                 return $ bad mem{active = (s, []), store = store}
