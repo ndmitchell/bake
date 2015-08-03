@@ -138,7 +138,7 @@ react mem@Memory{..}
     , extendActive mem
     , add@(_:_) <- Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
     = Just $ do
-        add <- sortOn (paQueued . storePatch store) add
+        add <- return $ sortOn (paQueued . storePatch store) add
         store <- storeUpdate store $ map IUStart add
         return mem
             {active = (fst active, snd active ++ add)
@@ -175,7 +175,7 @@ update mem@Memory{..} (SetState author s) =
 
 update mem@Memory{..} Requeue = do
     let add = Set.toList $ storeAlive store `Set.difference` Set.fromList (snd active)
-    add <- sortOn (paQueued . storePatch store) add
+    add <- return $ sortOn (paQueued . storePatch store) add
     store <- storeUpdate store $ map IUStart add
     return $ Right mem
         {active = (fst active, snd active ++ add)
