@@ -21,7 +21,6 @@ import qualified Data.Set as Set
 import qualified Data.Map as Map
 import General.Extra
 import General.BigString
-import System.Time.Extra
 import Data.Char
 import Data.List.Extra
 import System.IO.Unsafe

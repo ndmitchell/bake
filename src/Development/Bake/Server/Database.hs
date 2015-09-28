@@ -25,7 +25,6 @@ import qualified Database.SQLite3 as SQ
 import Database.SQLite.Simple
 import Database.SQLite.Simple.FromField
 import Database.SQLite.Simple.ToField
-import System.Time.Extra
 import Data.Hashable
 import Data.List.Extra
 import Control.Monad

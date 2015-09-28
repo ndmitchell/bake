@@ -3,7 +3,7 @@
 -- time changed incompatibly, use the functions that work everywhere
 
 module General.Extra(
-    UTCTime, getCurrentTime, addSeconds, showRelativeTime, relativeTime, showUTCTime,
+    Seconds, UTCTime, getCurrentTime, addSeconds, showRelativeTime, relativeTime, showUTCTime,
     readDate, showDate, timeToDate, dateToTime,
     createDir,
     withFileLock,
