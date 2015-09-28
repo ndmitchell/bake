@@ -1,7 +1,4 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, RecordWildCards, OverloadedStrings, CPP #-}
 {-# OPTIONS_GHC -fno-warn-warnings-deprecations #-} -- Use conduitManagerSettings to work with http-conduit-2.1.6 and below
 
 module General.Web(
@@ -13,34 +10,34 @@ module General.Web(
 -- For some reason, profiling stops working if I import warp
 -- Tracked as https://github.com/yesodweb/wai/issues/311
 #ifndef PROFILE
-import           Network.Wai.Handler.Warp              hiding (Port)
+import Network.Wai.Handler.Warp hiding (Port)
 #endif
 
 -- S for server, C for client
-import           Control.Applicative
-import           Control.Concurrent                    (threadDelay)
-import           Control.DeepSeq
-import           Control.Exception
-import           Control.Monad
-import qualified Data.ByteString.Char8                 as BS
-import qualified Data.ByteString.Lazy.Char8            as LBS
-import           Data.Function
-import qualified Data.Text                             as Text
-import           Development.Bake.Core.Type            hiding (run)
-import           General.BigString
-import           General.Extra
-import           Network.HTTP.Client.MultipartFormData
-import           Network.HTTP.Conduit                  as C
-import           Network.HTTP.Types.Status
-import           Network.Wai                           as S
-import           Network.Wai.Parse
-import           Prelude
-import           System.Console.CmdArgs.Verbosity
-import           System.IO
+import Development.Bake.Core.Type hiding (run)
+import Network.Wai as S
+import Network.Wai.Parse
+import Data.Function
+import General.Extra
+import General.BigString
+import Control.DeepSeq
+import Control.Exception
+import Control.Applicative
+import Control.Concurrent(threadDelay)
+import Control.Monad
+import System.IO
+import Network.HTTP.Conduit as C
+import Network.HTTP.Client.MultipartFormData
+import Network.HTTP.Types.Status
+import qualified Data.Text as Text
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy.Char8 as LBS
+import System.Console.CmdArgs.Verbosity
+import Prelude
 
 
 data Input = Input
-    {inputURL  :: [String]
+    {inputURL :: [String]
     ,inputArgs :: [(String, String)]
     ,inputBody :: [(String, BigString)]
     } deriving Show
@@ -60,18 +57,19 @@ instance NFData Output where
     rnf (OutputError x) = rnf x
     rnf OutputMissing = ()
 
-
 -- | Number of time to retry sending messages
 maxRetryCount :: Int
 maxRetryCount = 3
 
 -- | Timeout between each message sending attempt
 retryTimeout :: Int
-retryTimeout = 30
+retryTimeout = 10
 
-doHttp retry timeout body m = httpLbs body m `catch` \ e@(FailedConnectionException2 _ _ _ _) -> if retry > 0
-                                                                                                 then threadDelay (timeout * 1000000) >> doHttp (retry - 1) timeout body m
-                                                                                                 else throw e
+doHttp retry timeout body m = httpLbs body m `catch` retryIfFailedConnection
+  where
+    retryIfFailedConnection e@(FailedConnectionException2 _ _ _ _) = if retry > 0
+                                                                     then threadDelay (timeout * 1000000) >> doHttp (retry - 1) timeout body m
+                                                                     else throw e
 
 
 send :: (Host,Port) -> Input -> IO LBS.ByteString
