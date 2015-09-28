@@ -22,6 +22,7 @@ module General.Extra(
     putBlock,
     maybe',
     withs,
+    retrySleep,
     commas, commasLimit, unwordsLimit
     ) where
 
@@ -288,6 +289,11 @@ whenLeft x f = either f (const $ pure ()) x
 
 whenRight :: Applicative m => Either a b -> (b -> m ()) -> m ()
 whenRight x f = either (const $ pure ()) f x
+
+retrySleep :: Exception e => Seconds -> Int -> (e -> Bool) -> IO a -> IO a
+retrySleep secs times test act
+     | times <= 0 = act
+     | otherwise = catchBool test act $ const $ sleep secs >> retrySleep secs (times-1) test act
 
 
 ---------------------------------------------------------------------
