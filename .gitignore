@@ -2,3 +2,4 @@
 /.test/
 /.bake-test/
 *.prof
+/.stack-work/
