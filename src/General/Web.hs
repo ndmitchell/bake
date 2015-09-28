@@ -23,7 +23,6 @@ import General.BigString
 import Control.DeepSeq
 import Control.Exception
 import Control.Applicative
-import Control.Concurrent(threadDelay)
 import Control.Monad
 import System.IO
 import Network.HTTP.Conduit as C
@@ -62,14 +61,8 @@ maxRetryCount :: Int
 maxRetryCount = 3
 
 -- | Timeout between each message sending attempt
-retryTimeout :: Int
+retryTimeout :: Seconds
 retryTimeout = 10
-
-doHttp retry timeout body m = httpLbs body m `catch` retryIfFailedConnection
-  where
-    retryIfFailedConnection e@(FailedConnectionException2 _ _ _ _) = if retry > 0
-                                                                     then threadDelay (timeout * 1000000) >> doHttp (retry - 1) timeout body m
-                                                                     else throw e
 
 
 send :: (Host,Port) -> Input -> IO LBS.ByteString
@@ -81,7 +74,10 @@ send (host,port) Input{..} = do
     m <- newManager conduitManagerSettings
     withs (map (uncurry withBigStringPart) inputBody) $ \parts -> do
         body <- formDataBody parts req
-        responseBody <$> doHttp maxRetryCount retryTimeout body m
+        responseBody <$> retrySleep retryTimeout maxRetryCount isConnFailure (httpLbs body m)
+    where
+        isConnFailure FailedConnectionException2{} = True
+        isConnFailure _ = False
 
 
 server :: Port -> (Input -> IO Output) -> IO ()
