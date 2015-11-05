@@ -1,18 +1,19 @@
 {-# LANGUAGE ViewPatterns, GeneralizedNewtypeDeriving #-}
 
 module General.HTML(
-    -- * Library
-    url_,
-    HTML, HTML_, renderHTML, valueHTML, str_, raw_,
-    Attribute, attribute_,
-    tag_, tag__,
-    (<>),
+    -- * HTML data type
+    HTML, HTML_, renderHTML, valueHTML,
+    -- * Constructing pieces
+    Attribute, attribute_, tag_, tag__, str_, raw_,
     -- * Tags
     br_, style__, link__, hr_,
     pre_, b_, html_, head_, title_, body_, h1_, h2_, ul_, ol_, li_, p_, table_, thead_, tr_, td_, tbody_, i_,
     a__, span__, p__, h2__, tr__, ol__,
+    -- * Attributes
     href_, class_, name_, rel_, type_, style_, id_,
     -- * Functions
+    (<>),
+    url_,
     unlines_, commas_, commasLimit_, header_
     ) where
 
