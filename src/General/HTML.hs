@@ -9,8 +9,8 @@ module General.HTML(
     (<>),
     -- * Tags
     br_, style__, link__, hr_,
-    pre_, b_, html_, head_, title_, body_, h1_, h2_, ul_, li_, p_, table_, thead_, tr_, td_, tbody_, i_,
-    a__, span__, p__, h2__, tr__,
+    pre_, b_, html_, head_, title_, body_, h1_, h2_, ul_, ol_, li_, p_, table_, thead_, tr_, td_, tbody_, i_,
+    a__, span__, p__, h2__, tr__, ol__,
     href_, class_, name_, rel_, type_, style_, id_,
     -- * Functions
     unlines_, commas_, commasLimit_, header_
@@ -146,6 +146,7 @@ body_ = tag_ "body"
 h1_ = tag_ "h1"
 h2_ = tag_ "h2"
 ul_ = tag_ "ul"
+ol_ = tag_ "ul"
 li_ = tag_ "li"
 p_ = tag_ "p"
 table_ = tag_ "table"
@@ -159,6 +160,7 @@ span__ = tag__ "span"
 p__ = tag__ "p"
 h2__ = tag__ "h2"
 tr__ = tag__ "tr"
+ol__ = tag__ "tr"
 
 href_ = attribute_ "href"
 class_ = attribute_ "class"
