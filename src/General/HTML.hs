@@ -1,5 +1,12 @@
 {-# LANGUAGE ViewPatterns, GeneralizedNewtypeDeriving #-}
 
+-- | Library for defining HTML fragments.
+--   The tags will be properly nested, and all strings will be HTML escaped.
+--   As an example:
+--
+-- > renderHTML $ html_ $
+-- >    ol__ [style_ "color:darkgreen"] $
+-- >        forM_ [1..10] $ \i -> li_ $ str_ $ "item number: " & show i
 module General.HTML(
     -- * HTML data type
     HTML, HTML_, renderHTML, valueHTML,
@@ -56,21 +63,26 @@ instance Monoid Rope where
     mconcat = Branch
 
 
+-- | Escape a URL using % encoding.
 url_ :: String -> String
 url_ = concatMap f
     where
         f x | (x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z') || (x >= '0' && x <= '9') || x `elem` "-_.~" = [x]
         f (ord -> x) = "%" ++ ['0' | x < 16] ++ showHex x ""
 
-
+-- | The type for constructing HTML. It is a 'Monad' and 'Monoid'.
+--   Typically the value paramter is '()', in which case use 'HTML'.
 newtype HTML_ a = HTML_ {fromHTML_ :: Writer Rope a}
     deriving (Eq,Ord,Functor,Applicative,Monad)
 
+-- | An alias for 'HTML_' with no interesting type.
 type HTML = HTML_ ()
 
+-- | Get the value out of an 'HTML_'.
 valueHTML :: HTML_ a -> a
 valueHTML = fst . runWriter . fromHTML_
 
+-- | Render some 'HTML'.
 renderHTML :: HTML -> String
 renderHTML = renderRope . execWriter . fromHTML_
 
@@ -84,10 +96,11 @@ instance Monoid a => Monoid (HTML_ a) where
 instance NFData a => NFData (HTML_ a) where
     rnf = rnf . runWriter . fromHTML_
 
-
+-- | Turn a string into a text fragment of HTML, escaping any characters which mean something in HTML.
 str_ :: String -> HTML
 str_ = raw_ . escapeHTML
 
+-- | Turn a string into an HTML fragment, applying no escaping. Use this function carefully.
 raw_ :: String -> HTML
 raw_ = HTML_ . tell . Leaf
 
@@ -101,16 +114,19 @@ escapeHTML = concatMap $ \c -> case c of
     x    -> [x]
 
 
+-- | An attribute for a tag.
 data Attribute = Attribute {fromAttribute :: String}
 
 valid (x:xs) | isAlpha x && all isAlphaNum xs = True
 valid x = error $ "Not a valid HTML name, " ++ show x
 
+-- | Construct an Attribute from a key and value string. The value will be escaped.
 attribute_ :: String -> String -> Attribute
 attribute_ a b | valid a = Attribute $ a ++ "=\"" ++ escapeHTML b ++ "\""
                | otherwise = error $ "Invalid attribute name, " ++ a
 
 
+-- | Given a tag name, a list of attributes, and some content HTML, produce some new HTML.
 tag__ :: String -> [Attribute] -> HTML -> HTML
 tag__ name at inner | not $ valid name = error $ "Invalid tag name, " ++ name
                     | otherwise = do
@@ -125,6 +141,7 @@ tag__ name at inner | not $ valid name = error $ "Invalid tag name, " ++ name
         inner
         raw_ $ "</" ++ name ++ ">"
 
+-- | Like 'tag__' but with no attributes.
 tag_ :: String -> HTML -> HTML
 tag_ name = tag__ name []
 
