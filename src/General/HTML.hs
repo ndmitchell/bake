@@ -1,4 +1,4 @@
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE ViewPatterns, GeneralizedNewtypeDeriving #-}
 
 module General.HTML(
     -- * Library
@@ -20,6 +20,7 @@ import Control.Applicative
 import Data.Monoid
 import Data.List
 import Control.Monad
+import Control.Monad.Trans.Writer
 import Control.DeepSeq
 import Data.Char
 import Numeric
@@ -61,42 +62,33 @@ url_ = concatMap f
         f (ord -> x) = "%" ++ ['0' | x < 16] ++ showHex x ""
 
 
-data HTML_ a = HTML_ Rope a deriving (Eq,Ord)
+newtype HTML_ a = HTML_ {fromHTML_ :: Writer Rope a}
+    deriving (Eq,Ord,Functor,Applicative,Monad)
 
 type HTML = HTML_ ()
 
 valueHTML :: HTML_ a -> a
-valueHTML (HTML_ _ x) = x
+valueHTML = fst . runWriter . fromHTML_
 
 renderHTML :: HTML -> String
-renderHTML (HTML_ x _) = renderRope x
+renderHTML = renderRope . execWriter . fromHTML_
 
 nullHTML :: HTML -> Bool
-nullHTML (HTML_ x _) = nullRope x
+nullHTML = nullRope . execWriter . fromHTML_
 
 instance Monoid a => Monoid (HTML_ a) where
-    mempty = HTML_ mempty mempty
-    mappend (HTML_ x1 x2) (HTML_ y1 y2) = HTML_ (x1 `mappend` y1) (x2 `mappend` y2)
-
-instance Functor HTML_ where
-    fmap f (HTML_ a b) = HTML_ a $ f b
-
-instance Applicative HTML_ where
-    pure = HTML_ mempty
-    HTML_ x1 x2 <*> HTML_ y1 y2 = HTML_ (x1 `mappend` y1) (x2 y2)
-
-instance Monad HTML_ where
-    return = pure
-    HTML_ x1 x2 >>= f = let HTML_ y1 y2 = f x2 in HTML_ (x1 `mappend` y1) y2
+    mempty = return mempty
+    mappend = liftM2 mappend
 
 instance NFData a => NFData (HTML_ a) where
-    rnf (HTML_ a b) = rnf a `seq` rnf b
+    rnf = rnf . runWriter . fromHTML_
+
 
 str_ :: String -> HTML
 str_ = raw_ . escapeHTML
 
 raw_ :: String -> HTML
-raw_ x = HTML_ (Leaf x) ()
+raw_ = HTML_ . tell . Leaf
 
 escapeHTML :: String -> String
 escapeHTML = concatMap $ \c -> case c of
