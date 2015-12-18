@@ -71,7 +71,14 @@ garbageQuery dirs = do
       preserveIncremental <- if exist
                              then do
                                incDir <- takeWhile (/= '\n') <$> readFile inc
-                               return $ \ f -> takeFileName f /= takeFileName incDir
+                               return (preserveIncrementalDirs incDir)
                              else return $ const True
       dirs <- (filter preserveStore . filter preserveIncremental) <$> listContents dir
       forM dirs $ \dir -> age (Garbage dir) $ dir </> ".bake.name"
+
+-- | Compute all dirs pertaining to a specific test run
+--
+-- Given a baseName of `bake-test-XYZ` this returns a filter for `xxx-XYZ`.
+preserveIncrementalDirs :: String -> FilePath -> Bool
+preserveIncrementalDirs baseName = let [_,_,testNumber] = splitOn "-" baseName
+                                   in \ dir -> testNumber `isSuffixOf` takeFileName dir 
