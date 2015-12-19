@@ -53,7 +53,7 @@ data Garbage = Garbage
     ,gAge :: Seconds -- ^ Age in seconds, will be positive (unless clock adjustments)
     } deriving (Show)
 
-
+               
 -- | Given a list of directories, find the possible garbage present.
 garbageQuery :: [FilePath] -> IO [Garbage]
 garbageQuery dirs = do
@@ -80,5 +80,6 @@ garbageQuery dirs = do
 --
 -- Given a baseName of `bake-test-XYZ` this returns a filter for `xxx-XYZ`.
 preserveIncrementalDirs :: String -> FilePath -> Bool
-preserveIncrementalDirs baseName = let [_,_,testNumber] = splitOn "-" baseName
-                                   in \ dir -> testNumber `isSuffixOf` takeFileName dir 
+preserveIncrementalDirs baseName = case splitOn "-" baseName of
+                                    [_,_,testNumber] -> \ dir -> not $ testNumber `isSuffixOf` takeFileName dir
+                                    _                -> const True
