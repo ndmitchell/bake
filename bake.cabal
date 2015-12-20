@@ -137,3 +137,22 @@ executable bake-test
         warp >= 3.0,
         process,
         filepath
+
+test-suite test
+  default-language:
+    Haskell2010
+  type:
+    exitcode-stdio-1.0
+  hs-source-dirs:
+    test
+  main-is:
+    bake-test.hs
+  build-depends:
+                base >= 4 && < 5
+              , tasty >= 0.7
+              , tasty-hspec 
+              , bake
+              , extra
+              , filepath
+              , directory
+              , containers
