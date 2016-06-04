@@ -16,7 +16,7 @@ import Network.Wai.Handler.Warp hiding (Port)
 -- S for server, C for client
 import Development.Bake.Core.Type hiding (run)
 import Network.Wai as S
-import Network.Wai.Parse
+import Network.Wai.Parse as P
 import Data.Function
 import General.Extra
 import General.BigString
@@ -91,7 +91,7 @@ server port act = runSettings settings $ \req reply -> do
     let pay = Input
             (map Text.unpack $ pathInfo req)
             [(BS.unpack a, maybe "" BS.unpack b) | (a,b) <- S.queryString req] $
-            [(BS.unpack name, bigStringFromByteString x) | (name,x) <- params] ++ [(BS.unpack name, fileContent) | (name, FileInfo{..}) <- files]
+            [(BS.unpack name, bigStringFromByteString x) | (name,x) <- params] ++ [(BS.unpack name, fileContent) | (name, P.FileInfo{..}) <- files]
     res <- act pay
     -- from http://stackoverflow.com/questions/49547/making-sure-a-web-page-is-not-cached-across-all-browsers
     let nocache = [("Cache-Control","no-cache, no-store, must-revalidate")
