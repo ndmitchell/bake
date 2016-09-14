@@ -74,10 +74,14 @@ send (host,port) Input{..} = do
     m <- newManager conduitManagerSettings
     withs (map (uncurry withBigStringPart) inputBody) $ \parts -> do
         body <- formDataBody parts req
+        responseBody <$> httpLbs body m
+{-
+    -- http-client 0.5 completely changes this API, so give up retrying until it can be tested
         responseBody <$> retrySleep retryTimeout maxRetryCount isConnFailure (httpLbs body m)
     where
         isConnFailure FailedConnectionException2{} = True
         isConnFailure _ = False
+-}
 
 
 server :: Port -> (Input -> IO Output) -> IO ()
