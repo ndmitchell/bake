@@ -8,9 +8,9 @@ import System.Directory.Extra
 import System.FilePath
 import Control.Monad.Extra
 import Control.Applicative
+import Data.Time.Clock
 import Data.Either.Extra
 import Data.List.Extra
-import System.Time.Extra
 import Data.Maybe
 import System.DiskSpace
 import Prelude
@@ -59,7 +59,7 @@ garbageQuery dirs = do
     now <- getCurrentTime
     let f gen file = fmap eitherToMaybe $ try_ $ do
             t <- getModificationTime file
-            return $ gen $ now `subtractTime` t
+            return $ gen $ fromRational $ toRational $ now `diffUTCTime` t
 
     fmap (concatMap catMaybes) $ forM dirs $ \dir -> do
         dirs <- listContents dir
