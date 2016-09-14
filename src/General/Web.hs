@@ -56,6 +56,7 @@ instance NFData Output where
     rnf (OutputError x) = rnf x
     rnf OutputMissing = ()
 
+{-
 -- | Number of time to retry sending messages
 maxRetryCount :: Int
 maxRetryCount = 3
@@ -63,6 +64,7 @@ maxRetryCount = 3
 -- | Timeout between each message sending attempt
 retryTimeout :: Seconds
 retryTimeout = 10
+-}
 
 
 send :: (Host,Port) -> Input -> IO LBS.ByteString
