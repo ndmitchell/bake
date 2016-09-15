@@ -46,7 +46,7 @@ library
         time,
         random,
         hashable,
-        transformers,
+        transformers >= 0.4,
         HTTP,
         safe,
         old-locale,
