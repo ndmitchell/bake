@@ -3,19 +3,19 @@
 This document outlines the algebra behind Bake, and it means for a patch to be accepted, and how to pick what should be done next.
 
 ## Types
-
+```haskell
     data Patch
     type State = [Patch]
-
+```
 The fundamental types in Bake are the `Patch` (think of a diff) and a `State` (the state of the repo). A `State` is just a sequence of `Patch` values, in order. As might be expected, we use `p` and `s` to denote values drawn from the sensible domains for each type.
-
+```haskell
     data Test
     tests :: Set Test
-
+```
 We define a `Test` (a single test case), and a set of `tests` which must pass. We assume values named `t` are drawn from `tests`. For the moment, we ignore the fact that different `State`s may induce different `Test`s, and that there may be dependencies between `Test`s.
-
+```haskell
     type History = Set (State, Test, Bool)
-
+```
 After running `Test`s, we accumulate a set of `State` (the state of the repo), `Test` (the test we ran) and `Bool` for the result of the `Test`. We assume `history` is a function that takes a triple and performs membership of a (changing) `History` value.
 
 ## Predicates
