@@ -36,16 +36,16 @@ Bake is highly parametrisable, and can be reconfigured to support several differ
 The test suite provides both [an example configuration](https://github.com/ndmitchell/bake/blob/master/src/Example.hs) and [commands to drive it](https://github.com/ndmitchell/bake/blob/master/src/Test.hs). Here we annotate a slightly simplified version of the example, for lists of imports see the original code.
 
 First we define an enumeration for where we want tests to run. Our server is going to require tests on both Windows and Linux before a `patch` is accepted.
-
+```haskell
     data Platform = Linux | Windows deriving (Show,Read)
     platforms = [Linux,Windows]
-
+```
 Next we define the `test` type. A `test` is something that must pass before a `patch` is accepted.
-
+```haskell
     data Action = Compile | Run Int deriving (Show,Read)
-
+```
 Our type is named `Action`. We have two distinct types of tests, compiling the code, and running the result with a particular argument. Now we need to supply some information about the tests:
-
+```haskell
     allTests = [(p,t) | p <- platforms, t <- Compile : map Run [1,10,0]]
     
     execute :: (Platform,Action) -> TestInfo (Platform,Action)
@@ -53,9 +53,9 @@ Our type is named `Action`. We have two distinct types of tests, compiling the c
         cmd "ghc --make Main.hs"
     execute (p,Run i) = require [(p,Compile)] $ matchOS p $ run $ do
         cmd ("." </> "Main") (show i)
-
+```
 We have to declare `allTests`, then list of all tests that must pass, and `execute`, which gives information about a test. Note that the `test` type is `(Platform,Action)`, so a test is a platform (where to run the test) and an `Action` (what to run). The `run` function gives an `IO` action to run, and `require` specifies dependencies. We use an auxiliary `matchOS` to detect whether a test is running on the right platform:
-
+```haskell
     #if WINDOWS
     myPlatform = Windows
     #else
@@ -64,15 +64,15 @@ We have to declare `allTests`, then list of all tests that must pass, and `execu
 
     matchOS :: Platform -> TestInfo t -> TestInfo t
     matchOS p = suitable (return . (==) myPlatform)
-
+```
 We use the `suitable` function to declare whether a test can run on a particular client. Finally, we define the `main` function:
-
+```haskell
     main :: IO ()
     main = bake $
         ovenGit "http://example.com/myrepo.git" "master" $
         ovenTest readShowStringy (return allTests) execute
         defaultOven{ovenServer=("127.0.0.1",5000)}
-
+```
 We define `main = bake`, then fill in some configuration. We first declare we are working with Git, and give a repo name and branch name. Next we declare what the tests are, passing the information about the tests. Finally we give a host/port for the server, which we can visit in a web browser or access via the HTTP API.
 
 
