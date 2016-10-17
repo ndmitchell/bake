@@ -57,16 +57,20 @@ import Prelude
 addSeconds :: Seconds -> UTCTime -> UTCTime
 addSeconds x = addUTCTime (fromRational $ toRational x)
 
+-- | Calculate the difference between two times in seconds.
+diffTime :: UTCTime -> UTCTime -> Seconds
+diffTime end start = fromRational $ toRational $ end `diffUTCTime` start
+
 relativeTime :: IO (UTCTime -> Seconds)
 relativeTime = do
     now <- getCurrentTime
-    return $ \old -> subtractTime now old
+    return $ \old -> diffTime now old
 
 showRelativeTime :: IO (UTCTime -> String)
 showRelativeTime = do
     now <- getCurrentTime
     return $ \old ->
-        let secs = subtractTime now old in
+        let secs = diffTime now old in
         if timeToDate now /= timeToDate old then showDate (timeToDate old)
         else if secs < 60 then show (max 1 $ floor secs) ++ "s ago" -- 4.32s is too precise, 0s feels wrong
         else showDuration secs ++ " ago"
