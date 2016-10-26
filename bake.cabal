@@ -62,7 +62,7 @@ library
         disk-free-space,
         unordered-containers,
         smtp-mail,
-        extra >= 1.1,
+        extra >= 1.5.1,
         wai >= 3.0.1,
         warp >= 3.0
 

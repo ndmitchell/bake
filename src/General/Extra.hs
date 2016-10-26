@@ -115,9 +115,6 @@ createDir prefix info = do
     return name
 
 
-eitherToMaybe :: Either a b -> Maybe b
-eitherToMaybe = either (const Nothing) Just
-
 pick :: [a] -> IO a
 pick xs = randomRIO (0, (length xs - 1)) >>= return . (xs !!)
 
