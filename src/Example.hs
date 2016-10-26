@@ -9,7 +9,7 @@ import System.FilePath
 import Data.List.Extra
 import Data.Tuple.Extra
 import System.Directory
-import Control.Monad.Extra
+import Control.Monad
 import Data.Maybe
 import System.Time.Extra
 

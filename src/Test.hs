@@ -8,7 +8,7 @@ import System.IO.Extra
 import System.Time.Extra
 import System.Environment.Extra
 import System.FilePath
-import Control.Monad.Extra
+import Control.Monad
 import Control.Exception.Extra
 import Control.Concurrent
 import System.Process

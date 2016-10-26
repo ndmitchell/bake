@@ -32,7 +32,7 @@ ovenIncremental oven@Oven{..} = oven{ovenPrepare = \s ps -> do incPrepare s ps; 
                 whenM (doesFileExist $ ".." </> src </> ".bake.incremental") $ do
                     putStrLn $ "Preparing by copying from " ++ src
                     timed "copying for ovenIncremental" $
-                        unit $ cmd "cp --preserve=timestamps --recursive --no-target-directory" ("../" ++ src) "."
+                        cmd "cp --preserve=timestamps --recursive --no-target-directory" ("../" ++ src) "."
 
 incrementalStart :: IO ()
 incrementalStart =
