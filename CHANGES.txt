@@ -1,5 +1,7 @@
 Changelog for Bake
 
+0.5
+    Allow extra-1.5.1
     #19, support much bigger files
 0.4
     Remove the --author parameter from many operations
