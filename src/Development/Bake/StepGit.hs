@@ -110,7 +110,12 @@ ovenStepGit act repo branch path keep o = o
                             res <- withCurrentDirectory git (timed "stepPrepare user action" act) `catch_` \e -> do
                                 writeFile (dir </> failure) =<< showException e
                                 throwIO e
-                            time_ $ cmd "tar -cf" [toStandard $ dir </> "result.tar"] "-C" [toStandard git] res
+                            when (not $ null res) $ do
+                                let tarfile = toStandard $ dir </> "result.tar"
+                                    chunks  = chunksOf 50 res
+                                time_ $ cmd "tar -cf" [tarfile] "-C" [toStandard git] (head chunks)
+                                forM_ (tail chunks) $ \srcfiles->
+                                    time_ $ cmd "tar -rf" [tarfile] "-C" [toStandard git] srcfiles
 
             createDirectoryIfMissing True $ fromMaybe "." path
             time_ $ cmd "tar -xf" [toStandard $ dir </> "result.tar"] "-C" [toStandard $ fromMaybe "." path]
