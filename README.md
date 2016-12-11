@@ -88,3 +88,9 @@ When viewing the server, there are a few additional URL's that may be of use:
 * `?raw=` will give internal details of the implementation.
 * `/dump` will download an SQLite database containing all of the persistent state.
 * `?admin=` will give you an admin control panel on any page, letting you retry/delete patches and skip tests. If you want to restrict access to this panel, run `bake admin myPassword` which says that running `bake server --admin=3A18885C` will then require `?admin=myPassword`.
+
+## More Examples
+
+You can find more examples at:
+
+* [Haskell Bake and Kubernetes](http://brian.uncannyworks.com/posts/2016-12-09-haskell-bake-and-kubernetes.html).
