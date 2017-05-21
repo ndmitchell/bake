@@ -111,6 +111,7 @@ ovenStepGit act repo branch path keep o = o
                                 writeFile (dir </> failure) =<< showException e
                                 throwIO e
                             when (not $ null res) $ do
+                                -- FIXME: Should probably use tar -T rather than chunksOf (see #41)
                                 let tarfile = toStandard $ dir </> "result.tar"
                                     chunks  = chunksOf 50 res
                                 time_ $ cmd "tar -cf" [tarfile] "-C" [toStandard git] (head chunks)
