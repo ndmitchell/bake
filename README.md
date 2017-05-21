@@ -1,4 +1,4 @@
-# Bake [![Hackage version](https://img.shields.io/hackage/v/bake.svg?style=flat)](https://hackage.haskell.org/package/bake) [![Build Status](https://img.shields.io/travis/ndmitchell/bake.svg?style=flat)](https://travis-ci.org/ndmitchell/bake)
+# Bake [![Hackage version](https://img.shields.io/hackage/v/bake.svg?label=Hackage)](https://hackage.haskell.org/package/bake) [![Stackage version](https://www.stackage.org/package/bake/badge/lts?label=Stackage)](https://www.stackage.org/package/bake) [![Build Status](https://img.shields.io/travis/ndmitchell/bake.svg)](https://travis-ci.org/ndmitchell/bake)
 
 **Warning: This project is still under heavy development and you are recommended to use the Git repo rather than a packaged release.**
 
