@@ -1,34 +1,46 @@
-{ nixpkgs ? import <nixpkgs> {}, compiler ? "ghc7101" }:
+{ nixpkgs ? import <nixpkgs> {}, compiler ? "default" }:
 
 let
 
   inherit (nixpkgs) pkgs;
 
-  f = { mkDerivation, aeson, base, bytestring, cabal-install, cmdargs
-      , containers, deepseq, direct-sqlite, directory, disk-free-space
-      , extra, filepath, hashable, HTTP, http-types, old-locale, process
-      , random, safe, shake, smtp-mail, sqlite-simple, stdenv, text, time
-      , transformers, unordered-containers, wai, warp
+  f = { mkDerivation, aeson, base, bytestring, cmdargs, containers
+      , deepseq, direct-sqlite, directory, disk-free-space, extra
+      , filepath, hashable, HTTP, http-client, http-conduit, http-types
+      , old-locale, process, random, safe, shake, smtp-mail
+      , sqlite-simple, stdenv, text, time, transformers
+      , unordered-containers, wai, wai-extra, warp
       }:
       mkDerivation {
         pname = "bake";
-        version = "0.3";
+        version = "0.5";
         src = ./.;
         isLibrary = true;
         isExecutable = true;
-        buildDepends = [
+        libraryHaskellDepends = [
           aeson base bytestring cmdargs containers deepseq direct-sqlite
-          directory disk-free-space extra filepath hashable HTTP http-types
-          old-locale process random safe shake smtp-mail sqlite-simple text
-          time transformers unordered-containers wai warp
+          directory disk-free-space extra filepath hashable HTTP http-client
+          http-conduit http-types old-locale random safe shake smtp-mail
+          sqlite-simple text time transformers unordered-containers wai
+          wai-extra warp
         ];
-        buildTools = [ cabal-install ];
+        executableHaskellDepends = [
+          aeson base bytestring cmdargs containers deepseq direct-sqlite
+          directory disk-free-space extra filepath hashable HTTP http-client
+          http-conduit http-types old-locale process random safe shake
+          smtp-mail sqlite-simple text time transformers unordered-containers
+          wai wai-extra warp
+        ];
         homepage = "https://github.com/ndmitchell/bake#readme";
         description = "Continuous integration system";
         license = stdenv.lib.licenses.bsd3;
       };
 
-  drv = pkgs.haskell.packages.${compiler}.callPackage f {};
+  haskellPackages = if compiler == "default"
+                       then pkgs.haskellPackages
+                       else pkgs.haskell.packages.${compiler};
+
+  drv = haskellPackages.callPackage f {};
 
 in
 
