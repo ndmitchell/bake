@@ -1,6 +1,6 @@
-# Bake [![Hackage version](https://img.shields.io/hackage/v/bake.svg?label=Hackage)](https://hackage.haskell.org/package/bake) [![Stackage version](https://www.stackage.org/package/bake/badge/lts?label=Stackage)](https://www.stackage.org/package/bake) [![Build Status](https://img.shields.io/travis/ndmitchell/bake.svg)](https://travis-ci.org/ndmitchell/bake)
+# WARNING: UNMAINTAINED PROJECT
 
-**Warning: This project is not actively developed - you are likely to be better of using something more complete (if you do want to use it, consider forking it and taking it over).**
+**This project is not actively developed - you are likely to be better of using something more complete (if you do want to use it, consider forking it and taking it over). See [the blog post](https://neilmitchell.blogspot.co.uk/2018/05/the-end-of-bake.html) giving notes on why it is now unmaintained.**
 
 Bake is a continuous integration server, designed for large, productive, semi-trusted teams. In particular it primarily targets:
 
